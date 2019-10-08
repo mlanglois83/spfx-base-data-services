@@ -7,7 +7,6 @@ export interface IConfiguration {
     Version: number,
     checkOnline: boolean;
     context: BaseComponentContext,
-    versionHigherErrorMessage: string,
     tableNames: Array<string>,
     translations: ITranslationLabels,
     serviceFactory: BaseServiceFactory
