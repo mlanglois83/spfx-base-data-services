@@ -149,8 +149,9 @@ var BaseDbService = /** @class */ (function (_super) {
                         dbName = Text.format(BaseService.Configuration.DbName, BaseService.Configuration.context.pageContext.web.serverRelativeUrl);
                         _a = this;
                         return [4 /*yield*/, openDb(dbName, BaseService.Configuration.Version, function (UpgradeDB) {
+                                var tableNames = Constants.tableNames.concat(BaseService.Configuration.tableNames);
                                 // add new tables
-                                for (var tableName in Constants.tableNames.concat(BaseService.Configuration.tableNames)) {
+                                for (var tableName in tableNames) {
                                     if (!UpgradeDB.objectStoreNames.contains(tableName)) {
                                         UpgradeDB.createObjectStore(tableName, { keyPath: 'id', autoIncrement: tableName == "Transaction" });
                                     }
