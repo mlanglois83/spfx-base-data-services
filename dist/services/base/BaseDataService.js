@@ -194,7 +194,7 @@ var BaseDataService = /** @class */ (function (_super) {
                                     return [4 /*yield*/, this.needRefreshCache()];
                                 case 1:
                                     reloadData = _a.sent();
-                                    if (!reloadData) return [3 /*break*/, 3];
+                                    if (!(reloadData && BaseService.Configuration.checkOnline)) return [3 /*break*/, 3];
                                     return [4 /*yield*/, this.utilService.CheckOnline()];
                                 case 2:
                                     reloadData = _a.sent();
@@ -253,7 +253,7 @@ var BaseDataService = /** @class */ (function (_super) {
                                     return [4 /*yield*/, this.needRefreshCache(keyCached)];
                                 case 1:
                                     reloadData = _a.sent();
-                                    if (!reloadData) return [3 /*break*/, 3];
+                                    if (!(reloadData && BaseService.Configuration.checkOnline)) return [3 /*break*/, 3];
                                     return [4 /*yield*/, this.utilService.CheckOnline()];
                                 case 2:
                                     reloadData = _a.sent();
@@ -312,7 +312,7 @@ var BaseDataService = /** @class */ (function (_super) {
                                     return [4 /*yield*/, this.needRefreshCache(keyCached)];
                                 case 1:
                                     reloadData = _a.sent();
-                                    if (!reloadData) return [3 /*break*/, 3];
+                                    if (!(reloadData && BaseService.Configuration.checkOnline)) return [3 /*break*/, 3];
                                     return [4 /*yield*/, this.utilService.CheckOnline()];
                                 case 2:
                                     reloadData = _a.sent();
@@ -361,47 +361,51 @@ var BaseDataService = /** @class */ (function (_super) {
                     case 0:
                         result = null;
                         itemResult = null;
+                        isconnected = true;
+                        if (!BaseService.Configuration.checkOnline) return [3 /*break*/, 2];
                         return [4 /*yield*/, this.utilService.CheckOnline()];
                     case 1:
                         isconnected = _a.sent();
-                        if (!isconnected) return [3 /*break*/, 11];
                         _a.label = 2;
                     case 2:
-                        _a.trys.push([2, 5, , 10]);
-                        return [4 /*yield*/, this.addOrUpdateItem_Internal(item)];
+                        if (!isconnected) return [3 /*break*/, 12];
+                        _a.label = 3;
                     case 3:
+                        _a.trys.push([3, 6, , 11]);
+                        return [4 /*yield*/, this.addOrUpdateItem_Internal(item)];
+                    case 4:
                         itemResult = _a.sent();
                         return [4 /*yield*/, this.dbService.addOrUpdateItem(itemResult)];
-                    case 4:
+                    case 5:
                         _a.sent();
                         result = {
                             item: itemResult
                         };
-                        return [3 /*break*/, 10];
-                    case 5:
-                        error_4 = _a.sent();
-                        if (!(error_4.name === Constants.Errors.ItemVersionConfict)) return [3 /*break*/, 8];
-                        return [4 /*yield*/, this.getById_Internal(item.id)];
+                        return [3 /*break*/, 11];
                     case 6:
+                        error_4 = _a.sent();
+                        if (!(error_4.name === Constants.Errors.ItemVersionConfict)) return [3 /*break*/, 9];
+                        return [4 /*yield*/, this.getById_Internal(item.id)];
+                    case 7:
                         itemResult = _a.sent();
                         return [4 /*yield*/, this.dbService.addOrUpdateItems([itemResult])];
-                    case 7:
+                    case 8:
                         _a.sent();
                         result = {
                             item: itemResult,
                             error: error_4
                         };
-                        return [3 /*break*/, 9];
-                    case 8:
+                        return [3 /*break*/, 10];
+                    case 9:
                         result = {
                             item: item,
                             error: error_4
                         };
-                        _a.label = 9;
-                    case 9: return [3 /*break*/, 10];
-                    case 10: return [3 /*break*/, 14];
-                    case 11: return [4 /*yield*/, this.dbService.addOrUpdateItem(item)];
-                    case 12:
+                        _a.label = 10;
+                    case 10: return [3 /*break*/, 11];
+                    case 11: return [3 /*break*/, 15];
+                    case 12: return [4 /*yield*/, this.dbService.addOrUpdateItem(item)];
+                    case 13:
                         result = _a.sent();
                         ot = new OfflineTransaction();
                         ot.itemData = assign({}, result.item);
@@ -409,10 +413,10 @@ var BaseDataService = /** @class */ (function (_super) {
                         ot.serviceName = this.serviceName;
                         ot.title = TransactionType.AddOrUpdate;
                         return [4 /*yield*/, this.transactionService.addOrUpdateItem(ot)];
-                    case 13:
+                    case 14:
                         _a.sent();
-                        _a.label = 14;
-                    case 14: return [2 /*return*/, result];
+                        _a.label = 15;
+                    case 15: return [2 /*return*/, result];
                 }
             });
         });
@@ -422,19 +426,24 @@ var BaseDataService = /** @class */ (function (_super) {
             var isconnected, ot;
             return __generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4 /*yield*/, this.utilService.CheckOnline()];
+                    case 0:
+                        isconnected = true;
+                        if (!BaseService.Configuration.checkOnline) return [3 /*break*/, 2];
+                        return [4 /*yield*/, this.utilService.CheckOnline()];
                     case 1:
                         isconnected = _a.sent();
-                        if (!isconnected) return [3 /*break*/, 4];
-                        return [4 /*yield*/, this.deleteItem_Internal(item)];
+                        _a.label = 2;
                     case 2:
-                        _a.sent();
-                        return [4 /*yield*/, this.dbService.deleteItem(item)];
+                        if (!isconnected) return [3 /*break*/, 5];
+                        return [4 /*yield*/, this.deleteItem_Internal(item)];
                     case 3:
                         _a.sent();
-                        return [3 /*break*/, 7];
-                    case 4: return [4 /*yield*/, this.dbService.deleteItem(item)];
-                    case 5:
+                        return [4 /*yield*/, this.dbService.deleteItem(item)];
+                    case 4:
+                        _a.sent();
+                        return [3 /*break*/, 8];
+                    case 5: return [4 /*yield*/, this.dbService.deleteItem(item)];
+                    case 6:
                         _a.sent();
                         ot = new OfflineTransaction();
                         ot.itemData = assign({}, item);
@@ -442,10 +451,10 @@ var BaseDataService = /** @class */ (function (_super) {
                         ot.serviceName = this.serviceName;
                         ot.title = TransactionType.Delete;
                         return [4 /*yield*/, this.transactionService.addOrUpdateItem(ot)];
-                    case 6:
+                    case 7:
                         _a.sent();
-                        _a.label = 7;
-                    case 7: return [2 /*return*/, null];
+                        _a.label = 8;
+                    case 8: return [2 /*return*/, null];
                 }
             });
         });

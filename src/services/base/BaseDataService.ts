@@ -149,7 +149,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                     //has to refresh cache
                     let reloadData = await this.needRefreshCache();
                     //if refresh is needed, test offline/online
-                    if (reloadData) {
+                    if (reloadData && BaseService.Configuration.checkOnline) {
                         reloadData = await this.utilService.CheckOnline();
                     }
 
@@ -193,7 +193,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                     //has to refresh cache
                     let reloadData = await this.needRefreshCache(keyCached);
                     //if refresh is needed, test offline/online
-                    if (reloadData) {
+                    if (reloadData && BaseService.Configuration.checkOnline) {
                         reloadData = await this.utilService.CheckOnline();
                     }
 
@@ -234,7 +234,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
 
                     let reloadData = await this.needRefreshCache(keyCached);
                     //if refresh is needed, test offline/online
-                    if (reloadData) {
+                    if (reloadData &&  BaseService.Configuration.checkOnline) {
                         reloadData = await this.utilService.CheckOnline();
                     }
 
@@ -267,7 +267,12 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
     public async addOrUpdateItem(item: T): Promise<IAddOrUpdateResult<T>> {
         let result: IAddOrUpdateResult<T> = null;
         let itemResult: T = null;
-        let isconnected = await this.utilService.CheckOnline();
+
+        let isconnected = true 
+        if(BaseService.Configuration.checkOnline)
+        {
+            isconnected = await this.utilService.CheckOnline();
+        }
         if (isconnected) {
             try {
                 itemResult = await this.addOrUpdateItem_Internal(item);
@@ -310,7 +315,11 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
     protected abstract deleteItem_Internal(item: T): Promise<void>;
 
     public async deleteItem(item: T): Promise<void> {
-        let isconnected = await this.utilService.CheckOnline();
+        let isconnected = true 
+        if(BaseService.Configuration.checkOnline)
+        {
+            isconnected = await this.utilService.CheckOnline();
+        }        
         if (isconnected) {
             await this.deleteItem_Internal(item);
             await this.dbService.deleteItem(item);

@@ -4,6 +4,7 @@ import { BaseServiceFactory } from "../services";
 export interface IConfiguration {
     DbName: string;
     Version: number;
+    checkOnline: boolean;
     context: BaseComponentContext;
     versionHigherErrorMessage: string;
     tableNames: Array<string>;
