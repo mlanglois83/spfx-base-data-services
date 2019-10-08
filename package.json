@@ -1,5 +1,5 @@
 {
-  "name": "SPFX-Base-Data-Services",
+  "name": "spfx-base-data-services",
   "version": "0.0.1",
   "private": false,
   "types": "dist/index.d.ts",
