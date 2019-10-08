@@ -50,7 +50,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 import { BaseService } from "../base/BaseService";
 import { SPFile } from "../../models/index";
 import { TransactionType, Constants } from "../../constants/index";
-import { ServiceFactory } from "../base/ServiceFactory";
 import { assign } from "@microsoft/sp-lodash-subset";
 import { TransactionService } from "./TransactionService";
 import { Text } from "@microsoft/sp-core-library";
@@ -79,8 +78,8 @@ var SynchronizationService = /** @class */ (function (_super) {
                                     return __generator(this, function (_b) {
                                         switch (_b.label) {
                                             case 0:
-                                                itemType = ServiceFactory.getItemTypeByName(transaction.itemType);
-                                                dataService = ServiceFactory.create(BaseService.Configuration.context, transaction.serviceName);
+                                                itemType = BaseService.Configuration.serviceFactory.getItemTypeByName(transaction.itemType);
+                                                dataService = BaseService.Configuration.serviceFactory.create(transaction.serviceName);
                                                 item = assign(new itemType(), transaction.itemData);
                                                 _a = transaction.title;
                                                 switch (_a) {
@@ -168,7 +167,7 @@ var SynchronizationService = /** @class */ (function (_super) {
     SynchronizationService.prototype.formatError = function (transaction, message) {
         var operationLabel;
         var itemTypeLabel;
-        var itemType = ServiceFactory.getItemTypeByName(transaction.itemType);
+        var itemType = BaseService.Configuration.serviceFactory.getItemTypeByName(transaction.itemType);
         var item = assign(new itemType(), transaction.itemData);
         switch (transaction.title) {
             case TransactionType.AddOrUpdate:

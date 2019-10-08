@@ -1,6 +1,6 @@
 import { BaseComponentContext } from "@microsoft/sp-component-base";
 import { ITranslationLabels } from "./";
-import { ServiceFactory } from "../services/base/ServiceFactory";
+import { BaseServiceFactory } from "../services";
 export interface IConfiguration {
     DbName: string;
     Version: number;
@@ -8,5 +8,5 @@ export interface IConfiguration {
     versionHigherErrorMessage: string;
     tableNames: Array<string>;
     translations: ITranslationLabels;
-    serviceFactory: ServiceFactory;
+    serviceFactory: BaseServiceFactory;
 }

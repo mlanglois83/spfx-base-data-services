@@ -3,7 +3,7 @@ import { BaseService } from "../base/BaseService";
 import { BaseDbService } from "../base/BaseDbService";
 import { OfflineTransaction, SPFile } from "../../models/index";
 import { TransactionType, Constants } from "../../constants/index";
-import { ServiceFactory } from "../base/ServiceFactory";
+import { BaseServiceFactory } from "../base/BaseServiceFactory";
 import { assign } from "@microsoft/sp-lodash-subset";
 import { IBaseItem } from "../../interfaces/index";
 import { TransactionService } from "./TransactionService";
@@ -28,8 +28,8 @@ export class SynchronizationService extends BaseService {
         await Promise.all(transactions.map((transaction, index) => {
             return new Promise<void>(async(resolve, reject) => {
                 // get associated type & service
-                let itemType = ServiceFactory.getItemTypeByName(transaction.itemType);
-                let dataService = ServiceFactory.create(BaseService.Configuration.context, transaction.serviceName);
+                let itemType = BaseService.Configuration.serviceFactory.getItemTypeByName(transaction.itemType);
+                let dataService = BaseService.Configuration.serviceFactory.create(transaction.serviceName);
                 // transform item to destination type
                 let item = assign(new itemType(), transaction.itemData);
                 switch (transaction.title) {
@@ -87,7 +87,7 @@ export class SynchronizationService extends BaseService {
     private formatError(transaction: OfflineTransaction, message: string) {
         let operationLabel: string;
         let itemTypeLabel :string;
-        let itemType = ServiceFactory.getItemTypeByName(transaction.itemType);
+        let itemType = BaseService.Configuration.serviceFactory.getItemTypeByName(transaction.itemType);
         let item = assign(new itemType(), transaction.itemData);
         switch (transaction.title) {
             case TransactionType.AddOrUpdate:
