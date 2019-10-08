@@ -73,7 +73,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
             this.db = await openDb(dbName, BaseService.Configuration.Version, (UpgradeDB) => {
                 const tableNames = Constants.tableNames.concat(BaseService.Configuration.tableNames);
                 // add new tables
-                for (const tableName in tableNames) {
+                for (const tableName of tableNames) {
                     if (!UpgradeDB.objectStoreNames.contains(tableName)) {
                         UpgradeDB.createObjectStore(tableName, { keyPath: 'id', autoIncrement: tableName == "Transaction" });
                     }
