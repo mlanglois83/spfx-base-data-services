@@ -10,4 +10,5 @@ export declare const Constants: {
         tableName: string;
         relativeUrl: string;
     };
+    tableNames: string[];
 };

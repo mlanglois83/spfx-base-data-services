@@ -60,6 +60,7 @@ import { openDb } from "idb";
 import { SPFile } from "../../models/index";
 import { UtilsService } from "../index";
 import { BaseService } from "./BaseService";
+import { Constants } from "../../constants";
 /**
  * Base classe for indexedDB interraction using SP repository
  */
@@ -149,7 +150,7 @@ var BaseDbService = /** @class */ (function (_super) {
                         _a = this;
                         return [4 /*yield*/, openDb(dbName, BaseService.Configuration.Version, function (UpgradeDB) {
                                 // add new tables
-                                for (var tableName in BaseService.Configuration.tableNames) {
+                                for (var tableName in Constants.tableNames.concat(BaseService.Configuration.tableNames)) {
                                     if (!UpgradeDB.objectStoreNames.contains(tableName)) {
                                         UpgradeDB.createObjectStore(tableName, { keyPath: 'id', autoIncrement: tableName == "Transaction" });
                                     }

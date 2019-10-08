@@ -1,4 +1,3 @@
-import { BaseComponentContext } from "@microsoft/sp-component-base";
 import { Text } from "@microsoft/sp-core-library";
 import { assign } from "@microsoft/sp-lodash-subset";
 import { DB, openDb, ObjectStore } from "idb";
@@ -8,6 +7,7 @@ import { SPFile } from "../../models/index";
 import { UtilsService } from "../index";
 import { BaseService } from "./BaseService";
 import { IAddOrUpdateResult } from "../../interfaces";
+import { Constants } from "../../constants";
 
 
 /**
@@ -72,7 +72,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
             const dbName = Text.format(BaseService.Configuration.DbName, BaseService.Configuration.context.pageContext.web.serverRelativeUrl);
             this.db = await openDb(dbName, BaseService.Configuration.Version, (UpgradeDB) => {
                 // add new tables
-                for (const tableName in BaseService.Configuration.tableNames) {
+                for (const tableName in Constants.tableNames.concat(BaseService.Configuration.tableNames)) {
                     if (!UpgradeDB.objectStoreNames.contains(tableName)) {
                         UpgradeDB.createObjectStore(tableName, { keyPath: 'id', autoIncrement: tableName == "Transaction" });
                     }

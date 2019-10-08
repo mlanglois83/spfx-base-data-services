@@ -9,6 +9,11 @@ export var Constants = {
     taxonomyHiddenList: {
         tableName: "TaxonomyHiddenList",
         relativeUrl: "/lists/taxonomyhiddenlist"
-    }
+    },
+    tableNames: [
+        "Transaction",
+        "TransactionFiles",
+        "TaxonomyHiddenList"
+    ]
 };
 //# sourceMappingURL=Constants.js.map

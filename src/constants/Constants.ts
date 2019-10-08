@@ -9,5 +9,9 @@ export const Constants = {
     taxonomyHiddenList: {
         tableName: "TaxonomyHiddenList",
         relativeUrl: "/lists/taxonomyhiddenlist"
-    }
+    },
+    tableNames: [
+        "Transaction",
+        "TransactionFiles",
+        "TaxonomyHiddenList"]
 };
