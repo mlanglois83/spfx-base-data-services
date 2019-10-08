@@ -7,4 +7,5 @@ export { BaseTermsetService } from "./base/BaseTermsetService";
 export { BaseService } from "./base/BaseService";
 export { UtilsService } from "./UtilsService";
 export { SynchronizationService } from "./synchronization/SynchronizationService";
+export { TransactionService } from "./synchronization/TransactionService";
 export { TaxonomyHiddenListService } from "./sp/TaxonomyHiddenListService";
