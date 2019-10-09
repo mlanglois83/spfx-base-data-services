@@ -443,7 +443,7 @@ var BaseDbService = /** @class */ (function (_super) {
                         rows_1 = _a.sent();
                         rows_1.forEach(function (r) {
                             var item = new _this.itemType();
-                            var resultItem = assign.apply(void 0, __spreadArrays([item], r));
+                            var resultItem = assign(item, r);
                             if (item instanceof SPFile) {
                                 // item is a part of another file
                                 var chunkparts = item.id.match(/^.*_chunk_\d+$/g);

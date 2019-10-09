@@ -268,7 +268,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
             let rows = await store.getAll();
             rows.forEach((r) => {
                 let item = new this.itemType();
-                let resultItem = assign(item, ...r);
+                let resultItem = assign(item, r);
                 if (item instanceof SPFile) {
                     // item is a part of another file
                     const chunkparts = item.id.match(/^.*_chunk_\d+$/g);
