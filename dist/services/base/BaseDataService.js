@@ -55,6 +55,7 @@ import { BaseDbService } from "./BaseDbService";
 import { BaseService } from "./BaseService";
 import { Text } from "@microsoft/sp-core-library";
 import { TransactionType, Constants } from "../../constants";
+import { ServicesConfiguration } from "../..";
 /**
  * Base class for data service allowing automatic management of online/offline mode with links to db and sp
  */
@@ -85,7 +86,7 @@ var BaseDataService = /** @class */ (function (_super) {
     });
     BaseDataService.prototype.getCacheKey = function (key) {
         if (key === void 0) { key = "all"; }
-        return Text.format(Constants.cacheKeys.latestDataLoadFormat, BaseService.Configuration.context.pageContext.web.serverRelativeUrl, this.serviceName, key);
+        return Text.format(Constants.cacheKeys.latestDataLoadFormat, ServicesConfiguration.context.pageContext.web.serverRelativeUrl, this.serviceName, key);
     };
     BaseDataService.prototype.getExistingPromise = function (key) {
         if (key === void 0) { key = "all"; }
@@ -193,7 +194,7 @@ var BaseDataService = /** @class */ (function (_super) {
                                     return [4 /*yield*/, this.needRefreshCache()];
                                 case 1:
                                     reloadData = _a.sent();
-                                    if (!(reloadData && BaseService.Configuration.checkOnline)) return [3 /*break*/, 3];
+                                    if (!(reloadData && ServicesConfiguration.configuration.checkOnline)) return [3 /*break*/, 3];
                                     return [4 /*yield*/, UtilsService.CheckOnline()];
                                 case 2:
                                     reloadData = _a.sent();
@@ -252,7 +253,7 @@ var BaseDataService = /** @class */ (function (_super) {
                                     return [4 /*yield*/, this.needRefreshCache(keyCached)];
                                 case 1:
                                     reloadData = _a.sent();
-                                    if (!(reloadData && BaseService.Configuration.checkOnline)) return [3 /*break*/, 3];
+                                    if (!(reloadData && ServicesConfiguration.configuration.checkOnline)) return [3 /*break*/, 3];
                                     return [4 /*yield*/, UtilsService.CheckOnline()];
                                 case 2:
                                     reloadData = _a.sent();
@@ -311,7 +312,7 @@ var BaseDataService = /** @class */ (function (_super) {
                                     return [4 /*yield*/, this.needRefreshCache(keyCached)];
                                 case 1:
                                     reloadData = _a.sent();
-                                    if (!(reloadData && BaseService.Configuration.checkOnline)) return [3 /*break*/, 3];
+                                    if (!(reloadData && ServicesConfiguration.configuration.checkOnline)) return [3 /*break*/, 3];
                                     return [4 /*yield*/, UtilsService.CheckOnline()];
                                 case 2:
                                     reloadData = _a.sent();
@@ -361,7 +362,7 @@ var BaseDataService = /** @class */ (function (_super) {
                         result = null;
                         itemResult = null;
                         isconnected = true;
-                        if (!BaseService.Configuration.checkOnline) return [3 /*break*/, 2];
+                        if (!ServicesConfiguration.configuration.checkOnline) return [3 /*break*/, 2];
                         return [4 /*yield*/, UtilsService.CheckOnline()];
                     case 1:
                         isconnected = _a.sent();
@@ -427,7 +428,7 @@ var BaseDataService = /** @class */ (function (_super) {
                 switch (_a.label) {
                     case 0:
                         isconnected = true;
-                        if (!BaseService.Configuration.checkOnline) return [3 /*break*/, 2];
+                        if (!ServicesConfiguration.configuration.checkOnline) return [3 /*break*/, 2];
                         return [4 /*yield*/, UtilsService.CheckOnline()];
                     case 1:
                         isconnected = _a.sent();

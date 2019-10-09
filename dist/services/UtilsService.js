@@ -49,6 +49,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 };
 import { BaseService } from "./base/BaseService";
 import { find } from "@microsoft/sp-lodash-subset";
+import { ServicesConfiguration } from "../";
 var UtilsService = /** @class */ (function (_super) {
     __extends(UtilsService, _super);
     function UtilsService() {
@@ -67,7 +68,7 @@ var UtilsService = /** @class */ (function (_super) {
                         _a.label = 1;
                     case 1:
                         _a.trys.push([1, 3, , 4]);
-                        return [4 /*yield*/, fetch(BaseService.Configuration.context.pageContext.web.absoluteUrl, { method: 'HEAD', mode: 'no-cors' })];
+                        return [4 /*yield*/, fetch(ServicesConfiguration.context.pageContext.web.absoluteUrl, { method: 'HEAD', mode: 'no-cors' })];
                     case 2:
                         response = _a.sent();
                         result = (response && (response.ok || response.type === 'opaque'));

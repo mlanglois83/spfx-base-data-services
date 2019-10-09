@@ -47,12 +47,12 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
+import { ServicesConfiguration } from "../..";
 import { SPHttpClient } from '@microsoft/sp-http';
 import { cloneDeep } from "@microsoft/sp-lodash-subset";
 import { sp } from "@pnp/sp";
 import { Constants } from "../../constants/index";
 import { BaseDataService } from "./BaseDataService";
-import { BaseService } from "./BaseService";
 import { UtilsService } from "..";
 /**
  *
@@ -68,7 +68,7 @@ var BaseListItemService = /** @class */ (function (_super) {
      */
     function BaseListItemService(type, listRelativeUrl, tableName, cacheDuration) {
         var _this = _super.call(this, type, tableName, cacheDuration) || this;
-        _this.listRelativeUrl = BaseService.Configuration.context.pageContext.web.serverRelativeUrl + listRelativeUrl;
+        _this.listRelativeUrl = ServicesConfiguration.context.pageContext.web.serverRelativeUrl + listRelativeUrl;
         _this.itemType = type;
         return _this;
     }
@@ -118,7 +118,7 @@ var BaseListItemService = /** @class */ (function (_super) {
                         _a.label = 4;
                     case 4:
                         _a.trys.push([4, 7, , 8]);
-                        return [4 /*yield*/, BaseService.Configuration.context.spHttpClient.get(BaseService.Configuration.context.pageContext.web.absoluteUrl + "/_api/web/getList('" + this.listRelativeUrl + "')", SPHttpClient.configurations.v1, {
+                        return [4 /*yield*/, ServicesConfiguration.context.spHttpClient.get(ServicesConfiguration.context.pageContext.web.absoluteUrl + "/_api/web/getList('" + this.listRelativeUrl + "')", SPHttpClient.configurations.v1, {
                                 headers: {
                                     'Accept': 'application/json;odata.metadata=minimal',
                                     'Cache-Control': 'no-cache'
@@ -229,7 +229,7 @@ var BaseListItemService = /** @class */ (function (_super) {
                     case 3:
                         existing = _a.sent();
                         if (!(parseFloat(existing["OData__UIVersionString"]) > item.version)) return [3 /*break*/, 4];
-                        error = new Error(BaseService.Configuration.translations.versionHigherErrorMessage);
+                        error = new Error(ServicesConfiguration.configuration.translations.versionHigherErrorMessage);
                         error.name = Constants.Errors.ItemVersionConfict;
                         throw error;
                     case 4: return [4 /*yield*/, this.list.items.getById(item.id).update(item.convert())];

@@ -52,7 +52,7 @@ import * as mime from "mime-types";
 import { UtilsService } from "../";
 import { SPFile } from "../../models";
 import { BaseDataService } from "./BaseDataService";
-import { BaseService } from "./BaseService";
+import { ServicesConfiguration } from "../..";
 /**
  * Base service for sp files operations
  */
@@ -67,7 +67,7 @@ var BaseFileService = /** @class */ (function (_super) {
     function BaseFileService(type, listRelativeUrl, tableName) {
         var _this = _super.call(this, type, tableName) || this;
         _this.itemType = type;
-        _this.listRelativeUrl = BaseService.Configuration.context.pageContext.web.serverRelativeUrl + listRelativeUrl;
+        _this.listRelativeUrl = ServicesConfiguration.context.pageContext.web.serverRelativeUrl + listRelativeUrl;
         return _this;
     }
     Object.defineProperty(BaseFileService.prototype, "list", {

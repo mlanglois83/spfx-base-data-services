@@ -7,6 +7,7 @@ import { IBaseItem } from "../../interfaces/index";
 import { SPFile } from "../../models";
 import { BaseDataService } from "./BaseDataService";
 import { BaseService } from "./BaseService";
+import { ServicesConfiguration } from "../..";
 
 /**
  * Base service for sp files operations
@@ -34,7 +35,7 @@ export class BaseFileService<T extends IBaseItem> extends BaseDataService<T> imp
     constructor(type: (new (item?: any) => T), listRelativeUrl: string, tableName: string) {
         super(type, tableName);
         this.itemType = type;
-        this.listRelativeUrl = BaseService.Configuration.context.pageContext.web.serverRelativeUrl + listRelativeUrl;
+        this.listRelativeUrl = ServicesConfiguration.context.pageContext.web.serverRelativeUrl + listRelativeUrl;
     }
     /**
      * Retrieve all items

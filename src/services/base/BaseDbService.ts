@@ -8,6 +8,7 @@ import { UtilsService } from "../index";
 import { BaseService } from "./BaseService";
 import { IAddOrUpdateResult } from "../../interfaces";
 import { Constants } from "../../constants";
+import { ServicesConfiguration } from "../..";
 
 
 /**
@@ -67,11 +68,11 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
     protected async OpenDb(): Promise<void> {
         if (this.db == null) {
             if (!('indexedDB' in window)) {
-                throw new Error(BaseService.Configuration.translations.IndexedDBNotDefined);
+                throw new Error(ServicesConfiguration.configuration.translations.IndexedDBNotDefined);
             }
-            const dbName = Text.format(BaseService.Configuration.DbName, BaseService.Configuration.context.pageContext.web.serverRelativeUrl);
-            this.db = await openDb(dbName, BaseService.Configuration.Version, (UpgradeDB) => {
-                const tableNames = Constants.tableNames.concat(BaseService.Configuration.tableNames);
+            const dbName = Text.format(ServicesConfiguration.configuration.DbName, ServicesConfiguration.context.pageContext.web.serverRelativeUrl);
+            this.db = await openDb(dbName, ServicesConfiguration.configuration.Version, (UpgradeDB) => {
+                const tableNames = Constants.tableNames.concat(ServicesConfiguration.configuration.tableNames);
                 // add new tables
                 for (const tableName of tableNames) {
                     if (!UpgradeDB.objectStoreNames.contains(tableName)) {

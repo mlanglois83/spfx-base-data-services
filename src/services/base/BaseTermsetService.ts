@@ -7,7 +7,7 @@ import { TaxonomyHiddenListService } from "../";
 import { find } from "@microsoft/sp-lodash-subset";
 import { Text } from "@microsoft/sp-core-library";
 import { stringIsNullOrEmpty } from "@pnp/common";
-import { BaseService } from "./BaseService";
+import { ServicesConfiguration } from "../..";
 
 
 const standardTermSetCacheDuration: number = 10;
@@ -36,10 +36,10 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
     }
 
     protected set customSortOrder(value: string) {
-        localStorage.setItem(Text.format(Constants.cacheKeys.termsetCustomOrder, BaseService.Configuration.context.pageContext.web.serverRelativeUrl, this.serviceName), value ? value : "");
+        localStorage.setItem(Text.format(Constants.cacheKeys.termsetCustomOrder, ServicesConfiguration.context.pageContext.web.serverRelativeUrl, this.serviceName), value ? value : "");
     }
     protected get customSortOrder(): string {
-        return localStorage.getItem(Text.format(Constants.cacheKeys.termsetCustomOrder, BaseService.Configuration.context.pageContext.web.serverRelativeUrl, this.serviceName));
+        return localStorage.getItem(Text.format(Constants.cacheKeys.termsetCustomOrder, ServicesConfiguration.context.pageContext.web.serverRelativeUrl, this.serviceName));
     }
 
 

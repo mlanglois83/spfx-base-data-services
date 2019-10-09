@@ -55,7 +55,7 @@ import { TaxonomyHiddenListService } from "../";
 import { find } from "@microsoft/sp-lodash-subset";
 import { Text } from "@microsoft/sp-core-library";
 import { stringIsNullOrEmpty } from "@pnp/common";
-import { BaseService } from "./BaseService";
+import { ServicesConfiguration } from "../..";
 var standardTermSetCacheDuration = 10;
 /**
  * Base service for sp termset operations
@@ -95,10 +95,10 @@ var BaseTermsetService = /** @class */ (function (_super) {
     });
     Object.defineProperty(BaseTermsetService.prototype, "customSortOrder", {
         get: function () {
-            return localStorage.getItem(Text.format(Constants.cacheKeys.termsetCustomOrder, BaseService.Configuration.context.pageContext.web.serverRelativeUrl, this.serviceName));
+            return localStorage.getItem(Text.format(Constants.cacheKeys.termsetCustomOrder, ServicesConfiguration.context.pageContext.web.serverRelativeUrl, this.serviceName));
         },
         set: function (value) {
-            localStorage.setItem(Text.format(Constants.cacheKeys.termsetCustomOrder, BaseService.Configuration.context.pageContext.web.serverRelativeUrl, this.serviceName), value ? value : "");
+            localStorage.setItem(Text.format(Constants.cacheKeys.termsetCustomOrder, ServicesConfiguration.context.pageContext.web.serverRelativeUrl, this.serviceName), value ? value : "");
         },
         enumerable: true,
         configurable: true

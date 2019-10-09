@@ -1,7 +1,7 @@
-import { BaseComponentContext } from "@microsoft/sp-component-base";
 import { BaseService } from "./base/BaseService";
 import { TaxonomyTerm } from "../models/index";
 import { find } from "@microsoft/sp-lodash-subset";
+import { ServicesConfiguration } from "../";
 
 export class UtilsService extends BaseService {
 
@@ -19,7 +19,7 @@ export class UtilsService extends BaseService {
 
 
         try {
-            const response = await fetch(BaseService.Configuration.context.pageContext.web.absoluteUrl, { method: 'HEAD', mode: 'no-cors' }); // head method not cached
+            const response = await fetch(ServicesConfiguration.context.pageContext.web.absoluteUrl, { method: 'HEAD', mode: 'no-cors' }); // head method not cached
             result = (response && (response.ok || response.type === 'opaque'));
         }
         catch (ex) {

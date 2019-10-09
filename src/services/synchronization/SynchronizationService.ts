@@ -8,6 +8,7 @@ import { assign } from "@microsoft/sp-lodash-subset";
 import { IBaseItem } from "../../interfaces/index";
 import { TransactionService } from "./TransactionService";
 import { Text } from "@microsoft/sp-core-library";
+import { ServicesConfiguration } from "../../configuration/ServicesConfiguration";
 
 
 export class SynchronizationService extends BaseService {
@@ -28,8 +29,8 @@ export class SynchronizationService extends BaseService {
         await Promise.all(transactions.map((transaction, index) => {
             return new Promise<void>(async(resolve, reject) => {
                 // get associated type & service
-                let itemType = BaseService.Configuration.serviceFactory.getItemTypeByName(transaction.itemType);
-                let dataService = BaseService.Configuration.serviceFactory.create(transaction.serviceName);
+                let itemType = ServicesConfiguration.configuration.serviceFactory.getItemTypeByName(transaction.itemType);
+                let dataService = ServicesConfiguration.configuration.serviceFactory.create(transaction.serviceName);
                 // transform item to destination type
                 let item = assign(new itemType(), transaction.itemData);
                 switch (transaction.title) {
@@ -87,27 +88,27 @@ export class SynchronizationService extends BaseService {
     private formatError(transaction: OfflineTransaction, message: string) {
         let operationLabel: string;
         let itemTypeLabel :string;
-        let itemType = BaseService.Configuration.serviceFactory.getItemTypeByName(transaction.itemType);
+        let itemType = ServicesConfiguration.configuration.serviceFactory.getItemTypeByName(transaction.itemType);
         let item = assign(new itemType(), transaction.itemData);
         switch (transaction.title) {
             case TransactionType.AddOrUpdate:
                 if(item instanceof SPFile) {
-                    operationLabel = BaseService.Configuration.translations.UploadLabel;
+                    operationLabel = ServicesConfiguration.configuration.translations.UploadLabel;
                 }
                 else if(item.id < 0) {
-                    operationLabel = BaseService.Configuration.translations.AddLabel;
+                    operationLabel = ServicesConfiguration.configuration.translations.AddLabel;
                 }
                 else {
-                    operationLabel = BaseService.Configuration.translations.UpdateLabel;
+                    operationLabel = ServicesConfiguration.configuration.translations.UpdateLabel;
                 }
                 break;
             case TransactionType.Delete:
-                operationLabel = BaseService.Configuration.translations.DeleteLabel;                
+                operationLabel = ServicesConfiguration.configuration.translations.DeleteLabel;                
                 break;
             default: break;
         }
-        itemTypeLabel = BaseService.Configuration.translations.typeTranslations[transaction.itemType] ? BaseService.Configuration.translations.typeTranslations[transaction.itemType]: transaction.itemType;
-        return Text.format(BaseService.Configuration.translations.SynchronisationErrorFormat, itemTypeLabel, operationLabel, item.title, item.id, message);
+        itemTypeLabel = ServicesConfiguration.configuration.translations.typeTranslations[transaction.itemType] ? ServicesConfiguration.configuration.translations.typeTranslations[transaction.itemType]: transaction.itemType;
+        return Text.format(ServicesConfiguration.configuration.translations.SynchronisationErrorFormat, itemTypeLabel, operationLabel, item.title, item.id, message);
     }
 
 }

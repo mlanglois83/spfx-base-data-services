@@ -1,4 +1,4 @@
-import { BaseComponentContext } from "@microsoft/sp-component-base";
+import { ServicesConfiguration } from "../..";
 import { SPHttpClient } from '@microsoft/sp-http';
 import { cloneDeep } from "@microsoft/sp-lodash-subset";
 import { CamlQuery, List, sp } from "@pnp/sp";
@@ -35,7 +35,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
      */
     constructor(type: (new (item?: any) => T), listRelativeUrl: string, tableName: string, cacheDuration?: number) {
         super(type, tableName, cacheDuration);
-        this.listRelativeUrl = BaseService.Configuration.context.pageContext.web.serverRelativeUrl + listRelativeUrl;
+        this.listRelativeUrl = ServicesConfiguration.context.pageContext.web.serverRelativeUrl + listRelativeUrl;
         this.itemType = type;
 
     }
@@ -61,7 +61,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 if (cachedDataDate) {
 
                     try {
-                        let response = await BaseService.Configuration.context.spHttpClient.get(`${BaseService.Configuration.context.pageContext.web.absoluteUrl}/_api/web/getList('${this.listRelativeUrl}')`,
+                        let response = await ServicesConfiguration.context.spHttpClient.get(`${ServicesConfiguration.context.pageContext.web.absoluteUrl}/_api/web/getList('${this.listRelativeUrl}')`,
                             SPHttpClient.configurations.v1,
                             {
                                 headers: {
@@ -149,7 +149,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
             if (item.version) {
                 let existing = await this.list.items.getById(<number>item.id).select("OData__UIVersionString").get();
                 if (parseFloat(existing["OData__UIVersionString"]) > item.version) {
-                    let error = new Error(BaseService.Configuration.translations.versionHigherErrorMessage);
+                    let error = new Error(ServicesConfiguration.configuration.translations.versionHigherErrorMessage);
                     error.name = Constants.Errors.ItemVersionConfict;
                     throw error;
                 }

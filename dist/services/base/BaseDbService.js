@@ -61,6 +61,7 @@ import { SPFile } from "../../models/index";
 import { UtilsService } from "../index";
 import { BaseService } from "./BaseService";
 import { Constants } from "../../constants";
+import { ServicesConfiguration } from "../..";
 /**
  * Base classe for indexedDB interraction using SP repository
  */
@@ -144,12 +145,12 @@ var BaseDbService = /** @class */ (function (_super) {
                     case 0:
                         if (!(this.db == null)) return [3 /*break*/, 2];
                         if (!('indexedDB' in window)) {
-                            throw new Error(BaseService.Configuration.translations.IndexedDBNotDefined);
+                            throw new Error(ServicesConfiguration.configuration.translations.IndexedDBNotDefined);
                         }
-                        dbName = Text.format(BaseService.Configuration.DbName, BaseService.Configuration.context.pageContext.web.serverRelativeUrl);
+                        dbName = Text.format(ServicesConfiguration.configuration.DbName, ServicesConfiguration.context.pageContext.web.serverRelativeUrl);
                         _a = this;
-                        return [4 /*yield*/, openDb(dbName, BaseService.Configuration.Version, function (UpgradeDB) {
-                                var tableNames = Constants.tableNames.concat(BaseService.Configuration.tableNames);
+                        return [4 /*yield*/, openDb(dbName, ServicesConfiguration.configuration.Version, function (UpgradeDB) {
+                                var tableNames = Constants.tableNames.concat(ServicesConfiguration.configuration.tableNames);
                                 // add new tables
                                 for (var _i = 0, tableNames_1 = tableNames; _i < tableNames_1.length; _i++) {
                                     var tableName = tableNames_1[_i];

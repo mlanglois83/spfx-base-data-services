@@ -7,6 +7,7 @@ import { BaseDbService } from "./BaseDbService";
 import { BaseService } from "./BaseService";
 import { Text } from "@microsoft/sp-core-library";
 import { TransactionType, Constants } from "../../constants";
+import { ServicesConfiguration } from "../..";
 
 
 /**
@@ -44,7 +45,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
     }
 
     protected getCacheKey(key: string = "all"): string {
-        return Text.format(Constants.cacheKeys.latestDataLoadFormat, BaseService.Configuration.context.pageContext.web.serverRelativeUrl, this.serviceName, key);
+        return Text.format(Constants.cacheKeys.latestDataLoadFormat, ServicesConfiguration.context.pageContext.web.serverRelativeUrl, this.serviceName, key);
     }
 
     protected getExistingPromise(key: string = "all"): Promise<any> {
@@ -145,7 +146,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                     //has to refresh cache
                     let reloadData = await this.needRefreshCache();
                     //if refresh is needed, test offline/online
-                    if (reloadData && BaseService.Configuration.checkOnline) {
+                    if (reloadData && ServicesConfiguration.configuration.checkOnline) {
                         reloadData = await UtilsService.CheckOnline();
                     }
 
@@ -189,7 +190,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                     //has to refresh cache
                     let reloadData = await this.needRefreshCache(keyCached);
                     //if refresh is needed, test offline/online
-                    if (reloadData && BaseService.Configuration.checkOnline) {
+                    if (reloadData && ServicesConfiguration.configuration.checkOnline) {
                         reloadData = await UtilsService.CheckOnline();
                     }
 
@@ -230,7 +231,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
 
                     let reloadData = await this.needRefreshCache(keyCached);
                     //if refresh is needed, test offline/online
-                    if (reloadData &&  BaseService.Configuration.checkOnline) {
+                    if (reloadData &&  ServicesConfiguration.configuration.checkOnline) {
                         reloadData = await UtilsService.CheckOnline();
                     }
 
@@ -265,7 +266,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         let itemResult: T = null;
 
         let isconnected = true 
-        if(BaseService.Configuration.checkOnline)
+        if(ServicesConfiguration.configuration.checkOnline)
         {
             isconnected = await UtilsService.CheckOnline();
         }
@@ -312,7 +313,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
 
     public async deleteItem(item: T): Promise<void> {
         let isconnected = true 
-        if(BaseService.Configuration.checkOnline)
+        if(ServicesConfiguration.configuration.checkOnline)
         {
             isconnected = await UtilsService.CheckOnline();
         }        
