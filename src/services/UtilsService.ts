@@ -14,7 +14,7 @@ export class UtilsService extends BaseService {
     /**
      * check is user has connexion
      */
-    public async CheckOnline(): Promise<boolean> {
+    public static async CheckOnline(): Promise<boolean> {
         let result = false;
 
 
@@ -73,12 +73,6 @@ export class UtilsService extends BaseService {
             offset += a.byteLength;
         });
         return joined.buffer;
-    }
-
-    public static async isUrlInCache(url: string, cacheKey:string): Promise<boolean> {
-        let cache = await caches.open(cacheKey);
-        let response = await cache.match(url);
-        return response !== undefined && response !== null;
     }
 
     public static getTaxonomyTermByWssId<T extends TaxonomyTerm>(wssid: number, terms: Array<T>): T {

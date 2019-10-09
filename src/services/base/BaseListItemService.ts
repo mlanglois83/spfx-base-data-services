@@ -6,6 +6,7 @@ import { Constants } from "../../constants/index";
 import { IBaseItem } from "../../interfaces/index";
 import { BaseDataService } from "./BaseDataService";
 import { BaseService } from "./BaseService";
+import { UtilsService } from "..";
 
 /**
  * 
@@ -53,7 +54,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
 
         if (!result) {
 
-            let isconnected = await this.utilService.CheckOnline();
+            let isconnected = await UtilsService.CheckOnline();
             if (isconnected) {
 
                 let cachedDataDate = await super.getCachedData(key);

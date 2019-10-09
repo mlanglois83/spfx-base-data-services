@@ -195,7 +195,7 @@ var BaseDataService = /** @class */ (function (_super) {
                                 case 1:
                                     reloadData = _a.sent();
                                     if (!(reloadData && BaseService.Configuration.checkOnline)) return [3 /*break*/, 3];
-                                    return [4 /*yield*/, this.utilService.CheckOnline()];
+                                    return [4 /*yield*/, UtilsService.CheckOnline()];
                                 case 2:
                                     reloadData = _a.sent();
                                     _a.label = 3;
@@ -254,7 +254,7 @@ var BaseDataService = /** @class */ (function (_super) {
                                 case 1:
                                     reloadData = _a.sent();
                                     if (!(reloadData && BaseService.Configuration.checkOnline)) return [3 /*break*/, 3];
-                                    return [4 /*yield*/, this.utilService.CheckOnline()];
+                                    return [4 /*yield*/, UtilsService.CheckOnline()];
                                 case 2:
                                     reloadData = _a.sent();
                                     _a.label = 3;
@@ -313,7 +313,7 @@ var BaseDataService = /** @class */ (function (_super) {
                                 case 1:
                                     reloadData = _a.sent();
                                     if (!(reloadData && BaseService.Configuration.checkOnline)) return [3 /*break*/, 3];
-                                    return [4 /*yield*/, this.utilService.CheckOnline()];
+                                    return [4 /*yield*/, UtilsService.CheckOnline()];
                                 case 2:
                                     reloadData = _a.sent();
                                     _a.label = 3;
@@ -363,7 +363,7 @@ var BaseDataService = /** @class */ (function (_super) {
                         itemResult = null;
                         isconnected = true;
                         if (!BaseService.Configuration.checkOnline) return [3 /*break*/, 2];
-                        return [4 /*yield*/, this.utilService.CheckOnline()];
+                        return [4 /*yield*/, UtilsService.CheckOnline()];
                     case 1:
                         isconnected = _a.sent();
                         _a.label = 2;
@@ -429,7 +429,7 @@ var BaseDataService = /** @class */ (function (_super) {
                     case 0:
                         isconnected = true;
                         if (!BaseService.Configuration.checkOnline) return [3 /*break*/, 2];
-                        return [4 /*yield*/, this.utilService.CheckOnline()];
+                        return [4 /*yield*/, UtilsService.CheckOnline()];
                     case 1:
                         isconnected = _a.sent();
                         _a.label = 2;

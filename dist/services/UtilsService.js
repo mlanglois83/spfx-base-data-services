@@ -57,7 +57,7 @@ var UtilsService = /** @class */ (function (_super) {
     /**
      * check is user has connexion
      */
-    UtilsService.prototype.CheckOnline = function () {
+    UtilsService.CheckOnline = function () {
         return __awaiter(this, void 0, void 0, function () {
             var result, response, ex_1;
             return __generator(this, function (_a) {
@@ -127,22 +127,6 @@ var UtilsService = /** @class */ (function (_super) {
             offset += a.byteLength;
         });
         return joined.buffer;
-    };
-    UtilsService.isUrlInCache = function (url, cacheKey) {
-        return __awaiter(this, void 0, void 0, function () {
-            var cache, response;
-            return __generator(this, function (_a) {
-                switch (_a.label) {
-                    case 0: return [4 /*yield*/, caches.open(cacheKey)];
-                    case 1:
-                        cache = _a.sent();
-                        return [4 /*yield*/, cache.match(url)];
-                    case 2:
-                        response = _a.sent();
-                        return [2 /*return*/, response !== undefined && response !== null];
-                }
-            });
-        });
     };
     UtilsService.getTaxonomyTermByWssId = function (wssid, terms) {
         return find(terms, function (term) {

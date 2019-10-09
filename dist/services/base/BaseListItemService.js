@@ -53,6 +53,7 @@ import { sp } from "@pnp/sp";
 import { Constants } from "../../constants/index";
 import { BaseDataService } from "./BaseDataService";
 import { BaseService } from "./BaseService";
+import { UtilsService } from "..";
 /**
  *
  * Base service for sp list items operations
@@ -106,7 +107,7 @@ var BaseListItemService = /** @class */ (function (_super) {
                     case 1:
                         result = _a.sent();
                         if (!!result) return [3 /*break*/, 8];
-                        return [4 /*yield*/, this.utilService.CheckOnline()];
+                        return [4 /*yield*/, UtilsService.CheckOnline()];
                     case 2:
                         isconnected = _a.sent();
                         if (!isconnected) return [3 /*break*/, 8];

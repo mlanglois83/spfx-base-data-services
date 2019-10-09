@@ -150,7 +150,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                     let reloadData = await this.needRefreshCache();
                     //if refresh is needed, test offline/online
                     if (reloadData && BaseService.Configuration.checkOnline) {
-                        reloadData = await this.utilService.CheckOnline();
+                        reloadData = await UtilsService.CheckOnline();
                     }
 
                     if (reloadData) {
@@ -194,7 +194,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                     let reloadData = await this.needRefreshCache(keyCached);
                     //if refresh is needed, test offline/online
                     if (reloadData && BaseService.Configuration.checkOnline) {
-                        reloadData = await this.utilService.CheckOnline();
+                        reloadData = await UtilsService.CheckOnline();
                     }
 
                     if (reloadData) {
@@ -235,7 +235,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                     let reloadData = await this.needRefreshCache(keyCached);
                     //if refresh is needed, test offline/online
                     if (reloadData &&  BaseService.Configuration.checkOnline) {
-                        reloadData = await this.utilService.CheckOnline();
+                        reloadData = await UtilsService.CheckOnline();
                     }
 
                     if (reloadData) {
@@ -271,7 +271,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         let isconnected = true 
         if(BaseService.Configuration.checkOnline)
         {
-            isconnected = await this.utilService.CheckOnline();
+            isconnected = await UtilsService.CheckOnline();
         }
         if (isconnected) {
             try {
@@ -318,7 +318,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         let isconnected = true 
         if(BaseService.Configuration.checkOnline)
         {
-            isconnected = await this.utilService.CheckOnline();
+            isconnected = await UtilsService.CheckOnline();
         }        
         if (isconnected) {
             await this.deleteItem_Internal(item);
