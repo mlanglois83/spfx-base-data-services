@@ -12,10 +12,22 @@ var BaseService = /** @class */ (function () {
             configuration.tableNames.push(Constants.taxonomyHiddenList.tableName);
         }
         sp.setup({
-            spfxContext: BaseService.Configuration.context
+            spfxContext: BaseService.Configuration.context,
+            sp: {
+                headers: {
+                    "Accept": "application/json; odata=verbose",
+                    'Cache-Control': 'no-cache'
+                }
+            }
         });
         taxonomy.setup({
-            spfxContext: BaseService.Configuration.context
+            spfxContext: BaseService.Configuration.context,
+            sp: {
+                headers: {
+                    "Accept": "application/json; odata=verbose",
+                    'Cache-Control': 'no-cache'
+                }
+            }
         });
     };
     BaseService.prototype.hashCode = function (str) {
