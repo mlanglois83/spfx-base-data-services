@@ -15,6 +15,7 @@ var BaseService = /** @class */ (function () {
             spfxContext: BaseService.Configuration.context,
             sp: {
                 headers: {
+                    "Accept": "application/json; odata=verbose",
                     'Cache-Control': 'no-cache'
                 }
             }
@@ -23,6 +24,7 @@ var BaseService = /** @class */ (function () {
             spfxContext: BaseService.Configuration.context,
             sp: {
                 headers: {
+                    "Accept": "application/json; odata=verbose",
                     'Cache-Control': 'no-cache'
                 }
             }
@@ -41,6 +43,24 @@ var BaseService = /** @class */ (function () {
     };
     BaseService.prototype.getDomainUrl = function (web) {
         return web.absoluteUrl.replace(web.serverRelativeUrl, "");
+    };
+    BaseService.Configuration = {
+        DbName: "spfx-db",
+        Version: 1,
+        checkOnline: false,
+        context: null,
+        serviceFactory: null,
+        tableNames: [],
+        translations: {
+            AddLabel: "Add",
+            DeleteLabel: "Delete",
+            IndexedDBNotDefined: "IDB not defined",
+            SynchronisationErrorFormat: "Sync error",
+            UpdateLabel: "Update",
+            UploadLabel: "Upload",
+            versionHigherErrorMessage: "Version conflict",
+            typeTranslations: []
+        }
     };
     return BaseService;
 }());

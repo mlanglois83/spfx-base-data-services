@@ -8,10 +8,26 @@ import { Constants } from "../../constants";
 import { find } from "@microsoft/sp-lodash-subset";
 
 
-
 export abstract class BaseService {
 
-    protected static Configuration: IConfiguration;
+    protected static Configuration: IConfiguration= {
+        DbName: "spfx-db",
+        Version: 1,
+        checkOnline: false,
+        context: null,
+        serviceFactory: null, 
+        tableNames: [],
+        translations: {
+            AddLabel: "Add",
+            DeleteLabel: "Delete",
+            IndexedDBNotDefined: "IDB not defined",
+            SynchronisationErrorFormat: "Sync error",
+            UpdateLabel: "Update",
+            UploadLabel: "Upload",
+            versionHigherErrorMessage: "Version conflict",
+            typeTranslations: []
+        }
+    };
 
     public static Init(configuration: IConfiguration): void {
         BaseService.Configuration = configuration;
@@ -23,6 +39,7 @@ export abstract class BaseService {
             spfxContext: BaseService.Configuration.context,
             sp: {
                 headers: {
+                    "Accept": "application/json; odata=verbose",
                     'Cache-Control': 'no-cache'
                 }
             }
@@ -31,6 +48,7 @@ export abstract class BaseService {
             spfxContext: BaseService.Configuration.context,
             sp: {
                 headers: {
+                    "Accept": "application/json; odata=verbose",
                     'Cache-Control': 'no-cache'
                 }
             }
