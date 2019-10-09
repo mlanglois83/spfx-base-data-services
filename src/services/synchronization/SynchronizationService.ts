@@ -106,7 +106,7 @@ export class SynchronizationService extends BaseService {
                 break;
             default: break;
         }
-        itemTypeLabel = BaseService.Configuration.translations[transaction.itemType + "Label"] ? BaseService.Configuration.translations[transaction.itemType + "Label"]: transaction.itemType;
+        itemTypeLabel = BaseService.Configuration.translations.typeTranslations[transaction.itemType] ? BaseService.Configuration.translations.typeTranslations[transaction.itemType]: transaction.itemType;
         return Text.format(BaseService.Configuration.translations.SynchronisationErrorFormat, itemTypeLabel, operationLabel, item.title, item.id, message);
     }
 

@@ -6,5 +6,5 @@ export interface ITranslationLabels {
     IndexedDBNotDefined: string;
     versionHigherErrorMessage: string;
     SynchronisationErrorFormat: string;
-    typeTranslations : Array<string>
+    typeTranslations : any;
 }
