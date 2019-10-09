@@ -46,7 +46,6 @@ export abstract class BaseService {
             spfxContext: BaseService.Configuration.context,
             sp: {
                 headers: {
-                    "Accept": "application/json; odata=verbose",
                     'Cache-Control': 'no-cache'
                 }
             }
@@ -55,7 +54,6 @@ export abstract class BaseService {
             spfxContext: BaseService.Configuration.context,
             sp: {
                 headers: {
-                    "Accept": "application/json; odata=verbose",
                     'Cache-Control': 'no-cache'
                 }
             }

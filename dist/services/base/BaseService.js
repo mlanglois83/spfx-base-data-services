@@ -43,7 +43,6 @@ var BaseService = /** @class */ (function () {
             spfxContext: BaseService.Configuration.context,
             sp: {
                 headers: {
-                    "Accept": "application/json; odata=verbose",
                     'Cache-Control': 'no-cache'
                 }
             }
@@ -52,7 +51,6 @@ var BaseService = /** @class */ (function () {
             spfxContext: BaseService.Configuration.context,
             sp: {
                 headers: {
-                    "Accept": "application/json; odata=verbose",
                     'Cache-Control': 'no-cache'
                 }
             }
