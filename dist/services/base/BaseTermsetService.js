@@ -68,7 +68,7 @@ var BaseTermsetService = /** @class */ (function (_super) {
      * @param context current sp component context
      * @param termsetname termset name
      */
-    function BaseTermsetService(type, tableName, termsetnameorid, cacheDuration) {
+    function BaseTermsetService(type, termsetnameorid, tableName, cacheDuration) {
         if (cacheDuration === void 0) { cacheDuration = standardTermSetCacheDuration; }
         var _this = _super.call(this, type, tableName, cacheDuration) || this;
         _this.wssIds = null;

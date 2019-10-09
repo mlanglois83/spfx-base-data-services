@@ -7,34 +7,11 @@ import { IConfiguration } from "../../interfaces";
 import { Constants } from "../../constants";
 import { find } from "@microsoft/sp-lodash-subset";
 
-let _dataServiceConfig:IConfiguration= {
-    DbName: "spfx-db",
-    Version: 1,
-    checkOnline: false,
-    context: null,
-    serviceFactory: null, 
-    tableNames: [],
-    translations: {
-        AddLabel: "Add",
-        DeleteLabel: "Delete",
-        IndexedDBNotDefined: "IDB not defined",
-        SynchronisationErrorFormat: "Sync error",
-        UpdateLabel: "Update",
-        UploadLabel: "Upload",
-        versionHigherErrorMessage: "Version conflict",
-        typeTranslations: []
-    }
-};
+
 
 export abstract class BaseService {
 
-    protected static get Configuration(): IConfiguration {
-        return _dataServiceConfig;
-    }
-
-    protected static set Configuration(configuration: IConfiguration) {
-         _dataServiceConfig = configuration
-    }
+    protected static Configuration: IConfiguration;
 
     public static Init(configuration: IConfiguration): void {
         BaseService.Configuration = configuration;

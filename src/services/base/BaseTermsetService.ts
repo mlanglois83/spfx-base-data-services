@@ -49,7 +49,7 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
      * @param context current sp component context 
      * @param termsetname termset name
      */
-    constructor(type: (new (item?: any) => T), tableName: string, termsetnameorid: string, cacheDuration: number = standardTermSetCacheDuration) {
+    constructor(type: (new (item?: any) => T), termsetnameorid: string, tableName: string, cacheDuration: number = standardTermSetCacheDuration) {
         super(type, tableName, cacheDuration);
         this.utilsService = new UtilsService();
         this.taxonomyHiddenListService = new TaxonomyHiddenListService();

@@ -22,7 +22,7 @@ export declare class BaseTermsetService<T extends TaxonomyTerm> extends BaseData
      * @param context current sp component context
      * @param termsetname termset name
      */
-    constructor(type: (new (item?: any) => T), tableName: string, termsetnameorid: string, cacheDuration?: number);
+    constructor(type: (new (item?: any) => T), termsetnameorid: string, tableName: string, cacheDuration?: number);
     getWssIds(termId: string): Promise<Array<number>>;
     /**
      * Retrieve all terms
