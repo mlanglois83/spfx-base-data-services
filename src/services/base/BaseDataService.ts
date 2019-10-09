@@ -1,4 +1,3 @@
-import { BaseComponentContext } from "@microsoft/sp-component-base";
 import { assign } from "@microsoft/sp-lodash-subset";
 import { IBaseItem, IAddOrUpdateResult, IDataService } from "../../interfaces";
 import { OfflineTransaction } from "../../models/index";
@@ -17,7 +16,6 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
     protected itemType: (new (item?: any) => T);
     protected transactionService: TransactionService;
     protected dbService: BaseDbService<T>;
-    protected utilService: UtilsService;
     protected cacheDuration: number = -1;
 
     /**
@@ -43,8 +41,6 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         this.cacheDuration = cacheDuration;
         this.dbService = new BaseDbService<T>(type, tableName);
         this.transactionService = new TransactionService();
-
-        this.utilService = new UtilsService();
     }
 
     protected getCacheKey(key: string = "all"): string {

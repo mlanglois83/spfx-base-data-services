@@ -74,7 +74,6 @@ var BaseDataService = /** @class */ (function (_super) {
         _this.cacheDuration = cacheDuration;
         _this.dbService = new BaseDbService(type, tableName);
         _this.transactionService = new TransactionService();
-        _this.utilService = new UtilsService();
         return _this;
     }
     Object.defineProperty(BaseDataService.prototype, "serviceName", {

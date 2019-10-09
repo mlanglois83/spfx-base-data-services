@@ -1,5 +1,4 @@
 import { IBaseItem, IAddOrUpdateResult, IDataService } from "../../interfaces";
-import { UtilsService } from "../index";
 import { TransactionService } from "../synchronization/TransactionService";
 import { BaseDbService } from "./BaseDbService";
 import { BaseService } from "./BaseService";
@@ -10,7 +9,6 @@ export declare abstract class BaseDataService<T extends IBaseItem> extends BaseS
     protected itemType: (new (item?: any) => T);
     protected transactionService: TransactionService;
     protected dbService: BaseDbService<T>;
-    protected utilService: UtilsService;
     protected cacheDuration: number;
     /**
      * Stored promises to avoid multiple calls
