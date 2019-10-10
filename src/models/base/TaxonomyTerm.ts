@@ -14,7 +14,7 @@ export class TaxonomyTerm implements IBaseItem {
             this.id = term.Id != undefined ? term.Id.replace(/\/Guid\(([^)]+)\)\//g, "$1") : "";
             this.path = term.PathOfTerm != undefined ? term.PathOfTerm : "";
             this.customSortOrder = term.CustomSortOrder;
-            this.customProperties = term.customProperties;
+            this.customProperties = term.CustomProperties;
         }
     }
     public convert(): any {
