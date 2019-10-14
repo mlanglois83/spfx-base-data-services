@@ -5,6 +5,7 @@ var TaxonomyTerm = /** @class */ (function () {
             this.id = term.Id != undefined ? term.Id.replace(/\/Guid\(([^)]+)\)\//g, "$1") : "";
             this.path = term.PathOfTerm != undefined ? term.PathOfTerm : "";
             this.customSortOrder = term.CustomSortOrder;
+            this.customProperties = term.CustomProperties;
         }
     }
     TaxonomyTerm.prototype.convert = function () {
