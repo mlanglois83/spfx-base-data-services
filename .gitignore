@@ -1,2 +1,6 @@
 node_modules
 package-lock.json
+.vs/slnx.sqlite
+.vs/VSWorkspaceState.json
+.vs/slnx.sqlite
+.vs/SpfxBaseDataServices/v16/.suo
