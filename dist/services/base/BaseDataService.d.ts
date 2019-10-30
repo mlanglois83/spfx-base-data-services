@@ -45,7 +45,7 @@ export declare abstract class BaseDataService<T extends IBaseItem> extends BaseS
     getAll(): Promise<Array<T>>;
     protected abstract get_Internal(query: any): Promise<Array<T>>;
     get(query: any): Promise<Array<T>>;
-    protected abstract getById_Internal(id: number): Promise<T>;
+    protected abstract getById_Internal(id: number | string): Promise<T>;
     getById(id: number): Promise<T>;
     protected abstract addOrUpdateItem_Internal(item: T): Promise<T>;
     addOrUpdateItem(item: T): Promise<IAddOrUpdateResult<T>>;

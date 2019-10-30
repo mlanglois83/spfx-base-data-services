@@ -216,7 +216,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         return promise;
     }
 
-    protected abstract getById_Internal(id: number): Promise<T>;
+    protected abstract getById_Internal(id: number | string): Promise<T>;
 
     public async getById(id: number): Promise<T> {
         let keyCached = "getById_" + id.toString();
@@ -279,7 +279,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                 };
             } catch (error) {
                 if (error.name === Constants.Errors.ItemVersionConfict) {
-                    itemResult = await this.getById_Internal(<number>item.id);
+                    itemResult = await this.getById_Internal(item.id);
                     await this.dbService.addOrUpdateItems([itemResult]);
                     result = {
                         item: itemResult,
