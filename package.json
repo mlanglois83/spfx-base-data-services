@@ -23,6 +23,6 @@
     "@types/es6-promise": "0.0.33",
     "idb": "3.0.2",
     "mime-types": "^2.1.24",
-    "typescript": "^3.5.3"
+    "typescript": "^3.6.4"
   }
 }
