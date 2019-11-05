@@ -25,7 +25,7 @@ export class UtilsService extends BaseService {
         catch (ex) {
             result = false;
         }
-
+        ServicesConfiguration.configuration.lastConnectionCheckResult = result;
         return result;
 
     }

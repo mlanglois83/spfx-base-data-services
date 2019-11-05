@@ -1,2 +1,1 @@
-;
 //# sourceMappingURL=IConfiguration.js.map

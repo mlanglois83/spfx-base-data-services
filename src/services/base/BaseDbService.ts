@@ -70,8 +70,8 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
             if (!('indexedDB' in window)) {
                 throw new Error(ServicesConfiguration.configuration.translations.IndexedDBNotDefined);
             }
-            const dbName = Text.format(ServicesConfiguration.configuration.DbName, ServicesConfiguration.context.pageContext.web.serverRelativeUrl);
-            this.db = await openDb(dbName, ServicesConfiguration.configuration.Version, (UpgradeDB) => {
+            const dbName = Text.format(ServicesConfiguration.configuration.dbName, ServicesConfiguration.context.pageContext.web.serverRelativeUrl);
+            this.db = await openDb(dbName, ServicesConfiguration.configuration.dbVersion, (UpgradeDB) => {
                 const tableNames = Constants.tableNames.concat(ServicesConfiguration.configuration.tableNames);
                 // add new tables
                 for (const tableName of tableNames) {

@@ -15,8 +15,9 @@ export class ServicesConfiguration {
     }
 
     private static configurationInternal: IConfiguration= {
-        DbName: "spfx-db",
-        Version: 1,
+        dbName: "spfx-db",
+        dbVersion: 1,
+        lastConnectionCheckResult: false,
         checkOnline: false,
         context: null,
         serviceFactory: null, 

@@ -5,8 +5,9 @@ export declare class User implements IBaseItem {
     mail: string;
     spId?: number;
     userPrincipalName: string;
+    queries?: Array<number>;
     displayName: string;
     /***** graph object ******/
-    constructor(graphUser: any);
+    constructor(graphUser?: any);
     convert(): any;
 }

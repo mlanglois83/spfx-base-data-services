@@ -147,9 +147,9 @@ var BaseDbService = /** @class */ (function (_super) {
                         if (!('indexedDB' in window)) {
                             throw new Error(ServicesConfiguration.configuration.translations.IndexedDBNotDefined);
                         }
-                        dbName = Text.format(ServicesConfiguration.configuration.DbName, ServicesConfiguration.context.pageContext.web.serverRelativeUrl);
+                        dbName = Text.format(ServicesConfiguration.configuration.dbName, ServicesConfiguration.context.pageContext.web.serverRelativeUrl);
                         _a = this;
-                        return [4 /*yield*/, openDb(dbName, ServicesConfiguration.configuration.Version, function (UpgradeDB) {
+                        return [4 /*yield*/, openDb(dbName, ServicesConfiguration.configuration.dbVersion, function (UpgradeDB) {
                                 var tableNames = Constants.tableNames.concat(ServicesConfiguration.configuration.tableNames);
                                 // add new tables
                                 for (var _i = 0, tableNames_1 = tableNames; _i < tableNames_1.length; _i++) {

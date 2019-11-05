@@ -1,6 +1,8 @@
 
 import { IBaseItem } from "../../interfaces/index";
 import { TaxonomyTerm } from "./TaxonomyTerm";
+import { User } from "../graph/User";
+import { UserService } from "../../services";
 /**
  * Base object for sharepoint abstraction objects
  */
@@ -45,6 +47,27 @@ export abstract class SPItem implements IBaseItem {
                 TermGuid: value.id,
                 WssId: -1 // fake
             };
+        }
+        return result;
+    }
+    protected async convertSingleUserFieldValue(value: User): Promise<any> {
+        let result: any = null;
+        if (value) {
+            if(!value.spId || value.spId <=0) {
+                let userService:UserService = new UserService();
+                value = await userService.linkToSpUser(value);
+
+            }
+            result = value.spId;
+        }
+        return result;
+    }
+    protected async convertMultiUserFieldValue(value: User[]): Promise<any> {
+        let result: any = null;
+        if (value) {
+            result = await Promise.all(value.map((val) => {
+                return this.convertSingleUserFieldValue(val);
+            }));
         }
         return result;
     }

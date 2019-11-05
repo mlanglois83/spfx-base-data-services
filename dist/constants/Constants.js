@@ -13,7 +13,8 @@ export var Constants = {
     tableNames: [
         "Transaction",
         "TransactionFiles",
-        "TaxonomyHiddenList"
+        "TaxonomyHiddenList",
+        "Users"
     ]
 };
 //# sourceMappingURL=Constants.js.map

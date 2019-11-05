@@ -13,7 +13,7 @@ var User = /** @class */ (function () {
     "id": "6e7b768e-07e2-4810-8459-485f84f8f204"*/
     function User(graphUser) {
         if (graphUser != undefined) {
-            graphUser.title = graphUser.displayName != undefined ? graphUser.displayName : "";
+            this.title = graphUser.displayName != undefined ? graphUser.displayName : "";
             this.id = graphUser.id != undefined ? graphUser.id : "";
             this.mail = graphUser.mail != undefined ? graphUser.mail : "";
             this.userPrincipalName = graphUser.userPrincipalName != undefined ? graphUser.userPrincipalName : "";

@@ -4,20 +4,23 @@ import { graph } from "@pnp/graph";
 import { sp } from "@pnp/sp";
 import { Text } from "@microsoft/sp-core-library";
 import { ServicesConfiguration } from "../../configuration/ServicesConfiguration";
+import { Constants } from "../../constants";
+import { UtilsService } from "../UtilsService";
+import { find } from "@microsoft/sp-lodash-subset";
 
 const standardUserCacheDuration: number = 10;
-export class UserService<T extends User> extends BaseDataService<T> {
+export class UserService extends BaseDataService<User> {
     /**
      * 
      * @param type items type
      * @param context current sp component context 
      * @param termsetname termset name
      */
-    constructor(type: (new (item?: any) => T), tableName: string, cacheDuration: number = standardUserCacheDuration) {
-        super(type, tableName, cacheDuration);
+    constructor(cacheDuration: number = standardUserCacheDuration) {
+        super(User, "Users", cacheDuration);
     }
 
-    protected async get_Internal(query: any): Promise<Array<T>> {
+    protected async get_Internal(query: any): Promise<Array<User>> {
         query = query.trim();
         let reverseFilter = query;
         let parts = query.split(" ");
@@ -40,30 +43,37 @@ export class UserService<T extends User> extends BaseDataService<T> {
     }
 
 
-    protected async addOrUpdateItem_Internal(item: T): Promise<T> {
+    protected async addOrUpdateItem_Internal(item: User): Promise<User> {
         throw new Error("Not implemented");
     }
 
-    protected async deleteItem_Internal(item: T): Promise<void> {
+    protected async deleteItem_Internal(item: User): Promise<void> {
         throw new Error("Not implemented");
     }
 
     /**
      * Retrieve all users
      */
-    protected async getAll_Internal(): Promise<Array<T>> {
-       let users = await graph.users.get();
+    protected async getAll_Internal(): Promise<Array<User>> {
+        let [spUsers, users]  = await Promise.all([sp.web.siteUsers.get(), graph.users.get()]);
        return users.map((u) => { 
-        return new this.itemType(u);
+           let spuser = find(spUsers, (spu)=> {
+               return spu.UserPrincipalName === u.userPrincipalName;
+           });
+        let result= new this.itemType(u);
+        if(spuser) {
+            result.spId = spuser.Id;
+        }
+        return result;
        });                    
     }
 
-    public async getById_Internal(id: string): Promise<T> {
+    public async getById_Internal(id: string): Promise<User> {
         let graphUser = await graph.users.getById(id).get();
         return new this.itemType(graphUser);
     }
 
-    public async linkToSpUser(user: T): Promise<T> {
+    public async linkToSpUser(user: User): Promise<User> {
         if(user.spId === undefined) {
             let result = await sp.web.ensureUser(user.userPrincipalName);
             user.spId = result.data.Id
@@ -74,7 +84,7 @@ export class UserService<T extends User> extends BaseDataService<T> {
 
     prot
 
-    public async getByDisplayName(displayName: string): Promise<Array<T>> {
+    public async getByDisplayName(displayName: string): Promise<Array<User>> {
         let users = await this.get(displayName);
         if(users.length == 0) {
             users = await this.getAll();
@@ -96,8 +106,12 @@ export class UserService<T extends User> extends BaseDataService<T> {
         return users;
     }
 
+    public async getBySpId(spId: number): Promise<User> {
+        let allUsers = await this.getAll();
+        return find(allUsers, (user) => {return user.spId === spId;});
+    }
+
     public static getPictureUrl(user: User, size: PictureSize = PictureSize.Large): string {
         return user.mail ? Text.format("{0}/_layouts/15/userphoto.aspx?accountname={1}&size={2}", ServicesConfiguration.context.pageContext.web.absoluteUrl, user.mail, size) : "";
     }
-  }
 }

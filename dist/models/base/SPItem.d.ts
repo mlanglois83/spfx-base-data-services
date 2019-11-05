@@ -1,5 +1,6 @@
 import { IBaseItem } from "../../interfaces/index";
 import { TaxonomyTerm } from "./TaxonomyTerm";
+import { User } from "../graph/User";
 /**
  * Base object for sharepoint abstraction objects
  */
@@ -18,6 +19,8 @@ export declare abstract class SPItem implements IBaseItem {
      */
     convert(): any;
     protected convertTaxonomyFieldValue(value: TaxonomyTerm): any;
+    protected convertSingleUserFieldValue(value: User): Promise<any>;
+    protected convertMultiUserFieldValue(value: User[]): Promise<any>;
     readonly isValid: boolean;
     onAddCompleted(addResultData: any): void;
     onUpdateCompleted(updateResult: any): void;

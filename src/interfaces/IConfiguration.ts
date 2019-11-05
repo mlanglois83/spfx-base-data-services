@@ -3,11 +3,12 @@ import { ITranslationLabels } from "./";
 import { BaseServiceFactory } from "../services";
 
 export interface IConfiguration {
-    DbName: string,
-    Version: number,
+    dbName: string;
+    dbVersion: number;
+    lastConnectionCheckResult:boolean;
     checkOnline: boolean;
-    context: BaseComponentContext,
-    tableNames: Array<string>,
-    translations: ITranslationLabels,
-    serviceFactory: BaseServiceFactory
-};
+    context: BaseComponentContext;
+    tableNames: Array<string>;
+    translations: ITranslationLabels;
+    serviceFactory: BaseServiceFactory;
+}

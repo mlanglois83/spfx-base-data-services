@@ -13,5 +13,6 @@ export const Constants = {
     tableNames: [
         "Transaction",
         "TransactionFiles",
-        "TaxonomyHiddenList"]
+        "TaxonomyHiddenList", 
+        "Users"]
 };

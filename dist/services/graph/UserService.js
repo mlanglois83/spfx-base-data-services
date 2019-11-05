@@ -48,11 +48,12 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
 };
 import { BaseDataService } from "..";
-import { PictureSize } from "../..";
+import { User, PictureSize } from "../..";
 import { graph } from "@pnp/graph";
 import { sp } from "@pnp/sp";
 import { Text } from "@microsoft/sp-core-library";
 import { ServicesConfiguration } from "../../configuration/ServicesConfiguration";
+import { find } from "@microsoft/sp-lodash-subset";
 var standardUserCacheDuration = 10;
 var UserService = /** @class */ (function (_super) {
     __extends(UserService, _super);
@@ -62,9 +63,9 @@ var UserService = /** @class */ (function (_super) {
      * @param context current sp component context
      * @param termsetname termset name
      */
-    function UserService(type, tableName, cacheDuration) {
+    function UserService(cacheDuration) {
         if (cacheDuration === void 0) { cacheDuration = standardUserCacheDuration; }
-        return _super.call(this, type, tableName, cacheDuration) || this;
+        return _super.call(this, User, "Users", cacheDuration) || this;
     }
     UserService.prototype.get_Internal = function (query) {
         return __awaiter(this, void 0, void 0, function () {
@@ -110,15 +111,22 @@ var UserService = /** @class */ (function (_super) {
      */
     UserService.prototype.getAll_Internal = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var users;
+            var _a, spUsers, users;
             var _this = this;
-            return __generator(this, function (_a) {
-                switch (_a.label) {
-                    case 0: return [4 /*yield*/, graph.users.get()];
+            return __generator(this, function (_b) {
+                switch (_b.label) {
+                    case 0: return [4 /*yield*/, Promise.all([sp.web.siteUsers.get(), graph.users.get()])];
                     case 1:
-                        users = _a.sent();
+                        _a = _b.sent(), spUsers = _a[0], users = _a[1];
                         return [2 /*return*/, users.map(function (u) {
-                                return new _this.itemType(u);
+                                var spuser = find(spUsers, function (spu) {
+                                    return spu.UserPrincipalName === u.userPrincipalName;
+                                });
+                                var result = new _this.itemType(u);
+                                if (spuser) {
+                                    result.spId = spuser.Id;
+                                }
+                                return result;
                             })];
                 }
             });
@@ -181,6 +189,19 @@ var UserService = /** @class */ (function (_super) {
                         });
                         _a.label = 3;
                     case 3: return [2 /*return*/, users];
+                }
+            });
+        });
+    };
+    UserService.prototype.getBySpId = function (spId) {
+        return __awaiter(this, void 0, void 0, function () {
+            var allUsers;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, this.getAll()];
+                    case 1:
+                        allUsers = _a.sent();
+                        return [2 /*return*/, find(allUsers, function (user) { return user.spId === spId; })];
                 }
             });
         });

@@ -77,7 +77,9 @@ var UtilsService = /** @class */ (function (_super) {
                         ex_1 = _a.sent();
                         result = false;
                         return [3 /*break*/, 4];
-                    case 4: return [2 /*return*/, result];
+                    case 4:
+                        ServicesConfiguration.configuration.lastConnectionCheckResult = result;
+                        return [2 /*return*/, result];
                 }
             });
         });
