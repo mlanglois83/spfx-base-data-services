@@ -17,11 +17,24 @@ export declare abstract class SPItem implements IBaseItem {
     /**
      * Returns a copy of the object compatible with sp calls
      */
-    convert(): any;
+    convert(): Promise<any>;
     protected convertTaxonomyFieldValue(value: TaxonomyTerm): any;
     protected convertSingleUserFieldValue(value: User): Promise<any>;
     protected convertMultiUserFieldValue(value: User[]): Promise<any>;
     readonly isValid: boolean;
+    /**
+     * called after update was made on sp list
+     * @param addResultData added item from rest call
+     */
     onAddCompleted(addResultData: any): void;
+    /**
+     * called after update was made on sp list
+     * @param updateResult updated item from rest call
+     */
     onUpdateCompleted(updateResult: any): void;
+    /**
+     * called before updating local db
+     * update lookup, user, taxonomy ids here from stored objects
+     */
+    beforeUpdateDb(): void;
 }

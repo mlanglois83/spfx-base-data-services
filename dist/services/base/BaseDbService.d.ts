@@ -15,6 +15,7 @@ export declare class BaseDbService<T extends IBaseItem> extends BaseService impl
      * @param tableName : Name of the db table the service interracts with
      */
     constructor(type: (new (item?: any) => T), tableName: string);
+    protected getChunksRegexp(fileUrl: any): RegExp;
     protected getAllKeysInternal<TKey extends string | number>(store: ObjectStore<T, TKey>): Promise<Array<TKey>>;
     protected getNextAvailableKey(): Promise<number>;
     /**

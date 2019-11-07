@@ -24,7 +24,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
      */
     protected static promises = {};
 
-    public updateLinkedItems?: (oldId: number | string, newId: number | string) => void;
+    public updateLinkedItems?: (oldId: number | string, newId: number | string) => Promise<Array<OfflineTransaction>>;
 
     public get serviceName(): string {
         return this.constructor["name"];
@@ -296,6 +296,9 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
             }
         }
         else {
+            if(item.beforeUpdateDb) {
+                item.beforeUpdateDb();
+            }
             result = await this.dbService.addOrUpdateItem(item);
             // create a new transaction
             let ot: OfflineTransaction = new OfflineTransaction();

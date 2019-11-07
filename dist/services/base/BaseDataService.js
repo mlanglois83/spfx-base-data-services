@@ -404,7 +404,11 @@ var BaseDataService = /** @class */ (function (_super) {
                         _a.label = 10;
                     case 10: return [3 /*break*/, 11];
                     case 11: return [3 /*break*/, 15];
-                    case 12: return [4 /*yield*/, this.dbService.addOrUpdateItem(item)];
+                    case 12:
+                        if (item.beforeUpdateDb) {
+                            item.beforeUpdateDb();
+                        }
+                        return [4 /*yield*/, this.dbService.addOrUpdateItem(item)];
                     case 13:
                         result = _a.sent();
                         ot = new OfflineTransaction();

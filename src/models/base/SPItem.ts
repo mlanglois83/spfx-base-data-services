@@ -30,7 +30,7 @@ export abstract class SPItem implements IBaseItem {
     /**
      * Returns a copy of the object compatible with sp calls
      */
-    public convert(): any {
+    public async convert(): Promise<any> {
         let result = {};
         result["Title"] = this.title;
         result["ID"] = this.id;
@@ -76,16 +76,31 @@ export abstract class SPItem implements IBaseItem {
         return true;
     }
 
+    /**
+     * called after update was made on sp list
+     * @param addResultData added item from rest call
+     */
     public onAddCompleted(addResultData: any): void {
         this.id = addResultData.Id;
         if(addResultData["OData__UIVersionString"]) {
             this.version = parseFloat(addResultData["OData__UIVersionString"]);
         }
     }
+    /**
+     * called after update was made on sp list
+     * @param updateResult updated item from rest call
+     */
     public onUpdateCompleted(updateResult: any): void {
         if(updateResult["OData__UIVersionString"]) {
             this.version = parseFloat(updateResult["OData__UIVersionString"]);
         }
+    }
+
+    /**
+     * called before updating local db
+     * update lookup, user, taxonomy ids here from stored objects
+     */
+    public beforeUpdateDb(): void {
     }
 
 }

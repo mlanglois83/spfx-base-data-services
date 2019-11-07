@@ -36,7 +36,7 @@ export class User implements IBaseItem {
             this.userPrincipalName = graphUser.userPrincipalName != undefined ? graphUser.userPrincipalName : "";
         }
     }
-    public convert(): any {
+    public convert(): Promise<any> {
         throw new Error("Not implemented");
     }
 

@@ -30,6 +30,11 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
         this.itemType = type;
     }
 
+    protected getChunksRegexp(fileUrl): RegExp {
+        let escapedUrl = UtilsService.escapeRegExp(fileUrl);
+        return new RegExp("^" + escapedUrl + "_chunk_\\d+$","g");
+    }
+
     protected async getAllKeysInternal<TKey extends string | number>(store: ObjectStore<T, TKey>): Promise<Array<TKey>> {
         let result: Array<TKey> = [];
         if (store.getAllKeys) {
@@ -100,13 +105,13 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
             if (item instanceof SPFile && item.content && item.content.byteLength >= 10485760) {
                 // remove existing chunks
                 let keys: string[] = await this.getAllKeysInternal(store);
+                const chunkRegex = this.getChunksRegexp(item.serverRelativeUrl);
                 let chunkkeys = keys.filter((k) => {
-                    const test = k.match(/^.*_chunk_\d+$/g);
-                    return test != null && test.length > 0;
+                    return chunkRegex.test(k);
                 });
-                await Promise.all(chunkkeys.map((ck) => {
-                    return store.delete(ck);
-                }));
+                await Promise.all(chunkkeys.map((k) => {
+                    return store.delete(k);
+                }));    
                 // add chunked file
                 let idx = 0;
                 let size = 0;
@@ -130,14 +135,22 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                 await store.put(assign({}, item)); // store simple object with data only 
             }
             await tx.complete;
+            return {
+                item: item
+            };
 
         } catch (error) {
             console.error(error.message + " - " + error.Name);
-            tx.abort();
+            try {                
+                tx.abort();
+            } catch { 
+                // error allready thrown
+            }
+            return {
+                item: item, 
+                error: error
+            };
         }
-        return {
-            item: item
-        };
     }
 
     public async deleteItem(item: T): Promise<void> {
@@ -145,21 +158,27 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
         const tx = this.db.transaction(this.tableName, 'readwrite');
         const store = tx.objectStore(this.tableName);
         try {
+            let deleteKeys = [item.id];
             if (item instanceof SPFile) {
                 let keys: string[] = await this.getAllKeysInternal(store);
+                const chunkRegex = this.getChunksRegexp(item.serverRelativeUrl);
                 let chunkkeys = keys.filter((k) => {
-                    const test = k.match(/^.*_chunk_\d+$/g);
-                    return test != null && test.length > 0;
+                    return chunkRegex.test(k);
                 });
-                await Promise.all(chunkkeys.map((ck) => {
-                    return store.delete(ck);
-                }));
+                deleteKeys.push(...chunkkeys);
             }
-            await store.delete(item.id); // store simple object with data only             
+            await Promise.all(deleteKeys.map((k) => {
+                return store.delete(k);
+            }));           
             await tx.complete;
         } catch (error) {
             console.error(error.message + " - " + error.Name);
-            tx.abort();
+            try {                
+                tx.abort();
+            } catch { 
+                // error allready thrown
+            }
+            throw error;
         }
     }
 
@@ -195,13 +214,13 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                 if (item instanceof SPFile && item.content && item.content.byteLength >= 10485760) {
                     // remove existing chunks
                     let keys: string[] = await this.getAllKeysInternal(store);
+                    const chunkRegex = this.getChunksRegexp(item.serverRelativeUrl);
                     let chunkkeys = keys.filter((k) => {
-                        const test = k.match(/^.*_chunk_\d+$/g);
-                        return test != null && test.length > 0;
-                    });
-                    await Promise.all(chunkkeys.map((ck) => {
-                        return store.delete(ck);
-                    }));
+                        return chunkRegex.test(k);
+                    });           
+                    await Promise.all(chunkkeys.map((k) => {
+                        return store.delete(k); // store simple object with data only  
+                    }));            
                     // add chunked file
                     let idx = 0;
                     let size = 0;
@@ -252,7 +271,12 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
             return newItems;
         } catch (error) {
             console.error(error.message + " - " + error.Name);
-            tx.abort();
+            try {                
+                tx.abort();
+            } catch { 
+                // error allready thrown
+            }
+            throw error;
         }
     }
 
@@ -272,12 +296,12 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                 let resultItem = assign(item, r);
                 if (item instanceof SPFile) {
                     // item is a part of another file
-                    const chunkparts = item.id.match(/^.*_chunk_\d+$/g);
-                    if (chunkparts == null || chunkparts.length > 0) {
+                    const chunkparts = (/^.*_chunk_\d+$/g).test(item.serverRelativeUrl);
+                    if (!chunkparts) {
                         // verify if there are other parts
+                        const chunkRegex = this.getChunksRegexp(item.serverRelativeUrl);
                         let chunks = rows.filter((chunkedrow) => {
-                            const test = chunkedrow.id.match(/^.*_chunk_\d+$/g);
-                            return test != null && test.length > 0 && chunkedrow.id.indexOf(item.id + "_chunk_") === 0;
+                            return chunkRegex.test(chunkedrow.id);
                         });
                         if (chunks.length > 0) {
                             chunks.sort((a, b) => {
@@ -291,13 +315,18 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                 else {
                     result.push(resultItem);
                 }
-            });
+            });            
+            await transaction.complete;
+            return result;
         } catch (error) {
             console.error(error.message + " - " + error.Name);
-            transaction.abort();
+            try {                
+                transaction.abort();
+            } catch { 
+                // error allready thrown
+            }
+            throw error;
         }
-        await transaction.complete;
-        return result;
     }
 
 
@@ -323,7 +352,12 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
             await tx.complete;
         } catch (error) {
             console.error(error.message + " - " + error.Name);
-            tx.abort();
+            try {                
+                tx.abort();
+            } catch { 
+                // error allready thrown
+            }
+            throw error;
         }
     }
 
@@ -338,13 +372,13 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                 result = assign(new this.itemType(), obj);
                 if (result instanceof SPFile) {
                     // item is a part of another file
-                    const chunkparts = result.id.match(/^.*_chunk_\d+$/g);
-                    if (chunkparts == null || chunkparts.length > 0) {
+                    const chunkparts = (/^.*_chunk_\d+$/g).test(result.serverRelativeUrl);
+                    if (!chunkparts) {
                         let allRows = await store.getAll();
                         // verify if there are other parts
+                        const chunkRegex = this.getChunksRegexp(result.serverRelativeUrl);
                         let chunks = allRows.filter((chunkedrow) => {
-                            const test = chunkedrow.id.match(/^.*_chunk_\d+$/g);
-                            return test != null && test.length > 0 && chunkedrow.id.indexOf(result.id + "_chunk_") === 0;
+                            return chunkRegex.test(chunkedrow.id);
                         });
                         if (chunks.length > 0) {
                             chunks.sort((a, b) => {
@@ -360,10 +394,15 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                 }
             }
             await tx.complete;
+            return result;
         } catch (error) {
             console.error(error.message + " - " + error.Name);
-            tx.abort();
+            try {                
+                tx.abort();
+            } catch { 
+                // error allready thrown
+            }
+            throw error;
         }
-        return result;
     }
 }

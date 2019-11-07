@@ -7,5 +7,5 @@ export declare class TaxonomyTerm implements IBaseItem {
     customSortOrder?: string;
     customProperties: any;
     constructor(term: any);
-    convert(): any;
+    convert(): Promise<any>;
 }

@@ -55,10 +55,15 @@ var SPItem = /** @class */ (function () {
      * Returns a copy of the object compatible with sp calls
      */
     SPItem.prototype.convert = function () {
-        var result = {};
-        result["Title"] = this.title;
-        result["ID"] = this.id;
-        return result;
+        return __awaiter(this, void 0, void 0, function () {
+            var result;
+            return __generator(this, function (_a) {
+                result = {};
+                result["Title"] = this.title;
+                result["ID"] = this.id;
+                return [2 /*return*/, result];
+            });
+        });
     };
     SPItem.prototype.convertTaxonomyFieldValue = function (value) {
         var result = null;
@@ -121,16 +126,30 @@ var SPItem = /** @class */ (function () {
         enumerable: true,
         configurable: true
     });
+    /**
+     * called after update was made on sp list
+     * @param addResultData added item from rest call
+     */
     SPItem.prototype.onAddCompleted = function (addResultData) {
         this.id = addResultData.Id;
         if (addResultData["OData__UIVersionString"]) {
             this.version = parseFloat(addResultData["OData__UIVersionString"]);
         }
     };
+    /**
+     * called after update was made on sp list
+     * @param updateResult updated item from rest call
+     */
     SPItem.prototype.onUpdateCompleted = function (updateResult) {
         if (updateResult["OData__UIVersionString"]) {
             this.version = parseFloat(updateResult["OData__UIVersionString"]);
         }
+    };
+    /**
+     * called before updating local db
+     * update lookup, user, taxonomy ids here from stored objects
+     */
+    SPItem.prototype.beforeUpdateDb = function () {
     };
     return SPItem;
 }());

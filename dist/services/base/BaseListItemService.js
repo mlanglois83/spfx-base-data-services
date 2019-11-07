@@ -210,47 +210,56 @@ var BaseListItemService = /** @class */ (function (_super) {
     };
     BaseListItemService.prototype.addOrUpdateItem_Internal = function (item) {
         return __awaiter(this, void 0, void 0, function () {
-            var result, addResult, existing, error, version, updateResult;
+            var result, converted, addResult, existing, error, converted, version, converted, updateResult;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
                         result = cloneDeep(item);
-                        if (!(item.id < 0)) return [3 /*break*/, 2];
-                        return [4 /*yield*/, this.list.items.add(item.convert())];
+                        if (!(item.id < 0)) return [3 /*break*/, 3];
+                        return [4 /*yield*/, item.convert()];
                     case 1:
+                        converted = _a.sent();
+                        return [4 /*yield*/, this.list.items.add(converted)];
+                    case 2:
                         addResult = _a.sent();
                         if (result.onAddCompleted) {
                             result.onAddCompleted(addResult.data);
                         }
-                        return [3 /*break*/, 10];
-                    case 2:
-                        if (!item.version) return [3 /*break*/, 8];
-                        return [4 /*yield*/, this.list.items.getById(item.id).select("OData__UIVersionString").get()];
+                        return [3 /*break*/, 13];
                     case 3:
+                        if (!item.version) return [3 /*break*/, 10];
+                        return [4 /*yield*/, this.list.items.getById(item.id).select("OData__UIVersionString").get()];
+                    case 4:
                         existing = _a.sent();
-                        if (!(parseFloat(existing["OData__UIVersionString"]) > item.version)) return [3 /*break*/, 4];
+                        if (!(parseFloat(existing["OData__UIVersionString"]) > item.version)) return [3 /*break*/, 5];
                         error = new Error(ServicesConfiguration.configuration.translations.versionHigherErrorMessage);
                         error.name = Constants.Errors.ItemVersionConfict;
                         throw error;
-                    case 4: return [4 /*yield*/, this.list.items.getById(item.id).update(item.convert())];
-                    case 5:
+                    case 5: return [4 /*yield*/, item.convert()];
+                    case 6:
+                        converted = _a.sent();
+                        return [4 /*yield*/, this.list.items.getById(item.id).update(converted)];
+                    case 7:
                         _a.sent();
                         return [4 /*yield*/, this.list.items.getById(item.id).get()];
-                    case 6:
+                    case 8:
                         version = _a.sent();
                         if (result.onUpdateCompleted) {
                             result.onUpdateCompleted(version);
                         }
-                        _a.label = 7;
-                    case 7: return [3 /*break*/, 10];
-                    case 8: return [4 /*yield*/, this.list.items.getById(item.id).update(item.convert())];
-                    case 9:
+                        _a.label = 9;
+                    case 9: return [3 /*break*/, 13];
+                    case 10: return [4 /*yield*/, item.convert()];
+                    case 11:
+                        converted = _a.sent();
+                        return [4 /*yield*/, this.list.items.getById(item.id).update(converted)];
+                    case 12:
                         updateResult = _a.sent();
                         if (result.onUpdateCompleted) {
                             result.onUpdateCompleted(updateResult.data);
                         }
-                        _a.label = 10;
-                    case 10: return [2 /*return*/, result];
+                        _a.label = 13;
+                    case 13: return [2 /*return*/, result];
                 }
             });
         });

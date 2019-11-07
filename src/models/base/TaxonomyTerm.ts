@@ -17,7 +17,7 @@ export class TaxonomyTerm implements IBaseItem {
             this.customProperties = term.CustomProperties;
         }
     }
-    public convert(): any {
+    public convert(): Promise<any> {
         throw new Error("Not implemented");
     }
 }

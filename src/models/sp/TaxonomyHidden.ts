@@ -13,7 +13,7 @@ export class TaxonomyHidden extends SPItem {
         }
     }
 
-    public convert(): any {
+    public convert(): Promise<any> {
         throw new Error("Not implemented");
     }
 }

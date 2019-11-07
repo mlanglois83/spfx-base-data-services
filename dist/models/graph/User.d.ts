@@ -9,5 +9,5 @@ export declare class User implements IBaseItem {
     displayName: string;
     /***** graph object ******/
     constructor(graphUser?: any);
-    convert(): any;
+    convert(): Promise<any>;
 }

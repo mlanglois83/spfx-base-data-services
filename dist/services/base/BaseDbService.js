@@ -78,6 +78,10 @@ var BaseDbService = /** @class */ (function (_super) {
         _this.itemType = type;
         return _this;
     }
+    BaseDbService.prototype.getChunksRegexp = function (fileUrl) {
+        var escapedUrl = UtilsService.escapeRegExp(fileUrl);
+        return new RegExp("^" + escapedUrl + "_chunk_\\d+$", "g");
+    };
     BaseDbService.prototype.getAllKeysInternal = function (store) {
         return __awaiter(this, void 0, void 0, function () {
             var result, cursor;
@@ -174,7 +178,7 @@ var BaseDbService = /** @class */ (function (_super) {
      */
     BaseDbService.prototype.addOrUpdateItem = function (item) {
         return __awaiter(this, void 0, void 0, function () {
-            var nextid, tx, store, keys, chunkkeys, idx, size, firstidx, lastidx, chunk, chunkitem, error_1;
+            var nextid, tx, store, keys, chunkRegex_1, chunkkeys, idx, size, firstidx, lastidx, chunk, chunkitem, error_1;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0: return [4 /*yield*/, this.OpenDb()];
@@ -195,12 +199,12 @@ var BaseDbService = /** @class */ (function (_super) {
                         return [4 /*yield*/, this.getAllKeysInternal(store)];
                     case 4:
                         keys = _a.sent();
+                        chunkRegex_1 = this.getChunksRegexp(item.serverRelativeUrl);
                         chunkkeys = keys.filter(function (k) {
-                            var test = k.match(/^.*_chunk_\d+$/g);
-                            return test != null && test.length > 0;
+                            return chunkRegex_1.test(k);
                         });
-                        return [4 /*yield*/, Promise.all(chunkkeys.map(function (ck) {
-                                return store.delete(ck);
+                        return [4 /*yield*/, Promise.all(chunkkeys.map(function (k) {
+                                return store.delete(k);
                             }))];
                     case 5:
                         _a.sent();
@@ -231,22 +235,30 @@ var BaseDbService = /** @class */ (function (_super) {
                     case 11: return [4 /*yield*/, tx.complete];
                     case 12:
                         _a.sent();
-                        return [3 /*break*/, 14];
+                        return [2 /*return*/, {
+                                item: item
+                            }];
                     case 13:
                         error_1 = _a.sent();
                         console.error(error_1.message + " - " + error_1.Name);
-                        tx.abort();
-                        return [3 /*break*/, 14];
-                    case 14: return [2 /*return*/, {
-                            item: item
-                        }];
+                        try {
+                            tx.abort();
+                        }
+                        catch (_b) {
+                            // error allready thrown
+                        }
+                        return [2 /*return*/, {
+                                item: item,
+                                error: error_1
+                            }];
+                    case 14: return [2 /*return*/];
                 }
             });
         });
     };
     BaseDbService.prototype.deleteItem = function (item) {
         return __awaiter(this, void 0, void 0, function () {
-            var tx, store, keys, chunkkeys, error_2;
+            var tx, store, deleteKeys, keys, chunkRegex_2, chunkkeys, error_2;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0: return [4 /*yield*/, this.OpenDb()];
@@ -256,34 +268,38 @@ var BaseDbService = /** @class */ (function (_super) {
                         store = tx.objectStore(this.tableName);
                         _a.label = 2;
                     case 2:
-                        _a.trys.push([2, 8, , 9]);
-                        if (!(item instanceof SPFile)) return [3 /*break*/, 5];
+                        _a.trys.push([2, 7, , 8]);
+                        deleteKeys = [item.id];
+                        if (!(item instanceof SPFile)) return [3 /*break*/, 4];
                         return [4 /*yield*/, this.getAllKeysInternal(store)];
                     case 3:
                         keys = _a.sent();
+                        chunkRegex_2 = this.getChunksRegexp(item.serverRelativeUrl);
                         chunkkeys = keys.filter(function (k) {
-                            var test = k.match(/^.*_chunk_\d+$/g);
-                            return test != null && test.length > 0;
+                            return chunkRegex_2.test(k);
                         });
-                        return [4 /*yield*/, Promise.all(chunkkeys.map(function (ck) {
-                                return store.delete(ck);
-                            }))];
-                    case 4:
+                        deleteKeys.push.apply(deleteKeys, chunkkeys);
+                        _a.label = 4;
+                    case 4: return [4 /*yield*/, Promise.all(deleteKeys.map(function (k) {
+                            return store.delete(k);
+                        }))];
+                    case 5:
                         _a.sent();
-                        _a.label = 5;
-                    case 5: return [4 /*yield*/, store.delete(item.id)];
-                    case 6:
-                        _a.sent(); // store simple object with data only             
                         return [4 /*yield*/, tx.complete];
-                    case 7:
+                    case 6:
                         _a.sent();
-                        return [3 /*break*/, 9];
-                    case 8:
+                        return [3 /*break*/, 8];
+                    case 7:
                         error_2 = _a.sent();
                         console.error(error_2.message + " - " + error_2.Name);
-                        tx.abort();
-                        return [3 /*break*/, 9];
-                    case 9: return [2 /*return*/];
+                        try {
+                            tx.abort();
+                        }
+                        catch (_b) {
+                            // error allready thrown
+                        }
+                        throw error_2;
+                    case 8: return [2 /*return*/];
                 }
             });
         });
@@ -332,7 +348,7 @@ var BaseDbService = /** @class */ (function (_super) {
                     case 3:
                         _a.trys.push([3, 6, , 7]);
                         return [4 /*yield*/, Promise.all(newItems.map(function (item) { return __awaiter(_this, void 0, void 0, function () {
-                                var keys, chunkkeys, idx, size, firstidx, lastidx, chunk, chunkitem, hash, temp;
+                                var keys, chunkRegex_3, chunkkeys, idx, size, firstidx, lastidx, chunk, chunkitem, hash, temp;
                                 return __generator(this, function (_a) {
                                     switch (_a.label) {
                                         case 0:
@@ -343,12 +359,12 @@ var BaseDbService = /** @class */ (function (_super) {
                                             return [4 /*yield*/, this.getAllKeysInternal(store)];
                                         case 1:
                                             keys = _a.sent();
+                                            chunkRegex_3 = this.getChunksRegexp(item.serverRelativeUrl);
                                             chunkkeys = keys.filter(function (k) {
-                                                var test = k.match(/^.*_chunk_\d+$/g);
-                                                return test != null && test.length > 0;
+                                                return chunkRegex_3.test(k);
                                             });
-                                            return [4 /*yield*/, Promise.all(chunkkeys.map(function (ck) {
-                                                    return store.delete(ck);
+                                            return [4 /*yield*/, Promise.all(chunkkeys.map(function (k) {
+                                                    return store.delete(k); // store simple object with data only  
                                                 }))];
                                         case 2:
                                             _a.sent();
@@ -413,8 +429,13 @@ var BaseDbService = /** @class */ (function (_super) {
                     case 6:
                         error_3 = _a.sent();
                         console.error(error_3.message + " - " + error_3.Name);
-                        tx.abort();
-                        return [3 /*break*/, 7];
+                        try {
+                            tx.abort();
+                        }
+                        catch (_b) {
+                            // error allready thrown
+                        }
+                        throw error_3;
                     case 7: return [2 /*return*/];
                 }
             });
@@ -438,7 +459,7 @@ var BaseDbService = /** @class */ (function (_super) {
                         store = transaction.objectStore(this.tableName);
                         _a.label = 2;
                     case 2:
-                        _a.trys.push([2, 4, , 5]);
+                        _a.trys.push([2, 5, , 6]);
                         return [4 /*yield*/, store.getAll()];
                     case 3:
                         rows_1 = _a.sent();
@@ -447,12 +468,12 @@ var BaseDbService = /** @class */ (function (_super) {
                             var resultItem = assign(item, r);
                             if (item instanceof SPFile) {
                                 // item is a part of another file
-                                var chunkparts = item.id.match(/^.*_chunk_\d+$/g);
-                                if (chunkparts == null || chunkparts.length > 0) {
+                                var chunkparts = (/^.*_chunk_\d+$/g).test(item.serverRelativeUrl);
+                                if (!chunkparts) {
                                     // verify if there are other parts
+                                    var chunkRegex_4 = _this.getChunksRegexp(item.serverRelativeUrl);
                                     var chunks = rows_1.filter(function (chunkedrow) {
-                                        var test = chunkedrow.id.match(/^.*_chunk_\d+$/g);
-                                        return test != null && test.length > 0 && chunkedrow.id.indexOf(item.id + "_chunk_") === 0;
+                                        return chunkRegex_4.test(chunkedrow.id);
                                     });
                                     if (chunks.length > 0) {
                                         chunks.sort(function (a, b) {
@@ -467,16 +488,21 @@ var BaseDbService = /** @class */ (function (_super) {
                                 result.push(resultItem);
                             }
                         });
-                        return [3 /*break*/, 5];
+                        return [4 /*yield*/, transaction.complete];
                     case 4:
-                        error_4 = _a.sent();
-                        console.error(error_4.message + " - " + error_4.Name);
-                        transaction.abort();
-                        return [3 /*break*/, 5];
-                    case 5: return [4 /*yield*/, transaction.complete];
-                    case 6:
                         _a.sent();
                         return [2 /*return*/, result];
+                    case 5:
+                        error_4 = _a.sent();
+                        console.error(error_4.message + " - " + error_4.Name);
+                        try {
+                            transaction.abort();
+                        }
+                        catch (_b) {
+                            // error allready thrown
+                        }
+                        throw error_4;
+                    case 6: return [2 /*return*/];
                 }
             });
         });
@@ -526,8 +552,13 @@ var BaseDbService = /** @class */ (function (_super) {
                     case 5:
                         error_5 = _a.sent();
                         console.error(error_5.message + " - " + error_5.Name);
-                        tx.abort();
-                        return [3 /*break*/, 6];
+                        try {
+                            tx.abort();
+                        }
+                        catch (_b) {
+                            // error allready thrown
+                        }
+                        throw error_5;
                     case 6: return [2 /*return*/];
                 }
             });
@@ -535,7 +566,7 @@ var BaseDbService = /** @class */ (function (_super) {
     };
     BaseDbService.prototype.getById = function (id) {
         return __awaiter(this, void 0, void 0, function () {
-            var result, tx, store, obj, chunkparts, allRows, chunks, error_6;
+            var result, tx, store, obj, chunkparts, allRows, chunkRegex_5, chunks, error_6;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -554,14 +585,14 @@ var BaseDbService = /** @class */ (function (_super) {
                         if (!obj) return [3 /*break*/, 6];
                         result = assign(new this.itemType(), obj);
                         if (!(result instanceof SPFile)) return [3 /*break*/, 6];
-                        chunkparts = result.id.match(/^.*_chunk_\d+$/g);
-                        if (!(chunkparts == null || chunkparts.length > 0)) return [3 /*break*/, 5];
+                        chunkparts = (/^.*_chunk_\d+$/g).test(result.serverRelativeUrl);
+                        if (!!chunkparts) return [3 /*break*/, 5];
                         return [4 /*yield*/, store.getAll()];
                     case 4:
                         allRows = _a.sent();
+                        chunkRegex_5 = this.getChunksRegexp(result.serverRelativeUrl);
                         chunks = allRows.filter(function (chunkedrow) {
-                            var test = chunkedrow.id.match(/^.*_chunk_\d+$/g);
-                            return test != null && test.length > 0 && chunkedrow.id.indexOf(result.id + "_chunk_") === 0;
+                            return chunkRegex_5.test(chunkedrow.id);
                         });
                         if (chunks.length > 0) {
                             chunks.sort(function (a, b) {
@@ -577,13 +608,18 @@ var BaseDbService = /** @class */ (function (_super) {
                     case 6: return [4 /*yield*/, tx.complete];
                     case 7:
                         _a.sent();
-                        return [3 /*break*/, 9];
+                        return [2 /*return*/, result];
                     case 8:
                         error_6 = _a.sent();
                         console.error(error_6.message + " - " + error_6.Name);
-                        tx.abort();
-                        return [3 /*break*/, 9];
-                    case 9: return [2 /*return*/, result];
+                        try {
+                            tx.abort();
+                        }
+                        catch (_b) {
+                            // error allready thrown
+                        }
+                        throw error_6;
+                    case 9: return [2 /*return*/];
                 }
             });
         });

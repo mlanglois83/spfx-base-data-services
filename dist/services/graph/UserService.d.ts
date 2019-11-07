@@ -17,7 +17,6 @@ export declare class UserService extends BaseDataService<User> {
     protected getAll_Internal(): Promise<Array<User>>;
     getById_Internal(id: string): Promise<User>;
     linkToSpUser(user: User): Promise<User>;
-    prot: any;
     getByDisplayName(displayName: string): Promise<Array<User>>;
     getBySpId(spId: number): Promise<User>;
     static getPictureUrl(user: User, size?: PictureSize): string;

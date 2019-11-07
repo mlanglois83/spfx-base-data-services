@@ -12,4 +12,5 @@ export declare class UtilsService extends BaseService {
     static getParentFolderUrl(url: string): string;
     static concatArrayBuffers(...arrays: ArrayBuffer[]): ArrayBuffer;
     static getTaxonomyTermByWssId<T extends TaxonomyTerm>(wssid: number, terms: Array<T>): T;
+    static escapeRegExp(value: string): string;
 }

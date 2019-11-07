@@ -3,7 +3,8 @@ export interface IBaseItem {
     title: string;
     queries?: Array<number>;
     version?: number;
-    convert?: () => any;
+    convert?: () => Promise<any>;
     onAddCompleted?: (addResult: any) => void;
     onUpdateCompleted?: (updateResult: any) => void;
+    beforeUpdateDb?: () => void;
 }

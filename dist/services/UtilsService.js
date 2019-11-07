@@ -136,6 +136,9 @@ var UtilsService = /** @class */ (function (_super) {
             return (term.wssids && term.wssids.indexOf(wssid) > -1);
         });
     };
+    UtilsService.escapeRegExp = function (value) {
+        return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
+    };
     return UtilsService;
 }(BaseService));
 export { UtilsService };

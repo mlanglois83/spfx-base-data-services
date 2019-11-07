@@ -47,6 +47,13 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
+var __spreadArrays = (this && this.__spreadArrays) || function () {
+    for (var s = 0, i = 0, il = arguments.length; i < il; i++) s += arguments[i].length;
+    for (var r = Array(s), k = 0, i = 0; i < il; i++)
+        for (var a = arguments[i], j = 0, jl = a.length; j < jl; j++, k++)
+            r[k] = a[j];
+    return r;
+};
 import { BaseService } from "../base/BaseService";
 import { SPFile } from "../../models/index";
 import { TransactionType, Constants } from "../../constants/index";
@@ -74,7 +81,7 @@ var SynchronizationService = /** @class */ (function (_super) {
                         transactions = _a.sent();
                         return [4 /*yield*/, Promise.all(transactions.map(function (transaction, index) {
                                 return new Promise(function (resolve, reject) { return __awaiter(_this, void 0, void 0, function () {
-                                    var itemType, dataService, item, _a, oldId_1, isAdd, updatedItem_1, error_1;
+                                    var itemType, dataService, item, _a, oldId_1, isAdd, updatedItem_1, nextTransactions, error_1;
                                     var _this = this;
                                     return __generator(this, function (_b) {
                                         switch (_b.label) {
@@ -85,74 +92,89 @@ var SynchronizationService = /** @class */ (function (_super) {
                                                 _a = transaction.title;
                                                 switch (_a) {
                                                     case TransactionType.AddOrUpdate: return [3 /*break*/, 1];
-                                                    case TransactionType.Delete: return [3 /*break*/, 8];
+                                                    case TransactionType.Delete: return [3 /*break*/, 13];
                                                 }
-                                                return [3 /*break*/, 13];
+                                                return [3 /*break*/, 18];
                                             case 1:
                                                 oldId_1 = item.id;
                                                 isAdd = typeof (oldId_1) === "number" && oldId_1 < 0;
                                                 return [4 /*yield*/, dataService.addOrUpdateItem(item)];
                                             case 2:
                                                 updatedItem_1 = _b.sent();
-                                                // handle id and version changed
-                                                if (isAdd && !updatedItem_1.error) {
-                                                    // next transactions on this item
-                                                    if (index < transactions.length - 1) {
-                                                        transactions.slice(index).filter(function (t) {
-                                                            return t.itemType === transaction.itemType &&
-                                                                t.serviceName === transaction.serviceName &&
-                                                                t.itemData.id === oldId_1;
-                                                        }).forEach(function (updatedTr) { return __awaiter(_this, void 0, void 0, function () {
-                                                            return __generator(this, function (_a) {
-                                                                switch (_a.label) {
-                                                                    case 0:
-                                                                        updatedTr.itemData.id = updatedItem_1.item.id;
-                                                                        updatedTr.itemData.version = updatedItem_1.item.version;
-                                                                        return [4 /*yield*/, this.transactionService.addOrUpdateItem(updatedTr)];
-                                                                    case 1:
-                                                                        _a.sent();
-                                                                        return [2 /*return*/];
-                                                                }
-                                                            });
-                                                        }); });
-                                                    }
-                                                    // other update for linked content
-                                                    if (dataService.updateLinkedItems) {
-                                                        dataService.updateLinkedItems(oldId_1, updatedItem_1.item.id);
-                                                    }
-                                                }
-                                                if (!updatedItem_1.error) return [3 /*break*/, 5];
-                                                errors.push(this.formatError(transaction, updatedItem_1.error.message));
-                                                if (!(updatedItem_1.error.name === Constants.Errors.ItemVersionConfict)) return [3 /*break*/, 4];
-                                                return [4 /*yield*/, this.transactionService.deleteItem(transaction)];
+                                                if (!(isAdd && !updatedItem_1.error)) return [3 /*break*/, 7];
+                                                nextTransactions = [];
+                                                if (!(index < transactions.length - 1)) return [3 /*break*/, 4];
+                                                return [4 /*yield*/, Promise.all(transactions.slice(index + 1).filter(function (t) {
+                                                        return t.itemType === transaction.itemType &&
+                                                            t.serviceName === transaction.serviceName &&
+                                                            t.itemData.id === oldId_1;
+                                                    }).map(function (updatedTr) { return __awaiter(_this, void 0, void 0, function () {
+                                                        var result;
+                                                        return __generator(this, function (_a) {
+                                                            switch (_a.label) {
+                                                                case 0:
+                                                                    updatedTr.itemData.id = updatedItem_1.item.id;
+                                                                    updatedTr.itemData.version = updatedItem_1.item.version;
+                                                                    return [4 /*yield*/, this.transactionService.addOrUpdateItem(updatedTr)];
+                                                                case 1:
+                                                                    result = _a.sent();
+                                                                    if (result.error) {
+                                                                        throw result.error;
+                                                                    }
+                                                                    else {
+                                                                        return [2 /*return*/, result.item];
+                                                                    }
+                                                                    return [2 /*return*/];
+                                                            }
+                                                        });
+                                                    }); }))];
                                             case 3:
-                                                _b.sent();
+                                                nextTransactions = _b.sent();
                                                 _b.label = 4;
-                                            case 4: return [3 /*break*/, 7];
-                                            case 5: return [4 /*yield*/, this.transactionService.deleteItem(transaction)];
+                                            case 4:
+                                                if (!dataService.updateLinkedItems) return [3 /*break*/, 6];
+                                                return [4 /*yield*/, dataService.updateLinkedItems(oldId_1, updatedItem_1.item.id)];
+                                            case 5:
+                                                nextTransactions = _b.sent();
+                                                _b.label = 6;
                                             case 6:
-                                                _b.sent();
+                                                if (index < transactions.length - 1) {
+                                                    transactions.splice.apply(transactions, __spreadArrays([index + 1, transactions.length - index - 1], nextTransactions));
+                                                }
                                                 _b.label = 7;
                                             case 7:
-                                                resolve();
-                                                return [3 /*break*/, 13];
+                                                if (!updatedItem_1.error) return [3 /*break*/, 10];
+                                                errors.push(this.formatError(transaction, updatedItem_1.error.message));
+                                                if (!(updatedItem_1.error.name === Constants.Errors.ItemVersionConfict)) return [3 /*break*/, 9];
+                                                return [4 /*yield*/, this.transactionService.deleteItem(transaction)];
                                             case 8:
-                                                _b.trys.push([8, 11, , 12]);
+                                                _b.sent();
+                                                _b.label = 9;
+                                            case 9: return [3 /*break*/, 12];
+                                            case 10: return [4 /*yield*/, this.transactionService.deleteItem(transaction)];
+                                            case 11:
+                                                _b.sent();
+                                                _b.label = 12;
+                                            case 12:
+                                                resolve();
+                                                return [3 /*break*/, 18];
+                                            case 13:
+                                                _b.trys.push([13, 16, , 17]);
                                                 return [4 /*yield*/, dataService.deleteItem(item)];
-                                            case 9:
+                                            case 14:
                                                 _b.sent();
                                                 return [4 /*yield*/, this.transactionService.deleteItem(transaction)];
-                                            case 10:
+                                            case 15:
                                                 _b.sent();
                                                 resolve();
-                                                return [3 /*break*/, 12];
-                                            case 11:
+                                                return [3 /*break*/, 17];
+                                            case 16:
                                                 error_1 = _b.sent();
                                                 errors.push(this.formatError(transaction, error_1.message));
                                                 resolve();
-                                                return [3 /*break*/, 12];
-                                            case 12: return [3 /*break*/, 13];
-                                            case 13: return [2 /*return*/];
+                                                return [3 /*break*/, 17];
+                                            case 17: return [3 /*break*/, 18];
+                                            case 18: return [2 /*return*/];
                                         }
                                     });
                                 }); });

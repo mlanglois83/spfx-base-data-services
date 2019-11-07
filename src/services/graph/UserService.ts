@@ -76,13 +76,12 @@ export class UserService extends BaseDataService<User> {
     public async linkToSpUser(user: User): Promise<User> {
         if(user.spId === undefined) {
             let result = await sp.web.ensureUser(user.userPrincipalName);
-            user.spId = result.data.Id
+            user.spId = result.data.Id;
             this.dbService.addOrUpdateItem(user);
         }
         return user;        
     }
 
-    prot
 
     public async getByDisplayName(displayName: string): Promise<Array<User>> {
         let users = await this.get(displayName);

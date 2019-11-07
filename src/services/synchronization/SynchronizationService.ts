@@ -40,22 +40,34 @@ export class SynchronizationService extends BaseService {
                         const updatedItem = await dataService.addOrUpdateItem(item);
                         // handle id and version changed
                         if (isAdd && !updatedItem.error) {
+                            
+                            let nextTransactions: Array<OfflineTransaction> = [];
                             // next transactions on this item
                             if (index < transactions.length - 1) {
-                                transactions.slice(index).filter((t) => {
+                                nextTransactions = await Promise.all(transactions.slice(index + 1).filter((t) => {
                                     return t.itemType === transaction.itemType &&
                                         t.serviceName === transaction.serviceName &&
                                         (t.itemData as IBaseItem).id === oldId;
-                                }).forEach(async (updatedTr) => {
+                                }).map(async (updatedTr) => {
                                     (updatedTr.itemData as IBaseItem).id = updatedItem.item.id;
                                     (updatedTr.itemData as IBaseItem).version = updatedItem.item.version;
-                                    await this.transactionService.addOrUpdateItem(updatedTr);
-                                });
+                                    let result = await this.transactionService.addOrUpdateItem(updatedTr);
+                                    if(result.error) {
+                                        throw result.error;
+                                    }
+                                    else {
+                                        return result.item;
+                                    }
+                                }));
                             }
                             // other update for linked content
                             if (dataService.updateLinkedItems) {
-                                dataService.updateLinkedItems(oldId, updatedItem.item.id);
+                                nextTransactions = await dataService.updateLinkedItems(oldId, updatedItem.item.id);
                             }
+                            if(index < transactions.length - 1) {
+                                transactions.splice(index + 1, transactions.length - index - 1, ...nextTransactions);
+                            }
+
                         }
                         if(updatedItem.error) {
                             errors.push(this.formatError(transaction, updatedItem.error.message));

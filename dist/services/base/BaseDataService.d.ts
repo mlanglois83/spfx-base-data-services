@@ -1,4 +1,5 @@
 import { IBaseItem, IAddOrUpdateResult, IDataService } from "../../interfaces";
+import { OfflineTransaction } from "../../models/index";
 import { TransactionService } from "../synchronization/TransactionService";
 import { BaseDbService } from "./BaseDbService";
 import { BaseService } from "./BaseService";
@@ -14,7 +15,7 @@ export declare abstract class BaseDataService<T extends IBaseItem> extends BaseS
      * Stored promises to avoid multiple calls
      */
     protected static promises: {};
-    updateLinkedItems?: (oldId: number | string, newId: number | string) => void;
+    updateLinkedItems?: (oldId: number | string, newId: number | string) => Promise<Array<OfflineTransaction>>;
     readonly serviceName: string;
     /**
      *

@@ -137,7 +137,8 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
     protected async addOrUpdateItem_Internal(item: T): Promise<T> {
         let result = cloneDeep(item);
         if (item.id < 0) {
-            let addResult = await this.list.items.add(item.convert());
+            let converted = await item.convert();
+            let addResult = await this.list.items.add(converted);
 
             if (result.onAddCompleted) {
                 result.onAddCompleted(addResult.data);
@@ -154,7 +155,8 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                     throw error;
                 }
                 else {
-                    await this.list.items.getById(<number>item.id).update(item.convert());
+                    let converted = await item.convert();
+                    await this.list.items.getById(<number>item.id).update(converted);
                     let version = await this.list.items.getById(<number>item.id).get();
                     if (result.onUpdateCompleted) {
                         result.onUpdateCompleted(version);
@@ -162,7 +164,8 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 }
             }
             else {
-                let updateResult = await this.list.items.getById(<number>item.id).update(item.convert());
+                let converted = await item.convert();
+                let updateResult = await this.list.items.getById(<number>item.id).update(converted);
 
                 if (result.onUpdateCompleted) {
                     result.onUpdateCompleted(updateResult.data);
