@@ -85,16 +85,22 @@ var TransactionService = /** @class */ (function (_super) {
     };
     TransactionService.prototype.deleteItem = function (item) {
         return __awaiter(this, void 0, void 0, function () {
+            var transaction, file;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        if (!(item.itemType === SPFile["name"])) return [3 /*break*/, 2];
-                        return [4 /*yield*/, this.transactionFileService.deleteItem(item.itemData)];
+                        if (!(item.itemType === SPFile["name"])) return [3 /*break*/, 3];
+                        return [4 /*yield*/, _super.prototype.getById.call(this, item.id)];
                     case 1:
+                        transaction = _a.sent();
+                        file = new SPFile();
+                        file.serverRelativeUrl = transaction.itemData;
+                        return [4 /*yield*/, this.transactionFileService.deleteItem(file)];
+                    case 2:
                         _a.sent();
-                        _a.label = 2;
-                    case 2: return [4 /*yield*/, _super.prototype.deleteItem.call(this, item)];
-                    case 3:
+                        _a.label = 3;
+                    case 3: return [4 /*yield*/, _super.prototype.deleteItem.call(this, item)];
+                    case 4:
                         _a.sent();
                         return [2 /*return*/];
                 }

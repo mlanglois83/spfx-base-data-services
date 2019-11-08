@@ -107,11 +107,12 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                 let keys: string[] = await this.getAllKeysInternal(store);
                 const chunkRegex = this.getChunksRegexp(item.serverRelativeUrl);
                 let chunkkeys = keys.filter((k) => {
-                    return chunkRegex.test(k);
-                });
+                    let match = k.match(chunkRegex);
+                    return match && match.length > 0;
+                });                
                 await Promise.all(chunkkeys.map((k) => {
                     return store.delete(k);
-                }));    
+                }));
                 // add chunked file
                 let idx = 0;
                 let size = 0;
@@ -163,13 +164,14 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                 let keys: string[] = await this.getAllKeysInternal(store);
                 const chunkRegex = this.getChunksRegexp(item.serverRelativeUrl);
                 let chunkkeys = keys.filter((k) => {
-                    return chunkRegex.test(k);
-                });
+                    let match = k.match(chunkRegex);
+                    return match && match.length > 0;
+                }); 
                 deleteKeys.push(...chunkkeys);
             }
             await Promise.all(deleteKeys.map((k) => {
                 return store.delete(k);
-            }));           
+            }));
             await tx.complete;
         } catch (error) {
             console.error(error.message + " - " + error.Name);
@@ -216,11 +218,12 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                     let keys: string[] = await this.getAllKeysInternal(store);
                     const chunkRegex = this.getChunksRegexp(item.serverRelativeUrl);
                     let chunkkeys = keys.filter((k) => {
-                        return chunkRegex.test(k);
+                        let match = k.match(chunkRegex);
+                        return match && match.length > 0;
                     });           
                     await Promise.all(chunkkeys.map((k) => {
-                        return store.delete(k); // store simple object with data only  
-                    }));            
+                        return store.delete(k); 
+                    }));
                     // add chunked file
                     let idx = 0;
                     let size = 0;
@@ -299,9 +302,10 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                     const chunkparts = (/^.*_chunk_\d+$/g).test(item.serverRelativeUrl);
                     if (!chunkparts) {
                         // verify if there are other parts
-                        const chunkRegex = this.getChunksRegexp(item.serverRelativeUrl);
+                        const chunkRegex = this.getChunksRegexp(item.serverRelativeUrl);                        
                         let chunks = rows.filter((chunkedrow) => {
-                            return chunkRegex.test(chunkedrow.id);
+                            let match = chunkedrow.id.match(chunkRegex);
+                            return match && match.length > 0;
                         });
                         if (chunks.length > 0) {
                             chunks.sort((a, b) => {
@@ -376,9 +380,10 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                     if (!chunkparts) {
                         let allRows = await store.getAll();
                         // verify if there are other parts
-                        const chunkRegex = this.getChunksRegexp(result.serverRelativeUrl);
+                        const chunkRegex = this.getChunksRegexp(result.serverRelativeUrl);                          
                         let chunks = allRows.filter((chunkedrow) => {
-                            return chunkRegex.test(chunkedrow.id);
+                            let match = chunkedrow.id.match(chunkRegex);
+                            return match && match.length > 0;
                         });
                         if (chunks.length > 0) {
                             chunks.sort((a, b) => {

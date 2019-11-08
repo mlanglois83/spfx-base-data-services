@@ -201,7 +201,8 @@ var BaseDbService = /** @class */ (function (_super) {
                         keys = _a.sent();
                         chunkRegex_1 = this.getChunksRegexp(item.serverRelativeUrl);
                         chunkkeys = keys.filter(function (k) {
-                            return chunkRegex_1.test(k);
+                            var match = k.match(chunkRegex_1);
+                            return match && match.length > 0;
                         });
                         return [4 /*yield*/, Promise.all(chunkkeys.map(function (k) {
                                 return store.delete(k);
@@ -276,7 +277,8 @@ var BaseDbService = /** @class */ (function (_super) {
                         keys = _a.sent();
                         chunkRegex_2 = this.getChunksRegexp(item.serverRelativeUrl);
                         chunkkeys = keys.filter(function (k) {
-                            return chunkRegex_2.test(k);
+                            var match = k.match(chunkRegex_2);
+                            return match && match.length > 0;
                         });
                         deleteKeys.push.apply(deleteKeys, chunkkeys);
                         _a.label = 4;
@@ -361,10 +363,11 @@ var BaseDbService = /** @class */ (function (_super) {
                                             keys = _a.sent();
                                             chunkRegex_3 = this.getChunksRegexp(item.serverRelativeUrl);
                                             chunkkeys = keys.filter(function (k) {
-                                                return chunkRegex_3.test(k);
+                                                var match = k.match(chunkRegex_3);
+                                                return match && match.length > 0;
                                             });
                                             return [4 /*yield*/, Promise.all(chunkkeys.map(function (k) {
-                                                    return store.delete(k); // store simple object with data only  
+                                                    return store.delete(k);
                                                 }))];
                                         case 2:
                                             _a.sent();
@@ -473,7 +476,8 @@ var BaseDbService = /** @class */ (function (_super) {
                                     // verify if there are other parts
                                     var chunkRegex_4 = _this.getChunksRegexp(item.serverRelativeUrl);
                                     var chunks = rows_1.filter(function (chunkedrow) {
-                                        return chunkRegex_4.test(chunkedrow.id);
+                                        var match = chunkedrow.id.match(chunkRegex_4);
+                                        return match && match.length > 0;
                                     });
                                     if (chunks.length > 0) {
                                         chunks.sort(function (a, b) {
@@ -592,7 +596,8 @@ var BaseDbService = /** @class */ (function (_super) {
                         allRows = _a.sent();
                         chunkRegex_5 = this.getChunksRegexp(result.serverRelativeUrl);
                         chunks = allRows.filter(function (chunkedrow) {
-                            return chunkRegex_5.test(chunkedrow.id);
+                            var match = chunkedrow.id.match(chunkRegex_5);
+                            return match && match.length > 0;
                         });
                         if (chunks.length > 0) {
                             chunks.sort(function (a, b) {

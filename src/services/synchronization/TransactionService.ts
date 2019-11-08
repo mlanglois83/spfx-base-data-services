@@ -30,7 +30,10 @@ export class TransactionService extends BaseDbService<OfflineTransaction> {
 
     public async deleteItem(item: OfflineTransaction): Promise<void> {
         if (item.itemType === SPFile["name"]) {
-            await this.transactionFileService.deleteItem(item.itemData);
+            let transaction = await super.getById(item.id);
+            let file: SPFile = new SPFile();
+            file.serverRelativeUrl = transaction.itemData;
+            await this.transactionFileService.deleteItem(file);
         }
         await super.deleteItem(item);
     }
