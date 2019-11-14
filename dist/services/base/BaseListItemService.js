@@ -162,7 +162,13 @@ var BaseListItemService = /** @class */ (function (_super) {
                             }, 'FieldValuesAsText')];
                     case 1:
                         items = _a.sent();
-                        return [2 /*return*/, items.map(function (r) { return new _this.itemType(r); })];
+                        results = items.map(function (r) { return new _this.itemType(r); });
+                        if (!this.associate) return [3 /*break*/, 3];
+                        return [4 /*yield*/, this.associate.apply(this, results)];
+                    case 2:
+                        results = _a.sent();
+                        _a.label = 3;
+                    case 3: return [2 /*return*/, results];
                 }
             });
         });
@@ -181,10 +187,15 @@ var BaseListItemService = /** @class */ (function (_super) {
                         return [4 /*yield*/, this.list.items.getById(id).get()];
                     case 1:
                         temp = _a.sent();
-                        if (temp) {
-                            result = new this.itemType(temp);
-                        }
-                        return [2 /*return*/, result];
+                        if (!temp) return [3 /*break*/, 4];
+                        result = new this.itemType(temp);
+                        if (!this.associate) return [3 /*break*/, 3];
+                        return [4 /*yield*/, this.associate(result)];
+                    case 2:
+                        result = _a.sent();
+                        _a.label = 3;
+                    case 3: return [2 /*return*/, result];
+                    case 4: return [2 /*return*/, result];
                 }
             });
         });
@@ -196,14 +207,20 @@ var BaseListItemService = /** @class */ (function (_super) {
      */
     BaseListItemService.prototype.getAll_Internal = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var items;
+            var items, results;
             var _this = this;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0: return [4 /*yield*/, this.list.items.getAll()];
                     case 1:
                         items = _a.sent();
-                        return [2 /*return*/, items.map(function (r) { return new _this.itemType(r); })];
+                        results = items.map(function (r) { return new _this.itemType(r); });
+                        if (!this.associate) return [3 /*break*/, 3];
+                        return [4 /*yield*/, this.associate.apply(this, results)];
+                    case 2:
+                        results = _a.sent();
+                        _a.label = 3;
+                    case 3: return [2 /*return*/, results];
                 }
             });
         });

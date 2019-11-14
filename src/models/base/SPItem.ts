@@ -95,12 +95,4 @@ export abstract class SPItem implements IBaseItem {
             this.version = parseFloat(updateResult["OData__UIVersionString"]);
         }
     }
-
-    /**
-     * called before updating local db
-     * update lookup, user, taxonomy ids here from stored objects
-     */
-    public beforeUpdateDb(): void {
-    }
-
 }

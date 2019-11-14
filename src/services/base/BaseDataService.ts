@@ -296,9 +296,6 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
             }
         }
         else {
-            if(item.beforeUpdateDb) {
-                item.beforeUpdateDb();
-            }
             result = await this.dbService.addOrUpdateItem(item);
             // create a new transaction
             let ot: OfflineTransaction = new OfflineTransaction();
@@ -338,5 +335,4 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
 
         return null;
     }
-
 }

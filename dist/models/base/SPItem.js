@@ -145,12 +145,6 @@ var SPItem = /** @class */ (function () {
             this.version = parseFloat(updateResult["OData__UIVersionString"]);
         }
     };
-    /**
-     * called before updating local db
-     * update lookup, user, taxonomy ids here from stored objects
-     */
-    SPItem.prototype.beforeUpdateDb = function () {
-    };
     return SPItem;
 }());
 export { SPItem };

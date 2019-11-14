@@ -6,5 +6,4 @@ export interface IBaseItem {
     convert?: () => Promise<any>;
     onAddCompleted?: (addResult: any) => void;
     onUpdateCompleted?: (updateResult: any) => void;
-    beforeUpdateDb?: () => void;
 }

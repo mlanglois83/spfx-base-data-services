@@ -8,6 +8,10 @@ import { BaseDataService } from "./BaseDataService";
 export declare class BaseListItemService<T extends IBaseItem> extends BaseDataService<T> {
     protected itemType: (new (item?: any) => T);
     protected listRelativeUrl: string;
+    /**
+     * If defined, will be called on each internal getter call to make associations (taxonomy, users...)
+     */
+    protected associate?: (...items: Array<T>) => Promise<Array<T>>;
     readonly listItemType: (new (item?: any) => T);
     /**
      * Associeted list (pnpjs)

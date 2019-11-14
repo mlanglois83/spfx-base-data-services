@@ -12,5 +12,15 @@ export declare class UtilsService extends BaseService {
     static getParentFolderUrl(url: string): string;
     static concatArrayBuffers(...arrays: ArrayBuffer[]): ArrayBuffer;
     static getTaxonomyTermByWssId<T extends TaxonomyTerm>(wssid: number, terms: Array<T>): T;
+    /**
+     * Escapes a string for use in a regex
+     * @param value string to escape
+     */
     static escapeRegExp(value: string): string;
+    /**
+     * transform an array to the corresponding caml in clause values (surrounded with <Values></Values> tag)
+     * @param values array of value to transform to in values
+     * @param fieldType sp field type
+     */
+    static getCamlInValues(values: Array<number | string>, fieldType: string): string;
 }

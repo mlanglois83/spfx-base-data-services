@@ -32,9 +32,4 @@ export declare abstract class SPItem implements IBaseItem {
      * @param updateResult updated item from rest call
      */
     onUpdateCompleted(updateResult: any): void;
-    /**
-     * called before updating local db
-     * update lookup, user, taxonomy ids here from stored objects
-     */
-    beforeUpdateDb(): void;
 }

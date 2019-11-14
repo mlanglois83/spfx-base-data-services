@@ -81,8 +81,20 @@ export class UtilsService extends BaseService {
         });
     }
 
+    /**
+     * Escapes a string for use in a regex
+     * @param value string to escape
+     */
     public static escapeRegExp(value: string) {
         return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
-      }
+    }
 
+    /**
+     * transform an array to the corresponding caml in clause values (surrounded with <Values></Values> tag)
+     * @param values array of value to transform to in values
+     * @param fieldType sp field type
+     */
+    public static getCamlInValues(values: Array<number | string>, fieldType: string): string {
+        return values && values.length > 0 ? values.map((value) => { return `<Values><Value Type="${fieldType}">${value}</Value></Values>`; }).join('') : `<Values><Value Type="${fieldType}">-1</Value></Values>`;
+    }
 }

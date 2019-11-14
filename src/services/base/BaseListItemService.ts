@@ -16,6 +16,11 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
     protected itemType: (new (item?: any) => T);
     protected listRelativeUrl: string;
 
+    /**
+     * If defined, will be called on each internal getter call to make associations (taxonomy, users...)
+     */
+    protected associate?: (...items: Array<T>) => Promise<Array<T>>;
+
     public get listItemType(): (new (item?: any) => T) {
         return this.itemType;
     }
@@ -87,6 +92,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         return result;
     }
 
+
     /**
      *
      * TODO avoid getting all fields
@@ -102,7 +108,11 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
             ViewXml: '<View Scope="RecursiveAll"><Query>' + query + '</Query></View>'
         } as CamlQuery, 'FieldValuesAsText');
 
-        return items.map(r => { return new this.itemType(r); });
+        results =  items.map(r => { return new this.itemType(r); });
+        if(this.associate) {
+            results = await this.associate(...results);
+        }
+        return results;
     }
 
 
@@ -118,6 +128,10 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
 
         if (temp) {
             result = new this.itemType(temp);
+            if(this.associate) {
+                result = await this.associate(result);
+            }
+            return result;
         }
 
         return result;
@@ -131,7 +145,11 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
     protected async getAll_Internal(): Promise<Array<T>> {
 
         let items = await this.list.items.getAll();
-        return items.map(r => { return new this.itemType(r); });
+        let results = items.map(r => { return new this.itemType(r); });
+        if(this.associate) {
+            results = await this.associate(...results);
+        }
+        return results;
     }
 
     protected async addOrUpdateItem_Internal(item: T): Promise<T> {
