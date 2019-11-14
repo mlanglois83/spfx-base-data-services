@@ -15,7 +15,7 @@ export declare abstract class BaseDataService<T extends IBaseItem> extends BaseS
      * Stored promises to avoid multiple calls
      */
     protected static promises: {};
-    updateLinkedItems?: (oldId: number | string, newId: number | string) => Promise<Array<OfflineTransaction>>;
+    updateLinkedItems?: (oldId: number | string, newId: number | string, transactions: Array<OfflineTransaction>) => Promise<Array<OfflineTransaction>>;
     readonly serviceName: string;
     /**
      *

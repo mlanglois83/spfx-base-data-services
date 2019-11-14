@@ -1,4 +1,5 @@
 import { IBaseItem, IAddOrUpdateResult } from ".";
+import { OfflineTransaction } from "..";
 /**
  * Contract interface for all dataservices
  */
@@ -10,5 +11,5 @@ export interface IDataService<T extends IBaseItem> {
     get(query: any): Promise<Array<T>>;
     addOrUpdateItem(item: T): Promise<IAddOrUpdateResult<T>>;
     deleteItem(item: T): Promise<void>;
-    updateLinkedItems?: (oldId: number | string, newId: number | string) => void;
+    updateLinkedItems?: (oldId: number | string, newId: number | string, transactions: Array<OfflineTransaction>) => Promise<Array<OfflineTransaction>>;
 }

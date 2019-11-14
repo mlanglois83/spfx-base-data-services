@@ -24,7 +24,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
      */
     protected static promises = {};
 
-    public updateLinkedItems?: (oldId: number | string, newId: number | string) => Promise<Array<OfflineTransaction>>;
+    public updateLinkedItems?: (oldId: number | string, newId: number | string, transactions: Array<OfflineTransaction>) => Promise<Array<OfflineTransaction>>;
 
     public get serviceName(): string {
         return this.constructor["name"];
