@@ -10,7 +10,7 @@ export declare class BaseFileService<T extends IBaseItem> extends BaseDataServic
     /**
      * Associeted list (pnpjs)
      */
-    protected readonly list: import("@pnp/sp").List;
+    protected get list(): import("@pnp/sp").List;
     /**
      *
      * @param type items type

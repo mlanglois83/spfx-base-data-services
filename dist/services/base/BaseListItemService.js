@@ -170,8 +170,8 @@ var BaseListItemService = /** @class */ (function (_super) {
                     case 1:
                         items = _a.sent();
                         results = items.map(function (r) { return new _this.itemType(r); });
-                        if (!this.associate) return [3 /*break*/, 3];
-                        return [4 /*yield*/, this.associate.apply(this, results)];
+                        if (!this.associateItems) return [3 /*break*/, 3];
+                        return [4 /*yield*/, this.associateItems.apply(this, results)];
                     case 2:
                         results = _a.sent();
                         _a.label = 3;
@@ -186,7 +186,7 @@ var BaseListItemService = /** @class */ (function (_super) {
      */
     BaseListItemService.prototype.getById_Internal = function (id) {
         return __awaiter(this, void 0, void 0, function () {
-            var result, temp;
+            var result, temp, results;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -196,10 +196,13 @@ var BaseListItemService = /** @class */ (function (_super) {
                         temp = _a.sent();
                         if (!temp) return [3 /*break*/, 4];
                         result = new this.itemType(temp);
-                        if (!this.associate) return [3 /*break*/, 3];
-                        return [4 /*yield*/, this.associate(result)];
+                        if (!this.associateItems) return [3 /*break*/, 3];
+                        return [4 /*yield*/, this.associateItems(result)];
                     case 2:
-                        result = _a.sent();
+                        results = _a.sent();
+                        if (results && results.length > 0) {
+                            result = results[0];
+                        }
                         _a.label = 3;
                     case 3: return [2 /*return*/, result];
                     case 4: return [2 /*return*/, result];
@@ -222,8 +225,8 @@ var BaseListItemService = /** @class */ (function (_super) {
                     case 1:
                         items = _a.sent();
                         results = items.map(function (r) { return new _this.itemType(r); });
-                        if (!this.associate) return [3 /*break*/, 3];
-                        return [4 /*yield*/, this.associate.apply(this, results)];
+                        if (!this.associateItems) return [3 /*break*/, 3];
+                        return [4 /*yield*/, this.associateItems.apply(this, results)];
                     case 2:
                         results = _a.sent();
                         _a.label = 3;

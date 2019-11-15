@@ -24,7 +24,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
     /**
      * If defined, will be called on each internal getter call to make associations (taxonomy, users...)
      */
-    protected associate?: (...items: Array<T>) => Promise<Array<T>>;
+    protected associateItems?: (...items: Array<T>) => Promise<Array<T>>;
 
     public get listItemType(): (new (item?: any) => T) {
         return this.itemType;
@@ -113,9 +113,9 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
             ViewXml: '<View Scope="RecursiveAll"><Query>' + query + '</Query></View>'
         } as CamlQuery, 'FieldValuesAsText');
 
-        results =  items.map(r => { return new this.itemType(r); });
-        if(this.associate) {
-            results = await this.associate(...results);
+        results = items.map(r => { return new this.itemType(r); });
+        if (this.associateItems) {
+            results = await this.associateItems(...results);
         }
         return results;
     }
@@ -133,8 +133,11 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
 
         if (temp) {
             result = new this.itemType(temp);
-            if(this.associate) {
-                result = await this.associate(result);
+            if (this.associateItems) {
+                let results = await this.associateItems(result);
+                if (results && results.length > 0) {
+                    result = results[0];
+                }
             }
             return result;
         }
@@ -151,8 +154,8 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
 
         let items = await this.list.items.getAll();
         let results = items.map(r => { return new this.itemType(r); });
-        if(this.associate) {
-            results = await this.associate(...results);
+        if (this.associateItems) {
+            results = await this.associateItems(...results);
         }
         return results;
     }

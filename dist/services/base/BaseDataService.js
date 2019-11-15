@@ -388,7 +388,7 @@ var BaseDataService = /** @class */ (function (_super) {
                         return [4 /*yield*/, this.getById_Internal(item.id)];
                     case 7:
                         itemResult = _a.sent();
-                        return [4 /*yield*/, this.dbService.addOrUpdateItems([itemResult])];
+                        return [4 /*yield*/, this.dbService.addOrUpdateItem(itemResult)];
                     case 8:
                         _a.sent();
                         result = {

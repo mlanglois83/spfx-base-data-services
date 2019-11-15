@@ -3,7 +3,9 @@ export declare class SPFile {
     mimeType: string;
     id: string;
     title: string;
-    serverRelativeUrl: string;
-    name: string;
+    get serverRelativeUrl(): string;
+    set serverRelativeUrl(val: string);
+    get name(): string;
+    set name(val: string);
     constructor(fileItem?: any);
 }

@@ -12,12 +12,12 @@ export declare class BaseListItemService<T extends IBaseItem> extends BaseDataSe
     /**
      * If defined, will be called on each internal getter call to make associations (taxonomy, users...)
      */
-    protected associate?: (...items: Array<T>) => Promise<Array<T>>;
-    readonly listItemType: (new (item?: any) => T);
+    protected associateItems?: (...items: Array<T>) => Promise<Array<T>>;
+    get listItemType(): (new (item?: any) => T);
     /**
      * Associeted list (pnpjs)
      */
-    protected readonly list: List;
+    protected get list(): List;
     /**
      *
      * @param type items type
