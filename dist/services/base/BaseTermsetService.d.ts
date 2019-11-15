@@ -14,8 +14,9 @@ export declare class BaseTermsetService<T extends TaxonomyTerm> extends BaseData
     /**
      * Associeted termset (pnpjs)
      */
-    protected readonly termset: import("@pnp/sp-taxonomy").ITermSet;
-    protected customSortOrder: string;
+    protected get termset(): import("@pnp/sp-taxonomy").ITermSet;
+    protected set customSortOrder(value: string);
+    protected get customSortOrder(): string;
     /**
      *
      * @param type items type

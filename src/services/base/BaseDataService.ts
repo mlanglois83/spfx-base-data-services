@@ -231,7 +231,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
 
                     let reloadData = await this.needRefreshCache(keyCached);
                     //if refresh is needed, test offline/online
-                    if (reloadData &&  ServicesConfiguration.configuration.checkOnline) {
+                    if (reloadData && ServicesConfiguration.configuration.checkOnline) {
                         reloadData = await UtilsService.CheckOnline();
                     }
 
@@ -265,9 +265,8 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         let result: IAddOrUpdateResult<T> = null;
         let itemResult: T = null;
 
-        let isconnected = true 
-        if(ServicesConfiguration.configuration.checkOnline)
-        {
+        let isconnected = true
+        if (ServicesConfiguration.configuration.checkOnline) {
             isconnected = await UtilsService.CheckOnline();
         }
         if (isconnected) {
@@ -280,7 +279,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
             } catch (error) {
                 if (error.name === Constants.Errors.ItemVersionConfict) {
                     itemResult = await this.getById_Internal(item.id);
-                    await this.dbService.addOrUpdateItems([itemResult]);
+                    await this.dbService.addOrUpdateItem(itemResult);
                     result = {
                         item: itemResult,
                         error: error
@@ -312,11 +311,10 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
     protected abstract deleteItem_Internal(item: T): Promise<void>;
 
     public async deleteItem(item: T): Promise<void> {
-        let isconnected = true 
-        if(ServicesConfiguration.configuration.checkOnline)
-        {
+        let isconnected = true
+        if (ServicesConfiguration.configuration.checkOnline) {
             isconnected = await UtilsService.CheckOnline();
-        }        
+        }
         if (isconnected) {
             await this.deleteItem_Internal(item);
             await this.dbService.deleteItem(item);

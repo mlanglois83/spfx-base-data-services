@@ -21,7 +21,7 @@ export declare abstract class SPItem implements IBaseItem {
     protected convertTaxonomyFieldValue(value: TaxonomyTerm): any;
     protected convertSingleUserFieldValue(value: User): Promise<any>;
     protected convertMultiUserFieldValue(value: User[]): Promise<any>;
-    readonly isValid: boolean;
+    get isValid(): boolean;
     /**
      * called after update was made on sp list
      * @param addResultData added item from rest call
