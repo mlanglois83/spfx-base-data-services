@@ -7,6 +7,7 @@ import { IBaseItem } from "../../interfaces/index";
 import { BaseDataService } from "./BaseDataService";
 import { BaseService } from "./BaseService";
 import { UtilsService } from "..";
+import { SPItem } from "../../models";
 
 /**
  * 
@@ -15,6 +16,10 @@ import { UtilsService } from "..";
 export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>{
     protected itemType: (new (item?: any) => T);
     protected listRelativeUrl: string;
+
+    protected get ItemFields(): any {
+        return this.itemType["Fields"];
+    }
 
     /**
      * If defined, will be called on each internal getter call to make associations (taxonomy, users...)
@@ -47,7 +52,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
 
 
     /**
-     * Cache has to be relaod ?
+     * Cache has to be reloaded ?
      *
      * @readonly
      * @protected

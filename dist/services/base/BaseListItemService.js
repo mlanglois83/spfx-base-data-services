@@ -72,6 +72,13 @@ var BaseListItemService = /** @class */ (function (_super) {
         _this.itemType = type;
         return _this;
     }
+    Object.defineProperty(BaseListItemService.prototype, "ItemFields", {
+        get: function () {
+            return this.itemType["Fields"];
+        },
+        enumerable: true,
+        configurable: true
+    });
     Object.defineProperty(BaseListItemService.prototype, "listItemType", {
         get: function () {
             return this.itemType;
@@ -90,7 +97,7 @@ var BaseListItemService = /** @class */ (function (_super) {
         configurable: true
     });
     /**
-     * Cache has to be relaod ?
+     * Cache has to be reloaded ?
      *
      * @readonly
      * @protected

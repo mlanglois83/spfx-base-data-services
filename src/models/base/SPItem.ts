@@ -3,13 +3,17 @@ import { IBaseItem } from "../../interfaces/index";
 import { TaxonomyTerm } from "./TaxonomyTerm";
 import { User } from "../graph/User";
 import { UserService } from "../../services";
+import { spField } from "../../decorators";
+import { FieldType } from "../../constants";
 /**
  * Base object for sharepoint abstraction objects
  */
 export abstract class SPItem implements IBaseItem {
-
+    @spField({fieldName: "ID", fieldType: FieldType.Simple, defaultValue: -1 })
     public id: number = -1;
+    @spField({fieldName: "Title", fieldType: FieldType.Simple, defaultValue: "" })
     public title: string;
+    @spField({fieldName: "OData__UIVersionString", fieldType: FieldType.Simple, defaultValue: undefined })
     public version?: number;
     public queries?: Array<number>;
 

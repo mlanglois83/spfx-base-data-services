@@ -8,6 +8,7 @@ import { BaseDataService } from "./BaseDataService";
 export declare class BaseListItemService<T extends IBaseItem> extends BaseDataService<T> {
     protected itemType: (new (item?: any) => T);
     protected listRelativeUrl: string;
+    protected readonly ItemFields: any;
     /**
      * If defined, will be called on each internal getter call to make associations (taxonomy, users...)
      */
@@ -25,7 +26,7 @@ export declare class BaseListItemService<T extends IBaseItem> extends BaseDataSe
      */
     constructor(type: (new (item?: any) => T), listRelativeUrl: string, tableName: string, cacheDuration?: number);
     /**
-     * Cache has to be relaod ?
+     * Cache has to be reloaded ?
      *
      * @readonly
      * @protected
