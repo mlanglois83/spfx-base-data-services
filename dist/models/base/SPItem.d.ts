@@ -1,35 +1,30 @@
 import { IBaseItem } from "../../interfaces/index";
-import { TaxonomyTerm } from "./TaxonomyTerm";
-import { User } from "../graph/User";
 /**
- * Base object for sharepoint abstraction objects
+ * Base object for sharepoint item abstraction objects
  */
 export declare abstract class SPItem implements IBaseItem {
+    /**
+     * Item id
+     */
     id: number;
+    /**
+     * Item title
+     */
     title: string;
+    /**
+     * Version number
+     */
     version?: number;
+    /**
+     * Queries (only used in services)
+     */
     queries?: Array<number>;
     /**
      * Constructs a SPItem object
-     * @param item object returned by sp call
      */
-    constructor(item?: any);
+    constructor();
     /**
-     * Returns a copy of the object compatible with sp calls
+     * Defines if item is valid for sending it to list
      */
-    convert(): Promise<any>;
-    protected convertTaxonomyFieldValue(value: TaxonomyTerm): any;
-    protected convertSingleUserFieldValue(value: User): Promise<any>;
-    protected convertMultiUserFieldValue(value: User[]): Promise<any>;
-    get isValid(): boolean;
-    /**
-     * called after update was made on sp list
-     * @param addResultData added item from rest call
-     */
-    onAddCompleted(addResultData: any): void;
-    /**
-     * called after update was made on sp list
-     * @param updateResult updated item from rest call
-     */
-    onUpdateCompleted(updateResult: any): void;
+    readonly isValid: boolean;
 }

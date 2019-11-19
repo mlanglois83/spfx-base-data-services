@@ -384,6 +384,7 @@ var BaseDataService = /** @class */ (function (_super) {
                         return [3 /*break*/, 11];
                     case 6:
                         error_4 = _a.sent();
+                        console.error(error_4);
                         if (!(error_4.name === Constants.Errors.ItemVersionConfict)) return [3 /*break*/, 9];
                         return [4 /*yield*/, this.getById_Internal(item.id)];
                     case 7:

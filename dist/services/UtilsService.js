@@ -48,8 +48,10 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
 };
 import { BaseService } from "./base/BaseService";
-import { find } from "@microsoft/sp-lodash-subset";
 import { ServicesConfiguration } from "../";
+/**
+ * Utility class
+ */
 var UtilsService = /** @class */ (function (_super) {
     __extends(UtilsService, _super);
     function UtilsService() {
@@ -84,6 +86,10 @@ var UtilsService = /** @class */ (function (_super) {
             });
         });
     };
+    /**
+     * Converts blob object to array buffer
+     * @param blob source blob
+     */
     UtilsService.blobToArrayBuffer = function (blob) {
         return new Promise(function (resolve, reject) {
             var reader = new FileReader();
@@ -94,9 +100,18 @@ var UtilsService = /** @class */ (function (_super) {
             reader.readAsArrayBuffer(blob);
         });
     };
+    /**
+     * Converts array buffer to blob
+     * @param buffer source array buffer
+     * @param type file mime type
+     */
     UtilsService.arrayBufferToBlob = function (buffer, type) {
         return new Blob([buffer], { type: type });
     };
+    /**
+     * Return base 64 url from file content
+     * @param fileData file content
+     */
     UtilsService.getOfflineFileUrl = function (fileData) {
         return new Promise(function (resolve, reject) {
             var reader = new FileReader;
@@ -108,11 +123,19 @@ var UtilsService = /** @class */ (function (_super) {
             reader.readAsDataURL(fileData);
         });
     };
+    /**
+     * Return parent folder url from url
+     * @param url child url
+     */
     UtilsService.getParentFolderUrl = function (url) {
         var urlParts = url.split('/');
         urlParts.pop();
         return urlParts.join("/");
     };
+    /**
+     * Concatenatee array buffers
+     * @param arrays array buffers
+     */
     UtilsService.concatArrayBuffers = function () {
         var arrays = [];
         for (var _i = 0; _i < arguments.length; _i++) {
@@ -130,11 +153,6 @@ var UtilsService = /** @class */ (function (_super) {
             offset += a.byteLength;
         });
         return joined.buffer;
-    };
-    UtilsService.getTaxonomyTermByWssId = function (wssid, terms) {
-        return find(terms, function (term) {
-            return (term.wssids && term.wssids.indexOf(wssid) > -1);
-        });
     };
     /**
      * Escapes a string for use in a regex

@@ -1,4 +1,11 @@
+/**
+ * Base object for sharepoint taxonomy term abstraction objects
+ */
 var TaxonomyTerm = /** @class */ (function () {
+    /**
+     * Instanciates a term object
+     * @param term term object from rest call
+     */
     function TaxonomyTerm(term) {
         if (term != undefined) {
             this.title = term.Name != undefined ? term.Name : "";
@@ -8,9 +15,6 @@ var TaxonomyTerm = /** @class */ (function () {
             this.customProperties = term.CustomProperties;
         }
     }
-    TaxonomyTerm.prototype.convert = function () {
-        throw new Error("Not implemented");
-    };
     return TaxonomyTerm;
 }());
 export { TaxonomyTerm };

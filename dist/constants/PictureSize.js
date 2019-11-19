@@ -1,3 +1,6 @@
+/**
+ * Picture sizes for users photo
+ */
 export var PictureSize;
 (function (PictureSize) {
     PictureSize["Small"] = "S";

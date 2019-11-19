@@ -1,7 +1,14 @@
 import { SPItem } from "../";
+/**
+ * Taxonomy hidden list data model
+ */
 export declare class TaxonomyHidden extends SPItem {
-    id: number;
+    /**
+     * Term id (guid)
+     */
     termId: string;
-    constructor(item: any);
-    convert(): Promise<any>;
+    /**
+     * Instanciate a new TaxonomyHidden object
+     */
+    constructor();
 }

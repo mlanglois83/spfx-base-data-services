@@ -1,3 +1,6 @@
+/**
+ * Offline transaction abstraction class
+ */
 var OfflineTransaction = /** @class */ (function () {
     function OfflineTransaction() {
     }

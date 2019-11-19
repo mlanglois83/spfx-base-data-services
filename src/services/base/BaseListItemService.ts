@@ -327,8 +327,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
     /***************** SP Calls associated to service standard operations ********************/
 
     /**
-     *
-     * TODO avoid getting all fields
+     * Get items by query
      * @protected
      * @param {*} query
      * @returns {Promise<Array<T>>}
@@ -336,9 +335,9 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
      */
     protected async get_Internal(query: any): Promise<Array<T>> {
         let results = new Array<T>();
-        // TODO: Manage view fields
+        let viewFields = this.getCamlViewFields();
         let items = await this.list.getItemsByCAMLQuery({
-            ViewXml: '<View Scope="RecursiveAll"><Query>' + query + '</Query></View>'
+            ViewXml: `<View Scope="RecursiveAll">${viewFields}<Query>${query}</Query></View>`
         } as CamlQuery);
         if(items && items.length > 0) {
             await this.Init();
@@ -357,10 +356,9 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
      * @param id item id
      */
     protected async getById_Internal(id: number): Promise<T> {
-        // TODO : Manage select
         let result = null;
-        let temp = await this.list.items.getById(id).get();
-
+        let selectFields = this.getInternalFieldNames();
+        let temp = await this.list.items.getById(id).select(...selectFields).get();
         if (temp) {
             await this.Init();
             result = this.getItemFromRest(temp);
@@ -373,12 +371,11 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
     /**
      * Retrieve all items
      * 
-     * TODO avoid getting all fields
      */
     protected async getAll_Internal(): Promise<Array<T>> {
-        // TODO : Manage select
         let results: Array<T> = [];
-        let items = await this.list.items.getAll();
+        let selectFields = this.getInternalFieldNames();
+        let items = await this.list.items.select(...selectFields).getAll();
         if(items && items.length > 0) {
             await this.Init();
             results = items.map((r) => { 
@@ -391,9 +388,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
      * Add or update an item
      * @param item SPItem derived object to be converted
      */
-    // TODO: Manage new wssid & new user id (for o365)
     protected async addOrUpdateItem_Internal(item: T): Promise<T> {
-        // TODO : Manage select
         let result = cloneDeep(item);
         if (item.id < 0) {
             let converted = await this.getSPRestItem(item);
@@ -401,6 +396,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
             if(addResult.data["OData__UIVersionString"]) {
                 result.version = parseFloat(addResult.data["OData__UIVersionString"]);
             }
+            // TODO: update lookups + new wssids + users spid
         }
         else {
             // check version (cannot update if newer)
@@ -414,19 +410,21 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 else {
                     let converted = await this.getSPRestItem(item);
                     let updateResult = await this.list.items.getById(<number>item.id).update(converted);
-                    let version = await updateResult.item.get();
+                    let version = await updateResult.item.select("OData__UIVersionString").get();
                     if(version["OData__UIVersionString"]) {
                         result.version = parseFloat(version["OData__UIVersionString"]);
                     }
+                    // TODO: new wssids + users spid
                 }
             }
             else {
                 let converted = await this.getSPRestItem(item);
                 let updateResult = await this.list.items.getById(<number>item.id).update(converted);
-                let version = await updateResult.item.get();
+                let version = await updateResult.item.select("OData__UIVersionString").get();
                 if(version["OData__UIVersionString"]) {
                     result.version = parseFloat(version["OData__UIVersionString"]);
                 }
+                // TODO: new wssids + users spid
             }
         }
         return result;
@@ -438,5 +436,32 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
      */
     protected async deleteItem_Internal(item: T): Promise<void> {
         await this.list.items.getById(<number>item.id).delete();
+    }
+
+    /************************** Query filters ***************************/
+
+
+    /**
+     * Retrive all fields to include in odata setect parameter
+     */
+    private getInternalFieldNames(): Array<string> {
+        let fields = this.ItemFields;
+        let fieldNames = Object.keys(fields).filter((propertyName) => { 
+            return fields.hasOwnProperty(propertyName); 
+        }).map((prop) => {
+            return fields[prop].fieldName;
+        });
+        return fieldNames;
+    }
+
+    /**
+     * Retrive all fields to include in odata setect parameter
+     */
+    private getCamlViewFields(): string {
+        let fieldNames = this.getInternalFieldNames();
+        let fieldRefs = fieldNames.map((fieldName) => {
+            return `<FieldRef Name="${fieldName}"></FieldRef>`;
+        });
+        return `<ViewFields>${fieldRefs.join('')}</ViewFields>`
     }
 }

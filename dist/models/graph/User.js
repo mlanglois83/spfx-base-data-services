@@ -1,16 +1,11 @@
+/**
+ * Abstraction class for O365 user associated with a SP User
+ */
 var User = /** @class */ (function () {
-    /***** graph object ******/
-    /*"businessPhones": [],
-    "displayName": "Conf Room Adams",
-    "givenName": null,
-    "jobTitle": null,
-    "mail": "Adams@M365x214355.onmicrosoft.com",
-    "mobilePhone": null,
-    "officeLocation": null,
-    "preferredLanguage": null,
-    "surname": null,
-    "userPrincipalName": "Adams@M365x214355.onmicrosoft.com",
-    "id": "6e7b768e-07e2-4810-8459-485f84f8f204"*/
+    /**
+     * Instancate an user object
+     * @param graphUser User object returned by graph api
+     */
     function User(graphUser) {
         if (graphUser != undefined) {
             this.title = graphUser.displayName != undefined ? graphUser.displayName : "";
@@ -20,18 +15,21 @@ var User = /** @class */ (function () {
         }
     }
     Object.defineProperty(User.prototype, "displayName", {
+        /**
+         * Get or Set User display name
+         */
         get: function () {
             return this.title;
         },
+        /**
+         * Get or Set User display name
+         */
         set: function (val) {
             this.title = val;
         },
         enumerable: true,
         configurable: true
     });
-    User.prototype.convert = function () {
-        throw new Error("Not implemented");
-    };
     return User;
 }());
 export { User };
