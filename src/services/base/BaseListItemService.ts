@@ -106,7 +106,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
 
         let items = await this.list.getItemsByCAMLQuery({
             ViewXml: '<View Scope="RecursiveAll"><Query>' + query + '</Query></View>'
-        } as CamlQuery, 'FieldValuesAsText');
+        } as CamlQuery);
 
         results = items.map(r => { return new this.itemType(r); });
         if (this.associateItems) {
