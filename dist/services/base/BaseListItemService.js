@@ -159,7 +159,7 @@ var BaseListItemService = /** @class */ (function (_super) {
                         results = new Array();
                         return [4 /*yield*/, this.list.getItemsByCAMLQuery({
                                 ViewXml: '<View Scope="RecursiveAll"><Query>' + query + '</Query></View>'
-                            }, 'FieldValuesAsText')];
+                            })];
                     case 1:
                         items = _a.sent();
                         results = items.map(function (r) { return new _this.itemType(r); });
@@ -230,7 +230,7 @@ var BaseListItemService = /** @class */ (function (_super) {
     };
     BaseListItemService.prototype.addOrUpdateItem_Internal = function (item) {
         return __awaiter(this, void 0, void 0, function () {
-            var result, converted, addResult, existing, error, converted, version, converted, updateResult;
+            var result, converted, addResult, existing, error, converted, updateResult, updatedItem, converted, updateResult, updatedItem;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -245,7 +245,7 @@ var BaseListItemService = /** @class */ (function (_super) {
                         if (result.onAddCompleted) {
                             result.onAddCompleted(addResult.data);
                         }
-                        return [3 /*break*/, 13];
+                        return [3 /*break*/, 14];
                     case 3:
                         if (!item.version) return [3 /*break*/, 10];
                         return [4 /*yield*/, this.list.items.getById(item.id).select("OData__UIVersionString").get()];
@@ -260,26 +260,29 @@ var BaseListItemService = /** @class */ (function (_super) {
                         converted = _a.sent();
                         return [4 /*yield*/, this.list.items.getById(item.id).update(converted)];
                     case 7:
-                        _a.sent();
-                        return [4 /*yield*/, this.list.items.getById(item.id).get()];
+                        updateResult = _a.sent();
+                        return [4 /*yield*/, updateResult.item.get()];
                     case 8:
-                        version = _a.sent();
+                        updatedItem = _a.sent();
                         if (result.onUpdateCompleted) {
-                            result.onUpdateCompleted(version);
+                            result.onUpdateCompleted(updatedItem);
                         }
                         _a.label = 9;
-                    case 9: return [3 /*break*/, 13];
+                    case 9: return [3 /*break*/, 14];
                     case 10: return [4 /*yield*/, item.convert()];
                     case 11:
                         converted = _a.sent();
                         return [4 /*yield*/, this.list.items.getById(item.id).update(converted)];
                     case 12:
                         updateResult = _a.sent();
+                        return [4 /*yield*/, updateResult.item.get()];
+                    case 13:
+                        updatedItem = _a.sent();
                         if (result.onUpdateCompleted) {
-                            result.onUpdateCompleted(updateResult.data);
+                            result.onUpdateCompleted(updatedItem);
                         }
-                        _a.label = 13;
-                    case 13: return [2 /*return*/, result];
+                        _a.label = 14;
+                    case 14: return [2 /*return*/, result];
                 }
             });
         });

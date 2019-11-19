@@ -177,19 +177,19 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 }
                 else {
                     let converted = await item.convert();
-                    await this.list.items.getById(<number>item.id).update(converted);
-                    let version = await this.list.items.getById(<number>item.id).get();
+                    let updateResult = await this.list.items.getById(<number>item.id).update(converted);
+                    let updatedItem = await updateResult.item.get();
                     if (result.onUpdateCompleted) {
-                        result.onUpdateCompleted(version);
+                        result.onUpdateCompleted(updatedItem);
                     }
                 }
             }
             else {
                 let converted = await item.convert();
                 let updateResult = await this.list.items.getById(<number>item.id).update(converted);
-
+                let updatedItem = await updateResult.item.get();
                 if (result.onUpdateCompleted) {
-                    result.onUpdateCompleted(updateResult.data);
+                    result.onUpdateCompleted(updatedItem);
                 }
             }
         }
