@@ -1,19 +1,19 @@
 import { SPItem } from "../";
+import { spField } from "../..";
 
-
+/**
+ * Taxonomy hidden list data model
+ */
 export class TaxonomyHidden extends SPItem {
-    public id: number;
+    /**
+     * Term id (guid)
+     */
+    @spField({fieldName: "IdForTerm", defaultValue: -1 })
     public termId: string;
-
-    constructor(item: any) {
-        super(item);
-
-        if (item != undefined) {
-            this.termId = item.IdForTerm;
-        }
-    }
-
-    public convert(): Promise<any> {
-        throw new Error("Not implemented");
+    /**
+     * Instanciate a new TaxonomyHidden object
+     */
+    constructor() {
+        super();
     }
 }

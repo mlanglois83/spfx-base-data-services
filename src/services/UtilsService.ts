@@ -1,8 +1,9 @@
 import { BaseService } from "./base/BaseService";
-import { TaxonomyTerm } from "../models/index";
-import { find } from "@microsoft/sp-lodash-subset";
 import { ServicesConfiguration } from "../";
 
+/**
+ * Utility class
+ */
 export class UtilsService extends BaseService {
 
 
@@ -30,6 +31,10 @@ export class UtilsService extends BaseService {
 
     }
 
+    /**
+     * Converts blob object to array buffer
+     * @param blob source blob
+     */
     public static blobToArrayBuffer(blob): Promise<ArrayBuffer> {
         return new Promise<ArrayBuffer>((resolve, reject) => {
             const reader = new FileReader();
@@ -40,9 +45,20 @@ export class UtilsService extends BaseService {
             reader.readAsArrayBuffer(blob);
         });
     }
+
+    /**
+     * Converts array buffer to blob
+     * @param buffer source array buffer
+     * @param type file mime type
+     */
     public static arrayBufferToBlob(buffer: ArrayBuffer, type: string) {
         return new Blob([buffer], { type: type });
     }
+
+    /**
+     * Return base 64 url from file content
+     * @param fileData file content
+     */
     public static getOfflineFileUrl(fileData: Blob): Promise<string> {
         return new Promise<string>((resolve, reject) => {
             const reader = new FileReader;
@@ -54,12 +70,20 @@ export class UtilsService extends BaseService {
             reader.readAsDataURL(fileData);
         });
     }
+    /**
+     * Return parent folder url from url
+     * @param url child url 
+     */
     public static getParentFolderUrl(url: string): string {
         let urlParts = url.split('/');
         urlParts.pop();
         return urlParts.join("/");
     }
 
+    /**
+     * Concatenatee array buffers
+     * @param arrays array buffers
+     */
     public static concatArrayBuffers(...arrays: ArrayBuffer[]): ArrayBuffer {
         let length = 0;
         let buffer = null;
@@ -75,11 +99,7 @@ export class UtilsService extends BaseService {
         return joined.buffer;
     }
 
-    public static getTaxonomyTermByWssId<T extends TaxonomyTerm>(wssid: number, terms: Array<T>): T {
-        return find(terms, (term) => {
-            return (term.wssids && term.wssids.indexOf(wssid) > -1);
-        });
-    }
+    
 
     /**
      * Escapes a string for use in a regex

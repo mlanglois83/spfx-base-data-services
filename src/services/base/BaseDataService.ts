@@ -24,6 +24,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
      */
     protected static promises = {};
 
+    // TODO: remove;
     public updateLinkedItems?: (oldId: number | string, newId: number | string, transactions: Array<OfflineTransaction>) => Promise<Array<OfflineTransaction>>;
 
     public get serviceName(): string {
@@ -277,6 +278,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                     item: itemResult
                 };
             } catch (error) {
+                console.error(error);
                 if (error.name === Constants.Errors.ItemVersionConfict) {
                     itemResult = await this.getById_Internal(item.id);
                     await this.dbService.addOrUpdateItem(itemResult);

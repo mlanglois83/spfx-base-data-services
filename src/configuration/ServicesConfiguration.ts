@@ -5,15 +5,28 @@ import { IConfiguration } from "../interfaces";
 import { Constants } from "../constants";
 import { find } from "@microsoft/sp-lodash-subset";
 
+/**
+ * Configuration class for spfx base data services
+ */
 export class ServicesConfiguration {
 
+    /**
+     * Web Part Context
+     */
     public static get context(): BaseComponentContext {
         return ServicesConfiguration.configuration.context;
     }
+
+    /**
+     * Configuration object
+     */
     public static get configuration(): IConfiguration {
         return ServicesConfiguration.configurationInternal;
     }
 
+    /**
+     * Default configuration
+     */
     private static configurationInternal: IConfiguration= {
         dbName: "spfx-db",
         dbVersion: 1,
@@ -34,12 +47,17 @@ export class ServicesConfiguration {
         }
     };
 
+    /**
+     * Initializes configuration, must be called before services instanciation
+     * @param configuration IConfiguration object
+     */
     public static Init(configuration: IConfiguration): void {
         ServicesConfiguration.configurationInternal = configuration;
         configuration.tableNames = configuration.tableNames || [];
         if(!find(configuration.tableNames, (s) => {return s === Constants.taxonomyHiddenList.tableName})) {
             configuration.tableNames.push(Constants.taxonomyHiddenList.tableName);
         } 
+        // SP calls init with no cache
         sp.setup({
             spfxContext: ServicesConfiguration.context,
             sp: {
