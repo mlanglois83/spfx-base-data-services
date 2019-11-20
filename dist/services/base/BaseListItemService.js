@@ -469,26 +469,27 @@ var BaseListItemService = /** @class */ (function (_super) {
      */
     BaseListItemService.prototype.get_Internal = function (query) {
         return __awaiter(this, void 0, void 0, function () {
-            var results, viewFields, items;
+            var results, selectFields, items;
+            var _a;
             var _this = this;
-            return __generator(this, function (_a) {
-                switch (_a.label) {
+            return __generator(this, function (_b) {
+                switch (_b.label) {
                     case 0:
                         results = new Array();
-                        viewFields = this.getCamlViewFields();
-                        return [4 /*yield*/, this.list.getItemsByCAMLQuery({
-                                ViewXml: "<View Scope=\"RecursiveAll\">" + viewFields + "<Query>" + query + "</Query></View>"
+                        selectFields = this.getOdataFieldNames();
+                        return [4 /*yield*/, (_a = this.list).select.apply(_a, selectFields).getItemsByCAMLQuery({
+                                ViewXml: "<View Scope=\"RecursiveAll\"><Query>" + query + "</Query></View>"
                             })];
                     case 1:
-                        items = _a.sent();
+                        items = _b.sent();
                         if (!(items && items.length > 0)) return [3 /*break*/, 3];
                         return [4 /*yield*/, this.Init()];
                     case 2:
-                        _a.sent();
+                        _b.sent();
                         results = items.map(function (r) {
                             return _this.getItemFromRest(r);
                         });
-                        _a.label = 3;
+                        _b.label = 3;
                     case 3: return [2 /*return*/, results];
                 }
             });
@@ -506,7 +507,7 @@ var BaseListItemService = /** @class */ (function (_super) {
                 switch (_b.label) {
                     case 0:
                         result = null;
-                        selectFields = this.getInternalFieldNames();
+                        selectFields = this.getOdataFieldNames();
                         return [4 /*yield*/, (_a = this.list.items.getById(id)).select.apply(_a, selectFields).get()];
                     case 1:
                         temp = _b.sent();
@@ -534,7 +535,7 @@ var BaseListItemService = /** @class */ (function (_super) {
                 switch (_b.label) {
                     case 0:
                         results = [];
-                        selectFields = this.getInternalFieldNames();
+                        selectFields = this.getOdataFieldNames();
                         return [4 /*yield*/, (_a = this.list.items).select.apply(_a, selectFields).getAll()];
                     case 1:
                         items = _b.sent();
@@ -634,12 +635,22 @@ var BaseListItemService = /** @class */ (function (_super) {
     /**
      * Retrive all fields to include in odata setect parameter
      */
-    BaseListItemService.prototype.getInternalFieldNames = function () {
+    BaseListItemService.prototype.getOdataFieldNames = function () {
         var fields = this.ItemFields;
         var fieldNames = Object.keys(fields).filter(function (propertyName) {
             return fields.hasOwnProperty(propertyName);
         }).map(function (prop) {
-            return fields[prop].fieldName;
+            var result = fields[prop].fieldName;
+            switch (fields[prop].fieldType) {
+                case FieldType.Lookup:
+                case FieldType.LookupMulti:
+                case FieldType.O365User:
+                case FieldType.O365UserMulti:
+                    result += "Id";
+                default:
+                    break;
+            }
+            return result;
         });
         return fieldNames;
     };
@@ -647,7 +658,22 @@ var BaseListItemService = /** @class */ (function (_super) {
      * Retrive all fields to include in odata setect parameter
      */
     BaseListItemService.prototype.getCamlViewFields = function () {
-        var fieldNames = this.getInternalFieldNames();
+        var fields = this.ItemFields;
+        var fieldNames = Object.keys(fields).filter(function (propertyName) {
+            return fields.hasOwnProperty(propertyName);
+        }).map(function (prop) {
+            var result = fields[prop].fieldName;
+            switch (fields[prop].fieldType) {
+                case FieldType.Lookup:
+                case FieldType.LookupMulti:
+                case FieldType.O365User:
+                case FieldType.O365UserMulti:
+                    result += "Id";
+                default:
+                    break;
+            }
+            return "<FieldRef Name=\"" + result + "\"></FieldRef>";
+        });
         var fieldRefs = fieldNames.map(function (fieldName) {
             return "<FieldRef Name=\"" + fieldName + "\"></FieldRef>";
         });

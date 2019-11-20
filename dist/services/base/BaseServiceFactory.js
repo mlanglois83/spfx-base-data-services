@@ -1,6 +1,4 @@
 import { SPFile, User, TaxonomyHidden } from "../../models";
-import { UserService } from "../graph/UserService";
-import { TaxonomyHiddenListService } from "../sp/TaxonomyHiddenListService";
 var BaseServiceFactory = /** @class */ (function () {
     function BaseServiceFactory() {
     }
@@ -10,14 +8,15 @@ var BaseServiceFactory = /** @class */ (function () {
      */
     BaseServiceFactory.prototype.create = function (serviceName) {
         var result = null;
-        switch (serviceName) {
+        /*switch(serviceName) {
             case UserService["name"]:
                 result = new UserService();
                 break;
             case TaxonomyHiddenListService["name"]:
                 result = new TaxonomyHiddenListService();
                 break;
-        }
+            default: break;
+        }*/
         return result;
     };
     /**

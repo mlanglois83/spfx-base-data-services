@@ -335,9 +335,9 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
      */
     protected async get_Internal(query: any): Promise<Array<T>> {
         let results = new Array<T>();
-        let viewFields = this.getCamlViewFields();
-        let items = await this.list.getItemsByCAMLQuery({
-            ViewXml: `<View Scope="RecursiveAll">${viewFields}<Query>${query}</Query></View>`
+        let selectFields = this.getOdataFieldNames();
+        let items = await this.list.select(...selectFields).getItemsByCAMLQuery({
+            ViewXml: `<View Scope="RecursiveAll"><Query>${query}</Query></View>`
         } as CamlQuery);
         if(items && items.length > 0) {
             await this.Init();
@@ -357,7 +357,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
      */
     protected async getById_Internal(id: number): Promise<T> {
         let result = null;
-        let selectFields = this.getInternalFieldNames();
+        let selectFields = this.getOdataFieldNames();
         let temp = await this.list.items.getById(id).select(...selectFields).get();
         if (temp) {
             await this.Init();
@@ -374,7 +374,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
      */
     protected async getAll_Internal(): Promise<Array<T>> {
         let results: Array<T> = [];
-        let selectFields = this.getInternalFieldNames();
+        let selectFields = this.getOdataFieldNames();
         let items = await this.list.items.select(...selectFields).getAll();
         if(items && items.length > 0) {
             await this.Init();
@@ -444,24 +444,23 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
     /**
      * Retrive all fields to include in odata setect parameter
      */
-    private getInternalFieldNames(): Array<string> {
+    private getOdataFieldNames(): Array<string> {
         let fields = this.ItemFields;
         let fieldNames = Object.keys(fields).filter((propertyName) => { 
             return fields.hasOwnProperty(propertyName); 
         }).map((prop) => {
-            return fields[prop].fieldName;
+            let result: string = fields[prop].fieldName;
+            switch(fields[prop].fieldType) {
+                case FieldType.Lookup:
+                case FieldType.LookupMulti:
+                case FieldType.O365User:
+                case FieldType.O365UserMulti:
+                    result += "Id";
+                default:
+                    break;
+            }
+            return result;
         });
         return fieldNames;
-    }
-
-    /**
-     * Retrive all fields to include in odata setect parameter
-     */
-    private getCamlViewFields(): string {
-        let fieldNames = this.getInternalFieldNames();
-        let fieldRefs = fieldNames.map((fieldName) => {
-            return `<FieldRef Name="${fieldName}"></FieldRef>`;
-        });
-        return `<ViewFields>${fieldRefs.join('')}</ViewFields>`
     }
 }

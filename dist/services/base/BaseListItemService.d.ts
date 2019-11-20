@@ -90,7 +90,7 @@ export declare class BaseListItemService<T extends IBaseItem> extends BaseDataSe
     /**
      * Retrive all fields to include in odata setect parameter
      */
-    private getInternalFieldNames;
+    private getOdataFieldNames;
     /**
      * Retrive all fields to include in odata setect parameter
      */

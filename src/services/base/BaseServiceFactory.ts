@@ -1,4 +1,3 @@
-import { BaseComponentContext } from "@microsoft/sp-component-base";
 import { BaseDataService } from "./BaseDataService";
 import { IBaseItem, IDataService } from "../../interfaces";
 import { SPFile, User, TaxonomyHidden } from "../../models";
@@ -10,16 +9,17 @@ export class BaseServiceFactory {
      * Constructs a service given its name
      * @param serviceName Name of the service instance to be instanciated
      */
-    public create<T extends IBaseItem>(serviceName: string): IDataService<T> {
-        let result = null;
-        switch(serviceName) {
+    public create(serviceName: string): BaseDataService<IBaseItem> {
+        let result = null;        
+        /*switch(serviceName) {
             case UserService["name"]:
                 result = new UserService();
                 break;
             case TaxonomyHiddenListService["name"]:
                 result = new TaxonomyHiddenListService();
                 break;
-        }
+            default: break;
+        }*/
         return result;
     }
 
