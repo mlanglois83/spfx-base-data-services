@@ -4,6 +4,10 @@ import { IBaseItem } from "../..";
  */
 export declare class SPFile implements IBaseItem {
     /**
+     * internal field for linked items not stored in db
+     */
+    __internalLinks: any;
+    /**
      * File content (binary data)
      */
     content?: ArrayBuffer;

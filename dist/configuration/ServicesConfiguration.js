@@ -2,6 +2,7 @@ import { sp } from "@pnp/sp";
 import { taxonomy } from "@pnp/sp-taxonomy";
 import { Constants } from "../constants";
 import { find } from "@microsoft/sp-lodash-subset";
+import { graph } from "@pnp/graph";
 /**
  * Configuration class for spfx base data services
  */
@@ -51,6 +52,15 @@ var ServicesConfiguration = /** @class */ (function () {
         taxonomy.setup({
             spfxContext: ServicesConfiguration.context,
             sp: {
+                headers: {
+                    "Accept": "application/json; odata=verbose",
+                    'Cache-Control': 'no-cache'
+                }
+            }
+        });
+        graph.setup({
+            spfxContext: ServicesConfiguration.context,
+            graph: {
                 headers: {
                     "Accept": "application/json; odata=verbose",
                     'Cache-Control': 'no-cache'

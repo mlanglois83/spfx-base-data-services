@@ -47,5 +47,6 @@ export declare class BaseDbService<T extends IBaseItem> extends BaseService impl
      * Clear table
      */
     clear(): Promise<void>;
-    getById(id: number | string): Promise<T>;
+    getItemById(id: number | string): Promise<T>;
+    getItemsById(ids: Array<number | string>): Promise<Array<T>>;
 }

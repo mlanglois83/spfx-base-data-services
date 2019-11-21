@@ -66,7 +66,6 @@ var BaseFileService = /** @class */ (function (_super) {
      */
     function BaseFileService(type, listRelativeUrl, tableName) {
         var _this = _super.call(this, type, tableName) || this;
-        _this.itemType = type;
         _this.listRelativeUrl = ServicesConfiguration.context.pageContext.web.serverRelativeUrl + listRelativeUrl;
         return _this;
     }
@@ -107,10 +106,52 @@ var BaseFileService = /** @class */ (function (_super) {
             });
         });
     };
-    BaseFileService.prototype.getById_Internal = function (query) {
+    BaseFileService.prototype.getItemById_Internal = function (id) {
         return __awaiter(this, void 0, void 0, function () {
+            var result, file;
             return __generator(this, function (_a) {
-                throw new Error('Not Implemented');
+                switch (_a.label) {
+                    case 0:
+                        result = null;
+                        return [4 /*yield*/, sp.web.getFileByServerRelativeUrl(id).select('FileRef', 'FileLeafRef').get()];
+                    case 1:
+                        file = _a.sent();
+                        if (file) {
+                            result = this.createFileObject(file);
+                        }
+                        return [2 /*return*/, result];
+                }
+            });
+        });
+    };
+    BaseFileService.prototype.getItemsById_Internal = function (ids) {
+        return __awaiter(this, void 0, void 0, function () {
+            var results, batch;
+            var _this = this;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        results = [];
+                        batch = sp.createBatch();
+                        ids.forEach(function (id) {
+                            sp.web.getFileByServerRelativeUrl(id).select('FileRef', 'FileLeafRef').get().then(function (item) { return __awaiter(_this, void 0, void 0, function () {
+                                var fo;
+                                return __generator(this, function (_a) {
+                                    switch (_a.label) {
+                                        case 0: return [4 /*yield*/, this.createFileObject(item)];
+                                        case 1:
+                                            fo = _a.sent();
+                                            results.push(fo);
+                                            return [2 /*return*/];
+                                    }
+                                });
+                            }); });
+                        });
+                        return [4 /*yield*/, batch.execute()];
+                    case 1:
+                        _a.sent();
+                        return [2 /*return*/, results];
+                }
             });
         });
     };

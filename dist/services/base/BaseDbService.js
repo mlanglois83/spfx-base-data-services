@@ -568,7 +568,7 @@ var BaseDbService = /** @class */ (function (_super) {
             });
         });
     };
-    BaseDbService.prototype.getById = function (id) {
+    BaseDbService.prototype.getItemById = function (id) {
         return __awaiter(this, void 0, void 0, function () {
             var result, tx, store, obj, chunkparts, allRows, chunkRegex_5, chunks, error_6;
             return __generator(this, function (_a) {
@@ -625,6 +625,82 @@ var BaseDbService = /** @class */ (function (_super) {
                         }
                         throw error_6;
                     case 9: return [2 /*return*/];
+                }
+            });
+        });
+    };
+    BaseDbService.prototype.getItemsById = function (ids) {
+        return __awaiter(this, void 0, void 0, function () {
+            var results, tx, store_1, allRows_1, error_7;
+            var _this = this;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        results = [];
+                        if (!(ids && ids.length > 0)) return [3 /*break*/, 7];
+                        return [4 /*yield*/, this.OpenDb()];
+                    case 1:
+                        _a.sent();
+                        tx = this.db.transaction(this.tableName, 'readonly');
+                        store_1 = tx.objectStore(this.tableName);
+                        _a.label = 2;
+                    case 2:
+                        _a.trys.push([2, 6, , 7]);
+                        allRows_1 = [];
+                        if (!(this.itemType["name"] === SPFile["name"])) return [3 /*break*/, 4];
+                        return [4 /*yield*/, store_1.getAll()];
+                    case 3:
+                        allRows_1 = _a.sent();
+                        _a.label = 4;
+                    case 4: return [4 /*yield*/, Promise.all(ids.map(function (id) { return __awaiter(_this, void 0, void 0, function () {
+                            var obj, result, chunkparts, chunkRegex_6, chunks;
+                            return __generator(this, function (_a) {
+                                switch (_a.label) {
+                                    case 0: return [4 /*yield*/, store_1.get(id)];
+                                    case 1:
+                                        obj = _a.sent();
+                                        result = null;
+                                        if (obj) {
+                                            result = assign(new this.itemType(), obj);
+                                            if (result instanceof SPFile) {
+                                                chunkparts = (/^.*_chunk_\d+$/g).test(result.serverRelativeUrl);
+                                                if (!chunkparts) {
+                                                    chunkRegex_6 = this.getChunksRegexp(result.serverRelativeUrl);
+                                                    chunks = allRows_1.filter(function (chunkedrow) {
+                                                        var match = chunkedrow.id.match(chunkRegex_6);
+                                                        return match && match.length > 0;
+                                                    });
+                                                    if (chunks.length > 0) {
+                                                        chunks.sort(function (a, b) {
+                                                            return parseInt(a.id.replace(/^.*_chunk_(\d+)$/g, "$1")) - parseInt(b.id.replace(/^.*_chunk_(\d+)$/g, "$1"));
+                                                        });
+                                                        result.content = UtilsService.concatArrayBuffers.apply(UtilsService, __spreadArrays([result.content], chunks.map(function (c) { return c.content; })));
+                                                    }
+                                                }
+                                                else {
+                                                    // no chunked parts here
+                                                    result = null;
+                                                }
+                                            }
+                                        }
+                                        return [2 /*return*/, result];
+                                }
+                            });
+                        }); }))];
+                    case 5:
+                        results = _a.sent();
+                        return [3 /*break*/, 7];
+                    case 6:
+                        error_7 = _a.sent();
+                        console.error(error_7.message + " - " + error_7.Name);
+                        try {
+                            tx.abort();
+                        }
+                        catch (_b) {
+                            // error allready thrown
+                        }
+                        throw error_7;
+                    case 7: return [2 /*return*/, results];
                 }
             });
         });

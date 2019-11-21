@@ -14,12 +14,12 @@ export declare enum FieldType {
     Date = 1,
     /**
      * Single lookup type, please provide an item model type for linking
-     * Model field type must be integer
+     * Model field type must be integer or typed with linked model type if serviceName is defined
      */
     Lookup = 2,
     /**
      * Multi lookup type, please provide an item model type for linking
-     * Model field type must be array of integers
+     * Model field type must be array of integers or an array of linked model type if serviceName is defined
      */
     LookupMulti = 3,
     /**
@@ -34,14 +34,14 @@ export declare enum FieldType {
     TaxonomyMulti = 5,
     /**
      * User type resolving a O365 user
-     * Model field must be User
+     * Model field type must be array of integers or an array of linked model type if serviceName is defined
      */
-    O365User = 6,
+    User = 6,
     /**
      * Multi User type resolving a O365 user
-     * Model field must be an array of User
+     * Model field type must be array of integers or an array of linked model type if serviceName is defined
      */
-    O365UserMulti = 7,
+    UserMulti = 7,
     /**
      * Text field parsed to json
      */

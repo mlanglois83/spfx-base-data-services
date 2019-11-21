@@ -132,8 +132,8 @@ var SynchronizationService = /** @class */ (function (_super) {
                                                 nextTransactions = _b.sent();
                                                 _b.label = 4;
                                             case 4:
-                                                if (!dataService.updateLinkedItems) return [3 /*break*/, 6];
-                                                return [4 /*yield*/, dataService.updateLinkedItems(oldId_1, updatedItem_1.item.id, nextTransactions)];
+                                                if (!dataService.updateLinkedTransactions) return [3 /*break*/, 6];
+                                                return [4 /*yield*/, dataService.updateLinkedTransactions(oldId_1, updatedItem_1.item.id, nextTransactions)];
                                             case 5:
                                                 nextTransactions = _b.sent();
                                                 _b.label = 6;

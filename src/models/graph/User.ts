@@ -4,6 +4,10 @@ import { IBaseItem } from "../../interfaces/index";
  */
 export class User implements IBaseItem {
     /**
+     * internal field for linked items not stored in db
+     */
+    public __internalLinks: any = {};
+    /**
      * O365 id of the user
      */
     public id: string;

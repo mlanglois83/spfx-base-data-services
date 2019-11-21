@@ -6,6 +6,10 @@ import { spField } from "../../decorators";
  */
 export abstract class SPItem implements IBaseItem {
     /**
+     * internal field for linked items not stored in db
+     */
+    public __internalLinks: any = {};
+    /**
      * Item id
      */
     @spField({fieldName: "ID", defaultValue: -1 })

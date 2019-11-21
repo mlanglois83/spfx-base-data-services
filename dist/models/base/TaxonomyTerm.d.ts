@@ -4,6 +4,10 @@ import { IBaseItem } from "../../interfaces/index";
  */
 export declare class TaxonomyTerm implements IBaseItem {
     /**
+     * internal field for linked items not stored in db
+     */
+    __internalLinks: any;
+    /**
      * WssIds assiciated with term
      */
     wssids: Array<number>;

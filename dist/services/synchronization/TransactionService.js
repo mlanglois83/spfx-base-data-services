@@ -90,7 +90,7 @@ var TransactionService = /** @class */ (function (_super) {
                 switch (_a.label) {
                     case 0:
                         if (!(item.itemType === SPFile["name"])) return [3 /*break*/, 3];
-                        return [4 /*yield*/, _super.prototype.getById.call(this, item.id)];
+                        return [4 /*yield*/, _super.prototype.getItemById.call(this, item.id)];
                     case 1:
                         transaction = _a.sent();
                         file = new SPFile();
@@ -161,7 +161,7 @@ var TransactionService = /** @class */ (function (_super) {
                                     switch (_a.label) {
                                         case 0:
                                             if (!(item.itemType === SPFile["name"])) return [3 /*break*/, 2];
-                                            return [4 /*yield*/, this.transactionFileService.getById(item.itemData)];
+                                            return [4 /*yield*/, this.transactionFileService.getItemById(item.itemData)];
                                         case 1:
                                             file = _a.sent();
                                             if (file) {

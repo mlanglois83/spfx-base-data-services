@@ -3,6 +3,10 @@
  */
 var OfflineTransaction = /** @class */ (function () {
     function OfflineTransaction() {
+        /**
+         * internal field for linked items not stored in db
+         */
+        this.__internalLinks = {};
     }
     return OfflineTransaction;
 }());

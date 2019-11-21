@@ -19,9 +19,7 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
 
     protected taxonomyHiddenListService: TaxonomyHiddenListService;
     protected utilsService: UtilsService;
-    protected itemType: (new (item?: any) => T);
     protected termsetnameorid: string;
-    protected wssIds: any = null;
 
     /**
      * Associeted termset (pnpjs)
@@ -54,7 +52,6 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
         this.utilsService = new UtilsService();
         this.taxonomyHiddenListService = new TaxonomyHiddenListService();
         this.termsetnameorid = termsetnameorid;
-        this.itemType = type;
     }
 
     public async getWssIds(termId: string): Promise<Array<number>> {
@@ -85,9 +82,24 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
         });
     }
 
-    public async getById_Internal(query: any): Promise<T> {
-
-        throw new Error('Not Implemented');
+    public async getItemById_Internal(id: string): Promise<T> {
+        let result = null;
+        let spterm = await this.termset.terms.getById(id);
+        if(spterm) {
+            result = new this.itemType(spterm);
+        }
+        return result;
+    }
+    public async getItemsById_Internal(ids: Array<string>): Promise<Array<T>> {
+        let results: Array<T> = [];
+        let batch = taxonomy.createBatch();
+        ids.forEach((id) => {
+            this.termset.terms.getById(id).inBatch(batch).get().then((term)=> {
+                results.push(new this.itemType(term));
+            })
+        });
+        await batch.execute();
+        return results;
     }
 
     protected async get_Internal(query: any): Promise<Array<T>> {

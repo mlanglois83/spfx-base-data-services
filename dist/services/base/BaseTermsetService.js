@@ -71,11 +71,9 @@ var BaseTermsetService = /** @class */ (function (_super) {
     function BaseTermsetService(type, termsetnameorid, tableName, cacheDuration) {
         if (cacheDuration === void 0) { cacheDuration = standardTermSetCacheDuration; }
         var _this = _super.call(this, type, tableName, cacheDuration) || this;
-        _this.wssIds = null;
         _this.utilsService = new UtilsService();
         _this.taxonomyHiddenListService = new TaxonomyHiddenListService();
         _this.termsetnameorid = termsetnameorid;
-        _this.itemType = type;
         return _this;
     }
     Object.defineProperty(BaseTermsetService.prototype, "termset", {
@@ -154,10 +152,43 @@ var BaseTermsetService = /** @class */ (function (_super) {
             });
         });
     };
-    BaseTermsetService.prototype.getById_Internal = function (query) {
+    BaseTermsetService.prototype.getItemById_Internal = function (id) {
         return __awaiter(this, void 0, void 0, function () {
+            var result, spterm;
             return __generator(this, function (_a) {
-                throw new Error('Not Implemented');
+                switch (_a.label) {
+                    case 0:
+                        result = null;
+                        return [4 /*yield*/, this.termset.terms.getById(id)];
+                    case 1:
+                        spterm = _a.sent();
+                        if (spterm) {
+                            result = new this.itemType(spterm);
+                        }
+                        return [2 /*return*/, result];
+                }
+            });
+        });
+    };
+    BaseTermsetService.prototype.getItemsById_Internal = function (ids) {
+        return __awaiter(this, void 0, void 0, function () {
+            var results, batch;
+            var _this = this;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        results = [];
+                        batch = taxonomy.createBatch();
+                        ids.forEach(function (id) {
+                            _this.termset.terms.getById(id).inBatch(batch).get().then(function (term) {
+                                results.push(new _this.itemType(term));
+                            });
+                        });
+                        return [4 /*yield*/, batch.execute()];
+                    case 1:
+                        _a.sent();
+                        return [2 /*return*/, results];
+                }
             });
         });
     };

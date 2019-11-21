@@ -65,14 +65,32 @@ var UserService = /** @class */ (function (_super) {
      */
     function UserService(cacheDuration) {
         if (cacheDuration === void 0) { cacheDuration = standardUserCacheDuration; }
-        return _super.call(this, User, "Users", cacheDuration) || this;
+        var _this = _super.call(this, User, "Users", cacheDuration) || this;
+        _this._spUsers = null;
+        return _this;
     }
+    UserService.prototype.spUsers = function () {
+        return __awaiter(this, void 0, void 0, function () {
+            var _a;
+            return __generator(this, function (_b) {
+                switch (_b.label) {
+                    case 0:
+                        if (!(this._spUsers === null)) return [3 /*break*/, 2];
+                        _a = this;
+                        return [4 /*yield*/, sp.web.siteUsers.select("UserPrincipalName", "Id").get()];
+                    case 1:
+                        _a._spUsers = _b.sent();
+                        _b.label = 2;
+                    case 2: return [2 /*return*/, this._spUsers];
+                }
+            });
+        });
+    };
     UserService.prototype.get_Internal = function (query) {
         return __awaiter(this, void 0, void 0, function () {
-            var reverseFilter, parts, users;
-            var _this = this;
-            return __generator(this, function (_a) {
-                switch (_a.label) {
+            var reverseFilter, parts, _a, users, spUsers;
+            return __generator(this, function (_b) {
+                switch (_b.label) {
                     case 0:
                         query = query.trim();
                         reverseFilter = query;
@@ -80,13 +98,18 @@ var UserService = /** @class */ (function (_super) {
                         if (parts.length > 1) {
                             reverseFilter = parts[1].trim() + " " + parts[0].trim();
                         }
-                        return [4 /*yield*/, graph.users
-                                .filter("startswith(displayName,'" + query + "') or \n            startswith(displayName,'" + reverseFilter + "') or \n            startswith(givenName,'" + query + "') or \n            startswith(surname,'" + query + "') or \n            startswith(mail,'" + query + "') or \n            startswith(userPrincipalName,'" + query + "')")
-                                .get()];
+                        return [4 /*yield*/, Promise.all([graph.users
+                                    .filter("startswith(displayName,'" + query + "') or \n            startswith(displayName,'" + reverseFilter + "') or \n            startswith(givenName,'" + query + "') or \n            startswith(surname,'" + query + "') or \n            startswith(mail,'" + query + "') or \n            startswith(userPrincipalName,'" + query + "')")
+                                    .get(), this.spUsers])];
                     case 1:
-                        users = _a.sent();
+                        _a = _b.sent(), users = _a[0], spUsers = _a[1];
                         return [2 /*return*/, users.map(function (u) {
-                                return new _this.itemType(u);
+                                var spuser = find(spUsers, function (spu) { return spu.UserPrincipalName === u.userPrincipalName; });
+                                var result = new User(u);
+                                if (spuser) {
+                                    result.spId = spuser.Id;
+                                }
+                                return result;
                             })];
                 }
             });
@@ -107,40 +130,83 @@ var UserService = /** @class */ (function (_super) {
         });
     };
     /**
-     * Retrieve all users
+     * Retrieve all users (sp)
      */
     UserService.prototype.getAll_Internal = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var _a, spUsers, users;
-            var _this = this;
+            var spUsers, results, batch;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, this.spUsers()];
+                    case 1:
+                        spUsers = _a.sent();
+                        results = [];
+                        batch = graph.createBatch();
+                        spUsers.forEach(function (spu) {
+                            graph.users.select("id", "userPrincipalName", "mail", "displayName").filter("userPrincipalName eq '" + spu.UserPrincipalName + "'").inBatch(batch).get().then(function (graphUsers) {
+                                if (graphUsers && graphUsers.length > 0) {
+                                    var graphUser_1 = graphUsers[0];
+                                    var spuser = find(spUsers, function (spu) {
+                                        return spu.UserPrincipalName === graphUser_1.userPrincipalName;
+                                    });
+                                    var result = new User(graphUser_1);
+                                    if (spuser) {
+                                        result.spId = spuser.Id;
+                                    }
+                                    results.push(result);
+                                }
+                            });
+                        });
+                        return [4 /*yield*/, batch.execute()];
+                    case 2:
+                        _a.sent();
+                        return [2 /*return*/, results];
+                }
+            });
+        });
+    };
+    UserService.prototype.getItemById_Internal = function (id) {
+        return __awaiter(this, void 0, void 0, function () {
+            var result, _a, graphUser, spUsers, spuser, result_1;
             return __generator(this, function (_b) {
                 switch (_b.label) {
-                    case 0: return [4 /*yield*/, Promise.all([sp.web.siteUsers.get(), graph.users.get()])];
+                    case 0:
+                        result = null;
+                        return [4 /*yield*/, Promise.all([graph.users.getById(id).select("id", "userPrincipalName", "mail", "displayName").get(), this.spUsers])];
                     case 1:
-                        _a = _b.sent(), spUsers = _a[0], users = _a[1];
-                        return [2 /*return*/, users.map(function (u) {
+                        _a = _b.sent(), graphUser = _a[0], spUsers = _a[1];
+                        if (graphUser) {
+                            spuser = find(spUsers, function (spu) {
+                                return spu.UserPrincipalName === graphUser.userPrincipalName;
+                            });
+                            result_1 = new User(graphUser);
+                            if (spuser) {
+                                result_1.spId = spuser.Id;
+                            }
+                        }
+                        return [2 /*return*/, result];
+                }
+            });
+        });
+    };
+    UserService.prototype.getItemsById_Internal = function (ids) {
+        return __awaiter(this, void 0, void 0, function () {
+            var _a, graphUsers, spUsers;
+            return __generator(this, function (_b) {
+                switch (_b.label) {
+                    case 0: return [4 /*yield*/, Promise.all([graph.users.filter(ids.map(function (id) { return "id eq '" + id + "'"; }).join(' or ')).select("id", "userPrincipalName", "mail", "displayName").get(), this.spUsers])];
+                    case 1:
+                        _a = _b.sent(), graphUsers = _a[0], spUsers = _a[1];
+                        return [2 /*return*/, graphUsers.map(function (u) {
                                 var spuser = find(spUsers, function (spu) {
                                     return spu.UserPrincipalName === u.userPrincipalName;
                                 });
-                                var result = new _this.itemType(u);
+                                var result = new User(u);
                                 if (spuser) {
                                     result.spId = spuser.Id;
                                 }
                                 return result;
                             })];
-                }
-            });
-        });
-    };
-    UserService.prototype.getById_Internal = function (id) {
-        return __awaiter(this, void 0, void 0, function () {
-            var graphUser;
-            return __generator(this, function (_a) {
-                switch (_a.label) {
-                    case 0: return [4 /*yield*/, graph.users.getById(id).get()];
-                    case 1:
-                        graphUser = _a.sent();
-                        return [2 /*return*/, new this.itemType(graphUser)];
                 }
             });
         });
@@ -171,7 +237,7 @@ var UserService = /** @class */ (function (_super) {
                     case 0: return [4 /*yield*/, this.get(displayName)];
                     case 1:
                         users = _a.sent();
-                        if (!(users.length == 0)) return [3 /*break*/, 3];
+                        if (!(users.length === 0)) return [3 /*break*/, 3];
                         return [4 /*yield*/, this.getAll()];
                     case 2:
                         users = _a.sent();

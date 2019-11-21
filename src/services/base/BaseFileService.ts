@@ -12,12 +12,8 @@ import { ServicesConfiguration } from "../..";
 /**
  * Base service for sp files operations
  */
-export class BaseFileService<T extends IBaseItem> extends BaseDataService<T> implements IDataService<T>{
-    protected itemType: (new (item?: any) => T);
+export class BaseFileService<T extends IBaseItem> extends BaseDataService<T>{
     protected listRelativeUrl: string;
-
-
-
 
     /**
      * Associeted list (pnpjs)
@@ -34,7 +30,6 @@ export class BaseFileService<T extends IBaseItem> extends BaseDataService<T> imp
      */
     constructor(type: (new (item?: any) => T), listRelativeUrl: string, tableName: string) {
         super(type, tableName);
-        this.itemType = type;
         this.listRelativeUrl = ServicesConfiguration.context.pageContext.web.serverRelativeUrl + listRelativeUrl;
     }
     /**
@@ -52,11 +47,26 @@ export class BaseFileService<T extends IBaseItem> extends BaseDataService<T> imp
         throw new Error('Not Implemented');
     }
 
-    public async getById_Internal(query: any): Promise<T> {
-
-        throw new Error('Not Implemented');
+    public async getItemById_Internal(id: string): Promise<T> {
+        let result = null;
+        let file = await sp.web.getFileByServerRelativeUrl(id).select('FileRef', 'FileLeafRef').get();
+        if(file) {
+            result = this.createFileObject(file);
+        }
+        return result
     }
-
+    public async getItemsById_Internal(ids: Array<string>): Promise<Array<T>> {
+        let results: Array<T> = [];
+        let batch = sp.createBatch();
+        ids.forEach((id) => {
+            sp.web.getFileByServerRelativeUrl(id).select('FileRef', 'FileLeafRef').get().then(async (item)=> {
+                let fo = await this.createFileObject(item);
+                results.push(fo);
+            })
+        });
+        await batch.execute();
+        return results;
+    }
 
     private async createFileObject(file: any): Promise<T> {
         let resultFile = new this.itemType(file);

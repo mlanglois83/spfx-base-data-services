@@ -14,7 +14,7 @@ import { ServicesConfiguration } from "../..";
  * Base class for data service allowing automatic management of online/offline mode with links to db and sp 
  */
 export abstract class BaseDataService<T extends IBaseItem> extends BaseService implements IDataService<T> {
-    protected itemType: (new (item?: any) => T);
+    private itemModelType: (new (item?: any) => T);
     protected transactionService: TransactionService;
     protected dbService: BaseDbService<T>;
     protected cacheDuration: number = -1;
@@ -24,11 +24,15 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
      */
     protected static promises = {};
 
-    // TODO: remove;
-    public updateLinkedItems?: (oldId: number | string, newId: number | string, transactions: Array<OfflineTransaction>) => Promise<Array<OfflineTransaction>>;
-
     public get serviceName(): string {
         return this.constructor["name"];
+    }
+    
+    public get itemType(): (new (item?: any) => T) {
+        return this.itemModelType;
+    }
+
+    public async Init(): Promise<void> {
     }
 
     /**
@@ -39,7 +43,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
      */
     constructor(type: (new (item?: any) => T), tableName: string, cacheDuration: number = -1) {
         super();
-        this.itemType = type;
+        this.itemModelType = type;
         this.cacheDuration = cacheDuration;
         this.dbService = new BaseDbService<T>(type, tableName);
         this.transactionService = new TransactionService();
@@ -153,11 +157,16 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
 
                     if (reloadData) {
                         result = await this.getAll_Internal();
-                        await this.dbService.replaceAll(result);
+                        await this.dbService.replaceAll(result.map((res) => {
+                            return this.convertItemToDbFormat(res)
+                        }));
                         this.UpdateCacheData();
                     }
                     else {
-                        result = await this.dbService.getAll();
+                        let tmp = await this.dbService.getAll();
+                        result = tmp.map((res) => {
+                            return this.mapItem(res);
+                        });
                     }
 
 
@@ -197,11 +206,16 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
 
                     if (reloadData) {
                         result = await this.get_Internal(query);
-                        await this.dbService.addOrUpdateItems(result, query);
+                        await this.dbService.addOrUpdateItems(result.map((res) => {
+                            return this.convertItemToDbFormat(res)
+                        }), query);
                         this.UpdateCacheData(keyCached);
                     }
                     else {
-                        result = await this.dbService.get(query);
+                        let tmp = await this.dbService.get(query);
+                        result = tmp.map((res) => {
+                            return this.mapItem(res);
+                        });
                     }
 
                     this.removePromise(keyCached);
@@ -217,9 +231,9 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         return promise;
     }
 
-    protected abstract getById_Internal(id: number | string): Promise<T>;
+    protected abstract getItemById_Internal(id: number | string): Promise<T>;
 
-    public async getById(id: number): Promise<T> {
+    public async getItemById(id: number): Promise<T> {
         let keyCached = "getById_" + id.toString();
         let promise = this.getExistingPromise(keyCached);
         if (promise) {
@@ -237,13 +251,15 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                     }
 
                     if (reloadData) {
-                        result = await this.getById_Internal(id);
-                        await this.dbService.addOrUpdateItems([result], keyCached);
+                        result = await this.getItemById_Internal(id);
+                        await this.dbService.addOrUpdateItem(this.convertItemToDbFormat(result));
                         this.UpdateCacheData(super.hashCode(keyCached).toString());
                     }
                     else {
-                        let temp = await this.dbService.get(keyCached);
-                        if (temp && temp.length > 0) { result = temp[0]; }
+                        let temp = await this.dbService.getItemById(id);
+                        if (temp) { 
+                            result = this.mapItem(temp); 
+                        }
                     }
 
                     this.removePromise(keyCached);
@@ -259,8 +275,52 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         return promise;
     }
 
-    protected abstract addOrUpdateItem_Internal(item: T): Promise<T>;
+    protected abstract getItemsById_Internal(ids: Array<number | string>): Promise<Array<T>>;
 
+    public async getItemsById(ids: Array<number | string>): Promise<Array<T>> {
+        let keyCached = "getByIds_" + ids.join();
+        let promise = this.getExistingPromise(keyCached);
+        if (promise) {
+            console.log(this.serviceName + " " + keyCached + " : load allready called before, sharing promise");
+        }
+        else {
+            promise = new Promise<Array<T>>(async (resolve, reject) => {
+                try {
+                    let results: Array<T>;
+
+                    let reloadData = await this.needRefreshCache(keyCached);
+                    //if refresh is needed, test offline/online
+                    if (reloadData && ServicesConfiguration.configuration.checkOnline) {
+                        reloadData = await UtilsService.CheckOnline();
+                    }
+
+                    if (reloadData) {
+                        results = await this.getItemsById_Internal(ids);
+                        await this.dbService.addOrUpdateItems(results.map((res) => {
+                            return this.convertItemToDbFormat(res)
+                        }));
+                        this.UpdateCacheData(super.hashCode(keyCached).toString());
+                    }
+                    else {
+                        let tmp = await this.dbService.getItemsById(ids);
+                        results = tmp.map((res) => {
+                            return this.mapItem(res);
+                        });
+                    }
+                    this.removePromise(keyCached);
+                    resolve(results);
+                }
+                catch (error) {
+                    this.removePromise(keyCached);
+                    reject(error);
+                }
+            });
+            this.storePromise(promise, keyCached);
+        }
+        return promise;
+    }
+
+    protected abstract addOrUpdateItem_Internal(item: T): Promise<T>;
 
     public async addOrUpdateItem(item: T): Promise<IAddOrUpdateResult<T>> {
         let result: IAddOrUpdateResult<T> = null;
@@ -273,15 +333,15 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         if (isconnected) {
             try {
                 itemResult = await this.addOrUpdateItem_Internal(item);
-                await this.dbService.addOrUpdateItem(itemResult);
+                await this.dbService.addOrUpdateItem(this.convertItemToDbFormat(itemResult));
                 result = {
                     item: itemResult
                 };
             } catch (error) {
                 console.error(error);
                 if (error.name === Constants.Errors.ItemVersionConfict) {
-                    itemResult = await this.getById_Internal(item.id);
-                    await this.dbService.addOrUpdateItem(itemResult);
+                    itemResult = await this.getItemById_Internal(item.id);
+                    await this.dbService.addOrUpdateItem(this.convertItemToDbFormat(itemResult));
                     result = {
                         item: itemResult,
                         error: error
@@ -297,10 +357,12 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
             }
         }
         else {
-            result = await this.dbService.addOrUpdateItem(item);
+            let dbItem = this.convertItemToDbFormat(item);
+            result = await this.dbService.addOrUpdateItem(dbItem);
+            result.item = item;
             // create a new transaction
             let ot: OfflineTransaction = new OfflineTransaction();
-            ot.itemData = assign({}, result.item);
+            ot.itemData = assign({}, dbItem);
             ot.itemType = result.item.constructor["name"];
             ot.serviceName = this.serviceName;
             ot.title = TransactionType.AddOrUpdate;
@@ -326,7 +388,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
 
             // create a new transaction
             let ot: OfflineTransaction = new OfflineTransaction();
-            ot.itemData = assign({}, item);
+            ot.itemData = assign({}, this.convertItemToDbFormat(item));
             ot.itemType = item.constructor["name"];
             ot.serviceName = this.serviceName;
             ot.title = TransactionType.Delete;
@@ -334,5 +396,18 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         }
 
         return null;
+    }
+
+
+    protected convertItemToDbFormat(item: T): T {
+        return item;
+    }
+
+    public mapItem(item: T): T {
+        return item;
+    }
+    
+    public async updateLinkedTransactions(oldId: number | string, newId: number | string, nextTransactions: Array<OfflineTransaction>): Promise<Array<OfflineTransaction>> {
+        return nextTransactions;
     }
 }

@@ -1,18 +1,17 @@
 import { List } from "@pnp/sp";
 import { IBaseItem } from "../../interfaces/index";
 import { BaseDataService } from "./BaseDataService";
-import { TaxonomyTerm } from "../../models";
+import { TaxonomyTerm, OfflineTransaction } from "../../models";
 /**
  *
  * Base service for sp list items operations
  */
 export declare class BaseListItemService<T extends IBaseItem> extends BaseDataService<T> {
     /***************************** Fields and properties **************************************/
-    protected itemType: (new (item?: any) => T);
     protected listRelativeUrl: string;
     protected initValues: any;
-    protected readonly ItemFields: any;
-    readonly listItemType: (new (item?: any) => T);
+    protected tardiveLinks: any;
+    readonly ItemFields: any;
     /**
      * Associeted list (pnpjs)
      */
@@ -29,7 +28,7 @@ export declare class BaseListItemService<T extends IBaseItem> extends BaseDataSe
     private initialized;
     protected readonly isInitialized: boolean;
     private initPromise;
-    protected init_internal?: () => Promise<void>;
+    protected init_internal(): Promise<void>;
     Init(): Promise<void>;
     private getServiceInitValues;
     /****************************** get item methods ***********************************/
@@ -47,6 +46,8 @@ export declare class BaseListItemService<T extends IBaseItem> extends BaseDataSe
      * @param terms
      */
     getTaxonomyTermByWssId<T extends TaxonomyTerm>(wssid: number, terms: Array<T>): T;
+    /******************************************** DB conversion ***************************************************/
+    private getDbItem;
     /******************************************* Cache Management *************************************************/
     /**
      * Cache has to be reloaded ?
@@ -70,7 +71,12 @@ export declare class BaseListItemService<T extends IBaseItem> extends BaseDataSe
      * Get an item by id
      * @param id item id
      */
-    protected getById_Internal(id: number): Promise<T>;
+    protected getItemById_Internal(id: number): Promise<T>;
+    /**
+     * Get a list of items by id
+     * @param id item id
+     */
+    protected getItemsById_Internal(ids: Array<number>): Promise<Array<T>>;
     /**
      * Retrieve all items
      *
@@ -91,8 +97,7 @@ export declare class BaseListItemService<T extends IBaseItem> extends BaseDataSe
      * Retrive all fields to include in odata setect parameter
      */
     private getOdataFieldNames;
-    /**
-     * Retrive all fields to include in odata setect parameter
-     */
-    private getCamlViewFields;
+    protected convertItemToDbFormat(item: T): T;
+    mapItem(item: T): T;
+    updateLinkedTransactions(oldId: number | string, newId: number | string, nextTransactions: Array<OfflineTransaction>): Promise<Array<OfflineTransaction>>;
 }

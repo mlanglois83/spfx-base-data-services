@@ -7,7 +7,7 @@ import { BaseService } from "./BaseService";
  * Base class for data service allowing automatic management of online/offline mode with links to db and sp
  */
 export declare abstract class BaseDataService<T extends IBaseItem> extends BaseService implements IDataService<T> {
-    protected itemType: (new (item?: any) => T);
+    private itemModelType;
     protected transactionService: TransactionService;
     protected dbService: BaseDbService<T>;
     protected cacheDuration: number;
@@ -15,8 +15,9 @@ export declare abstract class BaseDataService<T extends IBaseItem> extends BaseS
      * Stored promises to avoid multiple calls
      */
     protected static promises: {};
-    updateLinkedItems?: (oldId: number | string, newId: number | string, transactions: Array<OfflineTransaction>) => Promise<Array<OfflineTransaction>>;
     readonly serviceName: string;
+    readonly itemType: (new (item?: any) => T);
+    Init(): Promise<void>;
     /**
      *
      * @param type type of items
@@ -46,10 +47,15 @@ export declare abstract class BaseDataService<T extends IBaseItem> extends BaseS
     getAll(): Promise<Array<T>>;
     protected abstract get_Internal(query: any): Promise<Array<T>>;
     get(query: any): Promise<Array<T>>;
-    protected abstract getById_Internal(id: number | string): Promise<T>;
-    getById(id: number): Promise<T>;
+    protected abstract getItemById_Internal(id: number | string): Promise<T>;
+    getItemById(id: number): Promise<T>;
+    protected abstract getItemsById_Internal(ids: Array<number | string>): Promise<Array<T>>;
+    getItemsById(ids: Array<number | string>): Promise<Array<T>>;
     protected abstract addOrUpdateItem_Internal(item: T): Promise<T>;
     addOrUpdateItem(item: T): Promise<IAddOrUpdateResult<T>>;
     protected abstract deleteItem_Internal(item: T): Promise<void>;
     deleteItem(item: T): Promise<void>;
+    protected convertItemToDbFormat(item: T): T;
+    mapItem(item: T): T;
+    updateLinkedTransactions(oldId: number | string, newId: number | string, nextTransactions: Array<OfflineTransaction>): Promise<Array<OfflineTransaction>>;
 }

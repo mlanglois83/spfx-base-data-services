@@ -3,6 +3,10 @@
  */
 export interface IBaseItem {
     /**
+     * internal field for linked items not stored in db
+     */
+    __internalLinks: any;
+    /**
      * Item identifier
      */
     id: number | string;

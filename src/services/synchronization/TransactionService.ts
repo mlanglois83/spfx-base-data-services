@@ -30,7 +30,7 @@ export class TransactionService extends BaseDbService<OfflineTransaction> {
 
     public async deleteItem(item: OfflineTransaction): Promise<void> {
         if (item.itemType === SPFile["name"]) {
-            let transaction = await super.getById(item.id);
+            let transaction = await super.getItemById(item.id);
             let file: SPFile = new SPFile();
             file.serverRelativeUrl = transaction.itemData;
             await this.transactionFileService.deleteItem(file);
@@ -65,7 +65,7 @@ export class TransactionService extends BaseDbService<OfflineTransaction> {
         let result = await super.getAll();
         result = await Promise.all(result.map(async (item) => {
             if (item.itemType === SPFile["name"]) {
-                let file = await this.transactionFileService.getById(item.itemData);
+                let file = await this.transactionFileService.getItemById(item.itemData);
                 if (file) {
                     file.serverRelativeUrl = file.serverRelativeUrl.replace(/^\d+_(.*)$/g, "$1");
                     item.itemData = assign({}, file);

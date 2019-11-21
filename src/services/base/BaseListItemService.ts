@@ -7,9 +7,9 @@ import { IBaseItem, IFieldDescriptor } from "../../interfaces/index";
 import { BaseDataService } from "./BaseDataService";
 import { BaseService } from "./BaseService";
 import { UtilsService } from "..";
-import { SPItem, User, TaxonomyTerm } from "../../models";
+import { SPItem, User, TaxonomyTerm, OfflineTransaction } from "../../models";
 import { UserService } from "../graph/UserService";
-import { isArray } from "@pnp/common";
+import { isArray, stringIsNullOrEmpty } from "@pnp/common";
 
 /**
  * 
@@ -18,19 +18,17 @@ import { isArray } from "@pnp/common";
 export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>{
 
     /***************************** Fields and properties **************************************/
-    protected itemType: (new (item?: any) => T);
     protected listRelativeUrl: string;
     protected initValues: any = {};
-    protected get ItemFields(): any {
+    protected tardiveLinks: any = {};
+
+    public get ItemFields(): any {
         let result = {}
         assign(result, this.itemType["Fields"][SPItem["name"]]);
         if(this.itemType["Fields"][this.itemType["name"]]) {
             assign(result, this.itemType["Fields"][this.itemType["name"]]);
         }
         return result;
-    }
-    public get listItemType(): (new (item?: any) => T) {
-        return this.itemType;
     }
 
     /**
@@ -50,7 +48,6 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
     constructor(type: (new (item?: any) => T), listRelativeUrl: string, tableName: string, cacheDuration?: number) {
         super(type, tableName, cacheDuration);
         this.listRelativeUrl = ServicesConfiguration.context.pageContext.web.serverRelativeUrl + listRelativeUrl;
-        this.itemType = type;
 
     }
 
@@ -63,7 +60,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
     }
     private initPromise: Promise<void> = null;
 
-    protected init_internal?: () => Promise<void>;
+    protected async init_internal(): Promise<void>{};
 
     public async Init(): Promise<void> {
         if(!this.initPromise) {
@@ -83,11 +80,6 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                                 const fieldDescription = fields[key];
                                 if(fieldDescription.serviceName && services.indexOf(fieldDescription.serviceName) === -1) {
                                     services.push(fieldDescription.serviceName);
-                                } 
-                                else if(
-                                    (fieldDescription.fieldType === FieldType.O365User || fieldDescription.fieldType === FieldType.O365UserMulti) &&
-                                    services.indexOf(UserService["name"]) === -1) {
-                                    services.push(UserService["name"]);
                                 }                
                             }
                         }
@@ -119,14 +111,15 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
 
     /****************************** get item methods ***********************************/
     private getItemFromRest(spitem: any): T {
-        let item = new this.listItemType();
+        let item = new this.itemType();
         Object.keys(this.ItemFields).map((propertyName) => {
             const fieldDescription = this.ItemFields[propertyName];
-            item[propertyName] = this.getFieldValue(spitem, fieldDescription);
+            item[propertyName] = this.getFieldValue(spitem, propertyName, fieldDescription);
         });
         return item;
     }
-    private getFieldValue(spitem: any, fieldDescriptor:IFieldDescriptor): any {
+    // TODO : Tardive link
+    private getFieldValue(spitem: T, propertyName: string,  fieldDescriptor:IFieldDescriptor): any {
         let value = fieldDescriptor.defaultValue;
         fieldDescriptor.fieldType = fieldDescriptor.fieldType || FieldType.Simple;
         switch(fieldDescriptor.fieldType) {
@@ -142,21 +135,48 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                     value = spitem[fieldDescriptor.fieldName] ? new Date(spitem[fieldDescriptor.fieldName]) : fieldDescriptor.defaultValue;
                 break;
             case FieldType.Lookup:
-            case FieldType.LookupMulti:
-                value = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"] : fieldDescriptor.defaultValue;
-                break;
-            case FieldType.O365User:
-                let id = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"] : -1;
-                if(id !== -1) {
-                    let users = this.getServiceInitValues(UserService["name"]);
-                    value = find(users, (user) => {return user.spId === id;});
+                let lookupId = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"] : -1;
+                if(lookupId !== -1) {
+                    if(!stringIsNullOrEmpty(fieldDescriptor.serviceName)) {
+                        //link defered
+                        spitem.__internalLinks[propertyName] = lookupId;
+                    }
+                    else {
+                        value = lookupId;
+                    }   
                 }
                 break;
-            case FieldType.O365UserMulti:
+            case FieldType.LookupMulti:
+                    let lookupIds = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"] : [];
+                    if(lookupIds.length > 0) {
+                        if(!stringIsNullOrEmpty(fieldDescriptor.serviceName)) {                            
+                            spitem.__internalLinks[propertyName] = lookupIds;
+                        }
+                        else {
+                            value = lookupIds;
+                        }
+                    }
+                    break;
+            case FieldType.User:
+                let id = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"] : -1;
+                if(id !== -1) {
+                    if(!stringIsNullOrEmpty(fieldDescriptor.serviceName)) {                         
+                        spitem.__internalLinks[propertyName] = id;
+                    }
+                    else {
+                        value = id;
+                    }   
+                }
+                break;
+            case FieldType.UserMulti:
                 let ids = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"] : [];
                 if(ids.length > 0) {
-                    let users = this.getServiceInitValues(UserService["name"]);
-                    value = ids.map((userid) => { return find(users, (user) => {return user.spId === userid;}); });
+                    if(!stringIsNullOrEmpty(fieldDescriptor.serviceName)) {                         
+                        spitem.__internalLinks[propertyName] = ids;
+                    }
+                    else {
+                        value = ids;
+                    }
                 }
                 break;
             case FieldType.Taxonomy:
@@ -202,21 +222,58 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 value[fieldDescriptor.fieldName] = itemValue;
                 break;
             case FieldType.Lookup:
-                value[fieldDescriptor.fieldName + "Id"] = itemValue > 0 ? itemValue : null;
-            case FieldType.LookupMulti:                
-                value[fieldDescriptor.fieldName + "Id"] = itemValue && isArray(itemValue) && itemValue.length > 0 ? itemValue : [];
-                break;
-            case FieldType.O365User:
-                value[fieldDescriptor.fieldName + "Id"] = await this.convertSingleUserFieldValue(itemValue);
-                break;
-            case FieldType.O365UserMulti:
-                if(itemValue && isArray(itemValue) && itemValue.length > 0) {
-                    value[fieldDescriptor.fieldName + "Id"] = await Promise.all(itemValue.map((user) => {
-                        return this.convertSingleUserFieldValue(user);
-                    }));
+                if(itemValue) {
+                    if(typeof(itemValue) === "number") {
+                        value[fieldDescriptor.fieldName + "Id"] = itemValue > 0 ? itemValue : null;
+                    }
+                    else {
+                        value[fieldDescriptor.fieldName + "Id"] = itemValue.id > 0 ? itemValue.id : null;
+                    }
                 }
                 else {
-                    value[fieldDescriptor.fieldName + "Id"] = [];
+                    value[fieldDescriptor.fieldName + "Id"] = null;
+                }
+            case FieldType.LookupMulti:      
+                if(itemValue && isArray(itemValue) && itemValue.length > 0){
+                    let firstLookupVal = itemValue[0];
+                    if(typeof(firstLookupVal) === "number") {
+                        value[fieldDescriptor.fieldName + "Id"] = itemValue;
+                    }
+                    else {
+                        value[fieldDescriptor.fieldName + "Id"] = itemValue.map((lookupMultiElt) => {return lookupMultiElt.id; });
+                    }
+                }      
+                else {
+                    value[fieldDescriptor.fieldName + "Id"] = null;
+                }
+                break;
+            case FieldType.User:
+                    if(itemValue) {
+                        if(typeof(itemValue) === "number") {
+                            value[fieldDescriptor.fieldName + "Id"] = itemValue > 0 ? itemValue : null;
+                        }
+                        else {
+                            value[fieldDescriptor.fieldName + "Id"] = await this.convertSingleUserFieldValue(itemValue);
+                        }
+                    }
+                    else {
+                        value[fieldDescriptor.fieldName + "Id"] = null;
+                    }                
+                break;
+            case FieldType.UserMulti:
+                if(itemValue && isArray(itemValue) && itemValue.length > 0) {
+                    let firstUserVal = itemValue[0];
+                    if(typeof(firstUserVal) === "number") {
+                        value[fieldDescriptor.fieldName + "Id"] = itemValue;
+                    }
+                    else {
+                        value[fieldDescriptor.fieldName + "Id"] = await Promise.all(itemValue.map((user) => {
+                            return this.convertSingleUserFieldValue(user);
+                        }));
+                    }
+                }
+                else {
+                    value[fieldDescriptor.fieldName + "Id"] = null;
                 }
                 break;
             case FieldType.Taxonomy:
@@ -229,7 +286,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                     });
                 }
                 else {
-                    value[fieldDescriptor.fieldName] = [];
+                    value[fieldDescriptor.fieldName] = null;
                 }
                 break;
             case FieldType.Json:
@@ -275,6 +332,11 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         return find(terms, (term) => {
             return (term.wssids && term.wssids.indexOf(wssid) > -1);
         });
+    }
+
+    /******************************************** DB conversion ***************************************************/
+    private getDbItem(item: T): any {
+
     }
 
     /******************************************* Cache Management *************************************************/
@@ -355,7 +417,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
      * Get an item by id
      * @param id item id
      */
-    protected async getById_Internal(id: number): Promise<T> {
+    protected async getItemById_Internal(id: number): Promise<T> {
         let result = null;
         let selectFields = this.getOdataFieldNames();
         let temp = await this.list.items.getById(id).select(...selectFields).get();
@@ -366,6 +428,23 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         }
 
         return result;
+    }
+
+    /**
+     * Get a list of items by id
+     * @param id item id
+     */
+    protected async getItemsById_Internal(ids: Array<number>): Promise<Array<T>> {
+        let results: Array<T> = [];
+        let selectFields = this.getOdataFieldNames();
+        let batch = sp.createBatch();
+        ids.forEach((id) => {
+            this.list.items.getById(id).select(...selectFields).inBatch(batch).get().then((item)=> {
+                results.push(this.getItemFromRest(item));
+            })
+        });
+        await batch.execute();
+        return results;   
     }
 
     /**
@@ -384,6 +463,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         }
         return results;
     }
+
     /**
      * Add or update an item
      * @param item SPItem derived object to be converted
@@ -453,8 +533,8 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
             switch(fields[prop].fieldType) {
                 case FieldType.Lookup:
                 case FieldType.LookupMulti:
-                case FieldType.O365User:
-                case FieldType.O365UserMulti:
+                case FieldType.User:
+                case FieldType.UserMulti:
                     result += "Id";
                 default:
                     break;
@@ -462,5 +542,30 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
             return result;
         });
         return fieldNames;
+    }
+
+    protected convertItemToDbFormat(item: T): T {
+        // TODO: store object with minimal value
+        return item;
+    }
+
+    public mapItem(item: T): T {
+        // TODO: get lazy loading values
+        return item;
+    }
+    
+    public async updateLinkedTransactions(oldId: number, newId: number, nextTransactions: Array<OfflineTransaction>): Promise<Array<OfflineTransaction>> {
+        // TODO: update items pointing to this + user ids on transactions
+        return nextTransactions;
+    }
+    
+    private async updateLinksInDb(item: T): Promise<void>{
+        // TODO: update items pointing to this (create only + id < -1)
+        
+    }
+
+    
+    private async updateWssIdsAndUsersSpIds(item: T): Promise<void> {
+        //TODO: if taxonomy field, store wssid in db (add or update) --> service + taxohidden
     }
 }

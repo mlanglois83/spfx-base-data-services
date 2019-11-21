@@ -22,5 +22,15 @@ export interface IDataService<T extends IBaseItem> {
      * Removes an item
      * @param item Instance of a Model that has to deleted
      */
-    deleteItem(item: T): Promise<void>;updateLinkedItems?: (oldId: number | string, newId: number | string, transactions: Array<OfflineTransaction>) => Promise<Array<OfflineTransaction>>;
+    deleteItem(item: T): Promise<void>;
+    /**
+     * Retrieve item by id
+     * @param id item id
+     */
+    getItemById(id: string | number): Promise<T>;
+    /**
+     * Retrieve items by ids
+     * @param ids Array of ids
+     */
+    getItemsById(ids: Array<string | number>): Promise<Array<T>>;
 }

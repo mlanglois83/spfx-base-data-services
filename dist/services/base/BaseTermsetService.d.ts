@@ -8,9 +8,7 @@ import { TaxonomyHiddenListService } from "../";
 export declare class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<T> {
     protected taxonomyHiddenListService: TaxonomyHiddenListService;
     protected utilsService: UtilsService;
-    protected itemType: (new (item?: any) => T);
     protected termsetnameorid: string;
-    protected wssIds: any;
     /**
      * Associeted termset (pnpjs)
      */
@@ -28,7 +26,8 @@ export declare class BaseTermsetService<T extends TaxonomyTerm> extends BaseData
      * Retrieve all terms
      */
     protected getAll_Internal(): Promise<Array<T>>;
-    getById_Internal(query: any): Promise<T>;
+    getItemById_Internal(id: string): Promise<T>;
+    getItemsById_Internal(ids: Array<string>): Promise<Array<T>>;
     protected get_Internal(query: any): Promise<Array<T>>;
     protected addOrUpdateItem_Internal(item: T): Promise<T>;
     protected deleteItem_Internal(item: T): Promise<void>;
