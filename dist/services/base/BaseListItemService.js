@@ -746,18 +746,39 @@ var BaseListItemService = /** @class */ (function (_super) {
         return fieldNames;
     };
     BaseListItemService.prototype.convertItemToDbFormat = function (item) {
-        // TODO
+        // TODO: store object with minimal value
+        var result = new this.itemType();
+        for (var key in this.ItemFields) {
+            if (this.ItemFields.hasOwnProperty(key)) {
+                var fieldDescriptor = this.ItemFields[key];
+                //switch
+            }
+        }
         return item;
     };
     BaseListItemService.prototype.mapItem = function (item) {
-        // TODO
+        // TODO: get lazy loading values
         return item;
     };
     BaseListItemService.prototype.updateLinkedTransactions = function (oldId, newId, nextTransactions) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
-                // TODO
+                // TODO: update items pointing to this + user ids on transactions
                 return [2 /*return*/, nextTransactions];
+            });
+        });
+    };
+    BaseListItemService.prototype.updateLinksInDb = function (item) {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                return [2 /*return*/];
+            });
+        });
+    };
+    BaseListItemService.prototype.updateWssIdsAndUsersSpIds = function (item) {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                return [2 /*return*/];
             });
         });
     };

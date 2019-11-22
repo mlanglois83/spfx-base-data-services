@@ -99,5 +99,7 @@ export declare class BaseListItemService<T extends IBaseItem> extends BaseDataSe
     private getOdataFieldNames;
     protected convertItemToDbFormat(item: T): T;
     mapItem(item: T): T;
-    updateLinkedTransactions(oldId: number | string, newId: number | string, nextTransactions: Array<OfflineTransaction>): Promise<Array<OfflineTransaction>>;
+    updateLinkedTransactions(oldId: number, newId: number, nextTransactions: Array<OfflineTransaction>): Promise<Array<OfflineTransaction>>;
+    private updateLinksInDb;
+    private updateWssIdsAndUsersSpIds;
 }

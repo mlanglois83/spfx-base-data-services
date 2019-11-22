@@ -546,6 +546,14 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
 
     protected convertItemToDbFormat(item: T): T {
         // TODO: store object with minimal value
+        let result: T = new this.itemType();
+        for (const key in this.ItemFields) {
+            if (this.ItemFields.hasOwnProperty(key)) {
+                const fieldDescriptor = this.ItemFields[key];
+                //switch
+                
+            }
+        }
         return item;
     }
 
