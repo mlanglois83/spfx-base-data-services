@@ -121,11 +121,15 @@ var UserService = /** @class */ (function (_super) {
                         spUsers = _a.sent();
                         batch = graph.createBatch();
                         spUsers.forEach(function (spu) {
-                            graph.users.filter("userPrincipalName eq '" + spu.UserPrincipalName + "'").inBatch(batch).get().then(function (graphUser) {
-                                var result = new User(graphUser);
-                                result.spId = spu.Id;
-                                results.push(result);
-                            });
+                            if (spu.UserPrincipalName) {
+                                graph.users.filter("userPrincipalName eq '" + encodeURIComponent(spu.UserPrincipalName) + "'").inBatch(batch).get().then(function (graphUser) {
+                                    if (graphUser && graphUser.length > 0) {
+                                        var result = new User(graphUser[0]);
+                                        result.spId = spu.Id;
+                                        results.push(result);
+                                    }
+                                });
+                            }
                         });
                         return [4 /*yield*/, batch.execute()];
                     case 2:

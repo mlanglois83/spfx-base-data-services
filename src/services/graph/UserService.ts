@@ -25,7 +25,7 @@ export class UserService extends BaseDataService<User> {
         let reverseFilter = query;
         let parts = query.split(" ");
         if (parts.length > 1) {
-        reverseFilter = parts[1].trim() + " " + parts[0].trim();
+            reverseFilter = parts[1].trim() + " " + parts[0].trim();
         }
         let users = await graph.users
         .filter(
@@ -59,11 +59,15 @@ export class UserService extends BaseDataService<User> {
         let spUsers  = await sp.web.siteUsers.get();
         let batch = graph.createBatch();
         spUsers.forEach((spu) => {
-            graph.users.filter(`userPrincipalName eq '${spu.UserPrincipalName}'`).inBatch(batch).get().then((graphUser) => {
-                let result = new User(graphUser);
-                result.spId = spu.Id;
-                results.push(result);
-            });
+            if(spu.UserPrincipalName) {
+                graph.users.filter(`userPrincipalName eq '${encodeURIComponent(spu.UserPrincipalName)}'`).inBatch(batch).get().then((graphUser) => {
+                    if(graphUser && graphUser.length > 0) {
+                        let result = new User(graphUser[0]);
+                        result.spId = spu.Id;
+                        results.push(result);
+                    }
+                });
+            }
         });
         await batch.execute();
         return results;       
