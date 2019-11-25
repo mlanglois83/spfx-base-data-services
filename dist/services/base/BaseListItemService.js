@@ -159,7 +159,7 @@ var BaseListItemService = /** @class */ (function (_super) {
                         results = new Array();
                         return [4 /*yield*/, this.list.getItemsByCAMLQuery({
                                 ViewXml: '<View Scope="RecursiveAll"><Query>' + query + '</Query></View>'
-                            }, 'FieldValuesAsText')];
+                            })];
                     case 1:
                         items = _a.sent();
                         results = items.map(function (r) { return new _this.itemType(r); });

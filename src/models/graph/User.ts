@@ -29,9 +29,9 @@ export class User implements IBaseItem {
     "id": "6e7b768e-07e2-4810-8459-485f84f8f204"*/
 
     constructor(graphUser?: any) {
-        if (graphUser != undefined) {
+        if (graphUser != undefined && graphUser) {
             this.title = graphUser.displayName != undefined ? graphUser.displayName : "";
-            this.id = graphUser.id != undefined ? graphUser.id  : "";
+            this.id = graphUser.id != undefined ? graphUser.id : "";
             this.mail = graphUser.mail != undefined ? graphUser.mail : "";
             this.userPrincipalName = graphUser.userPrincipalName != undefined ? graphUser.userPrincipalName : "";
         }
