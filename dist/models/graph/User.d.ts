@@ -6,8 +6,7 @@ export declare class User implements IBaseItem {
     spId?: number;
     userPrincipalName: string;
     queries?: Array<number>;
-    get displayName(): string;
-    set displayName(val: string);
+    displayName: string;
     /***** graph object ******/
     constructor(graphUser?: any);
     convert(): Promise<any>;
