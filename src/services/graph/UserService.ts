@@ -52,20 +52,21 @@ export class UserService extends BaseDataService<User> {
     }
 
     /**
-     * Retrieve all users
+     * Retrieve all users from site
      */
     protected async getAll_Internal(): Promise<Array<User>> {
-        let [spUsers, users]  = await Promise.all([sp.web.siteUsers.get(), graph.users.get()]);
-       return users.map((u) => { 
-           let spuser = find(spUsers, (spu)=> {
-               return spu.UserPrincipalName === u.userPrincipalName;
-           });
-        let result= new this.itemType(u);
-        if(spuser) {
-            result.spId = spuser.Id;
-        }
-        return result;
-       });                    
+        let results = [];
+        let spUsers  = await sp.web.siteUsers.get();
+        let batch = graph.createBatch();
+        spUsers.forEach((spu) => {
+            graph.users.filter(`userPrincipalName eq '${spu.UserPrincipalName}'`).inBatch(batch).get().then((graphUser) => {
+                let result = new User(graphUser);
+                result.spId = spu.Id;
+                results.push(result);
+            });
+        });
+        await batch.execute();
+        return results;       
     }
 
     public async getById_Internal(id: string): Promise<User> {

@@ -30,10 +30,10 @@ export class User implements IBaseItem {
 
     constructor(graphUser?: any) {
         if (graphUser != undefined) {
-            this.title = graphUser.displayName != undefined ? graphUser.displayName : "";
-            this.id = graphUser.id != undefined ? graphUser.id  : "";
-            this.mail = graphUser.mail != undefined ? graphUser.mail : "";
-            this.userPrincipalName = graphUser.userPrincipalName != undefined ? graphUser.userPrincipalName : "";
+            this.title = graphUser.displayName ? graphUser.displayName : "";
+            this.id = graphUser.id ? graphUser.id  : "";
+            this.mail = graphUser.mail ? graphUser.mail : "";
+            this.userPrincipalName = graphUser.userPrincipalName ? graphUser.userPrincipalName : "";
         }
     }
     public convert(): Promise<any> {

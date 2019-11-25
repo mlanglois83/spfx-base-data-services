@@ -237,12 +237,11 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
 
                     if (reloadData) {
                         result = await this.getById_Internal(id);
-                        await this.dbService.addOrUpdateItems([result], keyCached);
+                        await this.dbService.addOrUpdateItems([result]);
                         this.UpdateCacheData(super.hashCode(keyCached).toString());
                     }
                     else {
-                        let temp = await this.dbService.get(keyCached);
-                        if (temp && temp.length > 0) { result = temp[0]; }
+                        result = await this.dbService.getById(id);
                     }
 
                     this.removePromise(keyCached);

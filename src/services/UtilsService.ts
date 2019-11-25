@@ -16,8 +16,6 @@ export class UtilsService extends BaseService {
      */
     public static async CheckOnline(): Promise<boolean> {
         let result = false;
-
-
         try {
             const response = await fetch(ServicesConfiguration.context.pageContext.web.absoluteUrl, { method: 'HEAD', mode: 'no-cors' }); // head method not cached
             result = (response && (response.ok || response.type === 'opaque'));

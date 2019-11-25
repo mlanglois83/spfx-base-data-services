@@ -12,7 +12,7 @@ export declare class UserService extends BaseDataService<User> {
     protected addOrUpdateItem_Internal(item: User): Promise<User>;
     protected deleteItem_Internal(item: User): Promise<void>;
     /**
-     * Retrieve all users
+     * Retrieve all users from site
      */
     protected getAll_Internal(): Promise<Array<User>>;
     getById_Internal(id: string): Promise<User>;
