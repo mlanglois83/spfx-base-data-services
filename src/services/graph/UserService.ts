@@ -69,26 +69,22 @@ export class UserService extends BaseDataService<User> {
      * Retrieve all users (sp)
      */
     protected async getAll_Internal(): Promise<Array<User>> {
-        let spUsers = await this.spUsers();
-        let results: Array<User> = [];
+        let results = [];
+        let spUsers  = await this.spUsers();
         let batch = graph.createBatch();
         spUsers.forEach((spu) => {
-            graph.users.select("id","userPrincipalName","mail","displayName").filter(`userPrincipalName eq '${spu.UserPrincipalName}'`).inBatch(batch).get().then((graphUsers)=> {
-                if(graphUsers && graphUsers.length > 0) {
-                    let graphUser = graphUsers[0];
-                    let spuser = find(spUsers, (spu)=> {
-                        return spu.UserPrincipalName === graphUser.userPrincipalName;
-                    });
-                    let result= new User(graphUser);
-                    if(spuser) {
-                        result.spId = spuser.Id;
+            if(spu.UserPrincipalName) {
+                graph.users.select("id","userPrincipalName","mail","displayName").filter(`userPrincipalName eq '${encodeURIComponent(spu.UserPrincipalName)}'`).inBatch(batch).get().then((graphUser) => {
+                    if(graphUser && graphUser.length > 0) {
+                        let result = new User(graphUser[0]);
+                        result.spId = spu.Id;
+                        results.push(result);
                     }
-                    results.push(result);
-                }
-            })
+                });
+            }
         });
         await batch.execute();
-        return results;         
+        return results;       
     }
 
     public async getItemById_Internal(id: string): Promise<User> {
@@ -107,17 +103,23 @@ export class UserService extends BaseDataService<User> {
     }
 
     public async getItemsById_Internal(ids: Array<string>): Promise<Array<User>> {
-        let [graphUsers, spUsers] = await Promise.all([graph.users.filter(ids.map((id) => { return `id eq '${id}'`}).join(' or ')).select("id","userPrincipalName","mail","displayName").get(), this.spUsers]);
-        return graphUsers.map((u) => { 
-            let spuser = find(spUsers, (spu: any)=> {
-                return spu.UserPrincipalName === u.userPrincipalName;
+        let results: Array<User> = [];
+        let spUsers = await this.spUsers();
+        let batch = graph.createBatch();
+        ids.forEach(id => {
+            graph.users.getById(id).select("id","userPrincipalName","mail","displayName").inBatch(batch).get().then((graphUser) => {
+                let spuser = find(spUsers, (spu: any)=> {
+                    return spu.UserPrincipalName === graphUser.userPrincipalName;
+                });
+                let result= new User(graphUser);
+                if(spuser) {
+                    result.spId = spuser.Id;
+                }
+                results.push(result);
             });
-            let result= new User(u);
-            if(spuser) {
-                result.spId = spuser.Id;
-            }
-            return result;
-        });          
+        });
+        await batch.execute();
+        return results;    
     }
 
     public async linkToSpUser(user: User): Promise<User> {

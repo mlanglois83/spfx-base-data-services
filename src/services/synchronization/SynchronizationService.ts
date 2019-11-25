@@ -31,13 +31,15 @@ export class SynchronizationService extends BaseService {
                 // get associated type & service
                 let itemType = ServicesConfiguration.configuration.serviceFactory.getItemTypeByName(transaction.itemType);
                 let dataService = ServicesConfiguration.configuration.serviceFactory.create(transaction.serviceName);
+                // init service for tardive links
+                await dataService.Init();
                 // transform item to destination type
                 let item = assign(new itemType(), transaction.itemData);
                 switch (transaction.title) {
                     case TransactionType.AddOrUpdate:
                         const oldId = item.id;
-                        const isAdd = typeof (oldId) === "number" && oldId < 0;                        
-                        const updatedItem = await dataService.addOrUpdateItem(item);
+                        const isAdd = typeof (oldId) === "number" && oldId < 0;            
+                        const updatedItem = await dataService.addOrUpdateItem(dataService.mapItem(item));
                         // handle id and version changed
                         if (isAdd && !updatedItem.error) {
                             
