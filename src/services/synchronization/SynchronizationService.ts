@@ -30,7 +30,7 @@ export class SynchronizationService extends BaseService {
             return new Promise<void>(async(resolve, reject) => {
                 // get associated type & service
                 let itemType = ServicesConfiguration.configuration.serviceFactory.getItemTypeByName(transaction.itemType);
-                let dataService = ServicesConfiguration.configuration.serviceFactory.create(transaction.serviceName);
+                let dataService = ServicesConfiguration.configuration.serviceFactory.create(transaction.itemType);
                 // init service for tardive links
                 await dataService.Init();
                 // transform item to destination type
@@ -48,7 +48,6 @@ export class SynchronizationService extends BaseService {
                             if (index < transactions.length - 1) {
                                 nextTransactions = await Promise.all(transactions.slice(index + 1).filter((t) => {
                                     return t.itemType === transaction.itemType &&
-                                        t.serviceName === transaction.serviceName &&
                                         (t.itemData as IBaseItem).id === oldId;
                                 }).map(async (updatedTr) => {
                                     (updatedTr.itemData as IBaseItem).id = updatedItem.item.id;

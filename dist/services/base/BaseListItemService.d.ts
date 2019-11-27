@@ -33,10 +33,10 @@ export declare class BaseListItemService<T extends IBaseItem> extends BaseDataSe
     private getServiceInitValues;
     /****************************** get item methods ***********************************/
     private getItemFromRest;
-    private getFieldValue;
+    private setFieldValue;
     /****************************** Send item methods ***********************************/
     private getSPRestItem;
-    private convertFieldValueToRest;
+    private setRestFieldValue;
     /********************** SP Fields conversion helpers *****************************/
     private convertTaxonomyFieldValue;
     private convertSingleUserFieldValue;
@@ -46,8 +46,6 @@ export declare class BaseListItemService<T extends IBaseItem> extends BaseDataSe
      * @param terms
      */
     getTaxonomyTermByWssId<T extends TaxonomyTerm>(wssid: number, terms: Array<T>): T;
-    /******************************************** DB conversion ***************************************************/
-    private getDbItem;
     /******************************************* Cache Management *************************************************/
     /**
      * Cache has to be reloaded ?
@@ -89,7 +87,7 @@ export declare class BaseListItemService<T extends IBaseItem> extends BaseDataSe
     protected addOrUpdateItem_Internal(item: T): Promise<T>;
     /**
      * Delete an item
-     * @param item SPItem derived class to be deletes
+     * @param item SPItem derived class to be deleted
      */
     protected deleteItem_Internal(item: T): Promise<void>;
     /************************** Query filters ***************************/
@@ -97,9 +95,17 @@ export declare class BaseListItemService<T extends IBaseItem> extends BaseDataSe
      * Retrive all fields to include in odata setect parameter
      */
     private getOdataFieldNames;
+    /**
+     * convert full item to db format (with links only)
+     * @param item full provisionned item
+     */
     protected convertItemToDbFormat(item: T): T;
+    /**
+     * populate item from db storage
+     * @param item db item with links in __internalLinks fields
+     */
     mapItem(item: T): T;
     updateLinkedTransactions(oldId: number, newId: number, nextTransactions: Array<OfflineTransaction>): Promise<Array<OfflineTransaction>>;
     private updateLinksInDb;
-    private updateWssIdsAndUsersSpIds;
+    private updateWssIds;
 }

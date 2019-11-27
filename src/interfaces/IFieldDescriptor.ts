@@ -14,9 +14,9 @@ export interface IFieldDescriptor {
      */
     defaultValue?: any;
     /**
-     * Service name used for linked objects.
+     * Model name used for linked objects.
      */
-    serviceName?: string;
+    modelName?: string;
     /**
      * Referenced item model type name for taxonomy types only
      */

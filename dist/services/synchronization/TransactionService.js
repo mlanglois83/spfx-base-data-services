@@ -50,6 +50,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 import { BaseDbService } from "../base/BaseDbService";
 import { OfflineTransaction, SPFile } from "../../models/index";
 import { assign } from "@microsoft/sp-lodash-subset";
+import { ServicesConfiguration } from "../../configuration/ServicesConfiguration";
 var TransactionService = /** @class */ (function (_super) {
     __extends(TransactionService, _super);
     function TransactionService() {
@@ -67,7 +68,7 @@ var TransactionService = /** @class */ (function (_super) {
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        if (!(item.itemType === SPFile["name"])) return [3 /*break*/, 2];
+                        if (!this.isFile(item.itemType)) return [3 /*break*/, 2];
                         file = assign(new SPFile(), item.itemData);
                         item.itemData = new Date().getTime() + "_" + file.serverRelativeUrl;
                         file.serverRelativeUrl = item.itemData;
@@ -89,7 +90,7 @@ var TransactionService = /** @class */ (function (_super) {
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        if (!(item.itemType === SPFile["name"])) return [3 /*break*/, 3];
+                        if (!this.isFile(item.itemType)) return [3 /*break*/, 3];
                         return [4 /*yield*/, _super.prototype.getItemById.call(this, item.id)];
                     case 1:
                         transaction = _a.sent();
@@ -121,7 +122,7 @@ var TransactionService = /** @class */ (function (_super) {
                             return __generator(this, function (_a) {
                                 switch (_a.label) {
                                     case 0:
-                                        if (!(item.itemType === SPFile["name"])) return [3 /*break*/, 2];
+                                        if (!this.isFile(item.itemType)) return [3 /*break*/, 2];
                                         file = assign(new SPFile(), item.itemData);
                                         item.itemData = new Date().getTime() + "_" + file.serverRelativeUrl;
                                         file.serverRelativeUrl = item.itemData;
@@ -160,7 +161,7 @@ var TransactionService = /** @class */ (function (_super) {
                                 return __generator(this, function (_a) {
                                     switch (_a.label) {
                                         case 0:
-                                            if (!(item.itemType === SPFile["name"])) return [3 /*break*/, 2];
+                                            if (!this.isFile(item.itemType)) return [3 /*break*/, 2];
                                             return [4 /*yield*/, this.transactionFileService.getItemById(item.itemData)];
                                         case 1:
                                             file = _a.sent();
@@ -197,6 +198,11 @@ var TransactionService = /** @class */ (function (_super) {
                 }
             });
         });
+    };
+    TransactionService.prototype.isFile = function (itemTypeName) {
+        var itemType = ServicesConfiguration.configuration.serviceFactory.getItemTypeByName(itemTypeName);
+        var instance = new itemType();
+        return (instance instanceof SPFile);
     };
     return TransactionService;
 }(BaseDbService));

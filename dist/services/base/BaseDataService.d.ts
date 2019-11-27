@@ -11,6 +11,7 @@ export declare abstract class BaseDataService<T extends IBaseItem> extends BaseS
     protected transactionService: TransactionService;
     protected dbService: BaseDbService<T>;
     protected cacheDuration: number;
+    readonly ItemFields: {};
     /**
      * Stored promises to avoid multiple calls
      */
@@ -58,4 +59,7 @@ export declare abstract class BaseDataService<T extends IBaseItem> extends BaseS
     protected convertItemToDbFormat(item: T): T;
     mapItem(item: T): T;
     updateLinkedTransactions(oldId: number | string, newId: number | string, nextTransactions: Array<OfflineTransaction>): Promise<Array<OfflineTransaction>>;
+    __getFromCache(id: string): Promise<T>;
+    __getAllFromCache(): Promise<Array<T>>;
+    __updateCache(...items: Array<T>): Promise<Array<T>>;
 }

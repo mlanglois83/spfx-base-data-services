@@ -268,7 +268,7 @@ var BaseFileService = /** @class */ (function (_super) {
                 switch (_a.label) {
                     case 0:
                         if (!(item instanceof SPFile)) return [3 /*break*/, 4];
-                        return [4 /*yield*/, sp.web.getFileByServerRelativeUrl(item.serverRelativeUrl).delete()];
+                        return [4 /*yield*/, sp.web.getFileByServerRelativeUrl(item.serverRelativeUrl).recycle()];
                     case 1:
                         _a.sent();
                         folderUrl = UtilsService.getParentFolderUrl(item.serverRelativeUrl);
@@ -277,7 +277,7 @@ var BaseFileService = /** @class */ (function (_super) {
                     case 2:
                         files = _a.sent();
                         if (!(!files || files.length === 0)) return [3 /*break*/, 4];
-                        return [4 /*yield*/, folder.delete()];
+                        return [4 /*yield*/, folder.recycle()];
                     case 3:
                         _a.sent();
                         _a.label = 4;

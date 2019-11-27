@@ -23,4 +23,5 @@ export declare class TransactionService extends BaseDbService<OfflineTransaction
      * Clear table
      */
     clear(): Promise<void>;
+    private isFile;
 }

@@ -49,12 +49,12 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 };
 import { ServicesConfiguration } from "../..";
 import { SPHttpClient } from '@microsoft/sp-http';
-import { cloneDeep, find, assign } from "@microsoft/sp-lodash-subset";
+import { cloneDeep, find, assign, findIndex } from "@microsoft/sp-lodash-subset";
 import { sp } from "@pnp/sp";
 import { Constants, FieldType } from "../../constants/index";
 import { BaseDataService } from "./BaseDataService";
 import { UtilsService } from "..";
-import { SPItem } from "../../models";
+import { SPItem, TaxonomyTerm } from "../../models";
 import { UserService } from "../graph/UserService";
 import { isArray, stringIsNullOrEmpty } from "@pnp/common";
 /**
@@ -121,7 +121,7 @@ var BaseListItemService = /** @class */ (function (_super) {
             return __generator(this, function (_a) {
                 if (!this.initPromise) {
                     this.initPromise = new Promise(function (resolve, reject) { return __awaiter(_this, void 0, void 0, function () {
-                        var fields, services, key, fieldDescription, error_1;
+                        var fields, models, key, fieldDescription, error_1;
                         var _this = this;
                         return __generator(this, function (_a) {
                             switch (_a.label) {
@@ -138,26 +138,26 @@ var BaseListItemService = /** @class */ (function (_super) {
                                     _a.label = 3;
                                 case 3:
                                     fields = this.ItemFields;
-                                    services = [];
+                                    models = [];
                                     for (key in fields) {
                                         if (fields.hasOwnProperty(key)) {
                                             fieldDescription = fields[key];
-                                            if (fieldDescription.serviceName && services.indexOf(fieldDescription.serviceName) === -1) {
-                                                services.push(fieldDescription.serviceName);
+                                            if (fieldDescription.modelName && models.indexOf(fieldDescription.modelName) === -1) {
+                                                models.push(fieldDescription.modelName);
                                             }
                                         }
                                     }
-                                    return [4 /*yield*/, Promise.all(services.map(function (serviceName) { return __awaiter(_this, void 0, void 0, function () {
+                                    return [4 /*yield*/, Promise.all(models.map(function (modelName) { return __awaiter(_this, void 0, void 0, function () {
                                             var service, values;
                                             return __generator(this, function (_a) {
                                                 switch (_a.label) {
                                                     case 0:
-                                                        if (!!this.initValues[serviceName]) return [3 /*break*/, 2];
-                                                        service = ServicesConfiguration.configuration.serviceFactory.create(serviceName);
+                                                        if (!!this.initValues[modelName]) return [3 /*break*/, 2];
+                                                        service = ServicesConfiguration.configuration.serviceFactory.create(modelName);
                                                         return [4 /*yield*/, service.getAll()];
                                                     case 1:
                                                         values = _a.sent();
-                                                        this.initValues[serviceName] = values;
+                                                        this.initValues[modelName] = values;
                                                         _a.label = 2;
                                                     case 2: return [2 /*return*/];
                                                 }
@@ -192,92 +192,138 @@ var BaseListItemService = /** @class */ (function (_super) {
         var item = new this.itemType();
         Object.keys(this.ItemFields).map(function (propertyName) {
             var fieldDescription = _this.ItemFields[propertyName];
-            item[propertyName] = _this.getFieldValue(spitem, propertyName, fieldDescription);
+            _this.setFieldValue(spitem, item, propertyName, fieldDescription);
         });
         return item;
     };
-    // TODO : Tardive link
-    BaseListItemService.prototype.getFieldValue = function (spitem, propertyName, fieldDescriptor) {
-        var value = fieldDescriptor.defaultValue;
+    BaseListItemService.prototype.setFieldValue = function (spitem, destItem, propertyName, fieldDescriptor) {
         fieldDescriptor.fieldType = fieldDescriptor.fieldType || FieldType.Simple;
         switch (fieldDescriptor.fieldType) {
             case FieldType.Simple:
                 if (fieldDescriptor.fieldName === "OData__UIVersionString") {
-                    value = spitem[fieldDescriptor.fieldName] ? parseFloat(spitem[fieldDescriptor.fieldName]) : fieldDescriptor.defaultValue;
+                    destItem[propertyName] = spitem[fieldDescriptor.fieldName] ? parseFloat(spitem[fieldDescriptor.fieldName]) : fieldDescriptor.defaultValue;
                 }
                 else {
-                    value = spitem[fieldDescriptor.fieldName] ? spitem[fieldDescriptor.fieldName] : fieldDescriptor.defaultValue;
+                    destItem[propertyName] = spitem[fieldDescriptor.fieldName] ? spitem[fieldDescriptor.fieldName] : fieldDescriptor.defaultValue;
                 }
                 break;
             case FieldType.Date:
-                value = spitem[fieldDescriptor.fieldName] ? new Date(spitem[fieldDescriptor.fieldName]) : fieldDescriptor.defaultValue;
+                destItem[propertyName] = spitem[fieldDescriptor.fieldName] ? new Date(spitem[fieldDescriptor.fieldName]) : fieldDescriptor.defaultValue;
                 break;
             case FieldType.Lookup:
-                var lookupId = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"] : -1;
-                if (lookupId !== -1) {
-                    if (!stringIsNullOrEmpty(fieldDescriptor.serviceName)) {
-                        //link defered
-                        spitem.__internalLinks[propertyName] = lookupId;
+                var lookupId_1 = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"] : -1;
+                if (lookupId_1 !== -1) {
+                    if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                        // get values from init values
+                        var destElements = this.getServiceInitValues(fieldDescriptor.modelName);
+                        var existing = find(destElements, function (destElement) {
+                            return destElement.id === lookupId_1;
+                        });
+                        destItem[propertyName] = existing ? existing : fieldDescriptor.defaultValue;
                     }
                     else {
-                        value = lookupId;
+                        destItem[propertyName] = lookupId_1;
                     }
+                }
+                else {
+                    destItem[propertyName] = fieldDescriptor.defaultValue;
                 }
                 break;
             case FieldType.LookupMulti:
                 var lookupIds = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"] : [];
                 if (lookupIds.length > 0) {
-                    if (!stringIsNullOrEmpty(fieldDescriptor.serviceName)) {
-                        spitem.__internalLinks[propertyName] = lookupIds;
+                    if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                        // get values from init values
+                        var val_1 = [];
+                        var targetItems_1 = this.getServiceInitValues(fieldDescriptor.modelName);
+                        lookupIds.array.forEach(function (id) {
+                            var existing = find(targetItems_1, function (item) {
+                                return item.id === id;
+                            });
+                            if (existing) {
+                                val_1.push(existing);
+                            }
+                        });
+                        destItem[propertyName] = val_1;
                     }
                     else {
-                        value = lookupIds;
+                        destItem[propertyName] = lookupIds;
                     }
+                }
+                else {
+                    destItem[propertyName] = fieldDescriptor.defaultValue;
                 }
                 break;
             case FieldType.User:
-                var id = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"] : -1;
-                if (id !== -1) {
-                    if (!stringIsNullOrEmpty(fieldDescriptor.serviceName)) {
-                        spitem.__internalLinks[propertyName] = id;
+                var id_1 = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"] : -1;
+                if (id_1 !== -1) {
+                    if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                        // get values from init values
+                        var users = this.getServiceInitValues(fieldDescriptor.modelName);
+                        var existing = find(users, function (user) {
+                            return user.spId === id_1;
+                        });
+                        destItem[propertyName] = existing ? existing : fieldDescriptor.defaultValue;
                     }
                     else {
-                        value = id;
+                        destItem[propertyName] = id_1;
                     }
+                }
+                else {
+                    destItem[propertyName] = fieldDescriptor.defaultValue;
                 }
                 break;
             case FieldType.UserMulti:
                 var ids = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"] : [];
                 if (ids.length > 0) {
-                    if (!stringIsNullOrEmpty(fieldDescriptor.serviceName)) {
-                        spitem.__internalLinks[propertyName] = ids;
+                    if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                        // get values from init values
+                        var val_2 = [];
+                        var users_1 = this.getServiceInitValues(fieldDescriptor.modelName);
+                        ids.forEach(function (id) {
+                            var existing = find(users_1, function (user) {
+                                return user.spId === id;
+                            });
+                            if (existing) {
+                                val_2.push(existing);
+                            }
+                        });
+                        destItem[propertyName] = val_2;
                     }
                     else {
-                        value = ids;
+                        destItem[propertyName] = ids;
                     }
+                }
+                else {
+                    destItem[propertyName] = fieldDescriptor.defaultValue;
                 }
                 break;
             case FieldType.Taxonomy:
                 var wssid = spitem[fieldDescriptor.fieldName] ? spitem[fieldDescriptor.fieldName].WssId : -1;
-                if (id !== -1) {
-                    var terms_1 = this.getServiceInitValues(fieldDescriptor.serviceName);
-                    value = this.getTaxonomyTermByWssId(wssid, terms_1);
+                if (id_1 !== -1) {
+                    var terms_1 = this.getServiceInitValues(fieldDescriptor.fieldName);
+                    destItem[propertyName] = this.getTaxonomyTermByWssId(wssid, terms_1);
+                }
+                else {
+                    destItem[propertyName] = fieldDescriptor.defaultValue;
                 }
                 break;
             case FieldType.TaxonomyMulti:
                 var terms = spitem[fieldDescriptor.fieldName];
                 if (terms) {
-                    var allterms_1 = this.getServiceInitValues(fieldDescriptor.serviceName);
-                    value = terms.map(function (term) {
+                    var allterms_1 = this.getServiceInitValues(fieldDescriptor.fieldName);
+                    destItem[propertyName] = terms.map(function (term) {
                         return term.getTaxonomyTermByWssId(term.WssId, allterms_1);
                     });
                 }
+                else {
+                    destItem[propertyName] = fieldDescriptor.defaultValue;
+                }
                 break;
             case FieldType.Json:
-                value = spitem[fieldDescriptor.fieldName] ? JSON.parse(spitem[fieldDescriptor.fieldName]) : fieldDescriptor.defaultValue;
+                destItem[propertyName] = spitem[fieldDescriptor.fieldName] ? JSON.parse(spitem[fieldDescriptor.fieldName]) : fieldDescriptor.defaultValue;
                 break;
         }
-        return value;
     };
     /****************************** Send item methods ***********************************/
     BaseListItemService.prototype.getSPRestItem = function (item) {
@@ -289,16 +335,15 @@ var BaseListItemService = /** @class */ (function (_super) {
                     case 0:
                         spitem = {};
                         return [4 /*yield*/, Promise.all(Object.keys(this.ItemFields).map(function (propertyName) { return __awaiter(_this, void 0, void 0, function () {
-                                var fieldDescription, value;
+                                var fieldDescription;
                                 return __generator(this, function (_a) {
                                     switch (_a.label) {
                                         case 0:
                                             fieldDescription = this.ItemFields[propertyName];
                                             if (!(propertyName != "Version")) return [3 /*break*/, 2];
-                                            return [4 /*yield*/, this.convertFieldValueToRest(item[propertyName], fieldDescription)];
+                                            return [4 /*yield*/, this.setRestFieldValue(item, spitem, propertyName, fieldDescription)];
                                         case 1:
-                                            value = _a.sent();
-                                            assign(spitem[fieldDescription.fieldName], value);
+                                            _a.sent();
                                             _a.label = 2;
                                         case 2: return [2 /*return*/];
                                     }
@@ -311,14 +356,14 @@ var BaseListItemService = /** @class */ (function (_super) {
             });
         });
     };
-    BaseListItemService.prototype.convertFieldValueToRest = function (itemValue, fieldDescriptor) {
+    BaseListItemService.prototype.setRestFieldValue = function (item, destItem, propertyName, fieldDescriptor) {
         return __awaiter(this, void 0, void 0, function () {
-            var value, _a, firstLookupVal, _b, _c, firstUserVal, _d, _e;
+            var itemValue, _a, firstLookupVal, _b, _c, firstUserVal, _d, _e;
             var _this = this;
             return __generator(this, function (_f) {
                 switch (_f.label) {
                     case 0:
-                        value = {};
+                        itemValue = item[propertyName];
                         fieldDescriptor.fieldType = fieldDescriptor.fieldType || FieldType.Simple;
                         _a = fieldDescriptor.fieldType;
                         switch (_a) {
@@ -334,42 +379,42 @@ var BaseListItemService = /** @class */ (function (_super) {
                         }
                         return [3 /*break*/, 19];
                     case 1:
-                        value[fieldDescriptor.fieldName] = itemValue;
+                        destItem[fieldDescriptor.fieldName] = itemValue;
                         return [3 /*break*/, 19];
                     case 2:
                         if (itemValue) {
                             if (typeof (itemValue) === "number") {
-                                value[fieldDescriptor.fieldName + "Id"] = itemValue > 0 ? itemValue : null;
+                                destItem[fieldDescriptor.fieldName + "Id"] = itemValue > 0 ? itemValue : null;
                             }
                             else {
-                                value[fieldDescriptor.fieldName + "Id"] = itemValue.id > 0 ? itemValue.id : null;
+                                destItem[fieldDescriptor.fieldName + "Id"] = itemValue.id > 0 ? itemValue.id : null;
                             }
                         }
                         else {
-                            value[fieldDescriptor.fieldName + "Id"] = null;
+                            destItem[fieldDescriptor.fieldName + "Id"] = null;
                         }
                         _f.label = 3;
                     case 3:
                         if (itemValue && isArray(itemValue) && itemValue.length > 0) {
                             firstLookupVal = itemValue[0];
                             if (typeof (firstLookupVal) === "number") {
-                                value[fieldDescriptor.fieldName + "Id"] = itemValue;
+                                destItem[fieldDescriptor.fieldName + "Id"] = itemValue;
                             }
                             else {
-                                value[fieldDescriptor.fieldName + "Id"] = itemValue.map(function (lookupMultiElt) { return lookupMultiElt.id; });
+                                destItem[fieldDescriptor.fieldName + "Id"] = itemValue.map(function (lookupMultiElt) { return lookupMultiElt.id; });
                             }
                         }
                         else {
-                            value[fieldDescriptor.fieldName + "Id"] = null;
+                            destItem[fieldDescriptor.fieldName + "Id"] = null;
                         }
                         return [3 /*break*/, 19];
                     case 4:
                         if (!itemValue) return [3 /*break*/, 8];
                         if (!(typeof (itemValue) === "number")) return [3 /*break*/, 5];
-                        value[fieldDescriptor.fieldName + "Id"] = itemValue > 0 ? itemValue : null;
+                        destItem[fieldDescriptor.fieldName + "Id"] = itemValue > 0 ? itemValue : null;
                         return [3 /*break*/, 7];
                     case 5:
-                        _b = value;
+                        _b = destItem;
                         _c = fieldDescriptor.fieldName + "Id";
                         return [4 /*yield*/, this.convertSingleUserFieldValue(itemValue)];
                     case 6:
@@ -377,17 +422,17 @@ var BaseListItemService = /** @class */ (function (_super) {
                         _f.label = 7;
                     case 7: return [3 /*break*/, 9];
                     case 8:
-                        value[fieldDescriptor.fieldName + "Id"] = null;
+                        destItem[fieldDescriptor.fieldName + "Id"] = null;
                         _f.label = 9;
                     case 9: return [3 /*break*/, 19];
                     case 10:
                         if (!(itemValue && isArray(itemValue) && itemValue.length > 0)) return [3 /*break*/, 14];
                         firstUserVal = itemValue[0];
                         if (!(typeof (firstUserVal) === "number")) return [3 /*break*/, 11];
-                        value[fieldDescriptor.fieldName + "Id"] = itemValue;
+                        destItem[fieldDescriptor.fieldName + "Id"] = itemValue;
                         return [3 /*break*/, 13];
                     case 11:
-                        _d = value;
+                        _d = destItem;
                         _e = fieldDescriptor.fieldName + "Id";
                         return [4 /*yield*/, Promise.all(itemValue.map(function (user) {
                                 return _this.convertSingleUserFieldValue(user);
@@ -397,26 +442,26 @@ var BaseListItemService = /** @class */ (function (_super) {
                         _f.label = 13;
                     case 13: return [3 /*break*/, 15];
                     case 14:
-                        value[fieldDescriptor.fieldName + "Id"] = null;
+                        destItem[fieldDescriptor.fieldName + "Id"] = null;
                         _f.label = 15;
                     case 15: return [3 /*break*/, 19];
                     case 16:
-                        value[fieldDescriptor.fieldName] = this.convertTaxonomyFieldValue(itemValue);
+                        destItem[fieldDescriptor.fieldName] = this.convertTaxonomyFieldValue(itemValue);
                         return [3 /*break*/, 19];
                     case 17:
                         if (itemValue && isArray(itemValue) && itemValue.length > 0) {
-                            value[fieldDescriptor.fieldName] = itemValue.map(function (term) {
+                            destItem[fieldDescriptor.fieldName] = itemValue.map(function (term) {
                                 return _this.convertTaxonomyFieldValue(term);
                             });
                         }
                         else {
-                            value[fieldDescriptor.fieldName] = null;
+                            destItem[fieldDescriptor.fieldName] = null;
                         }
                         return [3 /*break*/, 19];
                     case 18:
-                        value[fieldDescriptor.fieldName] = itemValue ? JSON.stringify(itemValue) : null;
+                        destItem[fieldDescriptor.fieldName] = itemValue ? JSON.stringify(itemValue) : null;
                         return [3 /*break*/, 19];
-                    case 19: return [2 /*return*/, value];
+                    case 19: return [2 /*return*/];
                 }
             });
         });
@@ -465,9 +510,6 @@ var BaseListItemService = /** @class */ (function (_super) {
         return find(terms, function (term) {
             return (term.wssids && term.wssids.indexOf(wssid) > -1);
         });
-    };
-    /******************************************** DB conversion ***************************************************/
-    BaseListItemService.prototype.getDbItem = function (item) {
     };
     /******************************************* Cache Management *************************************************/
     /**
@@ -654,7 +696,7 @@ var BaseListItemService = /** @class */ (function (_super) {
                 switch (_a.label) {
                     case 0:
                         result = cloneDeep(item);
-                        if (!(item.id < 0)) return [3 /*break*/, 3];
+                        if (!(item.id < 0)) return [3 /*break*/, 5];
                         return [4 /*yield*/, this.getSPRestItem(item)];
                     case 1:
                         converted = _a.sent();
@@ -662,59 +704,71 @@ var BaseListItemService = /** @class */ (function (_super) {
                     case 2:
                         addResult = _a.sent();
                         if (addResult.data["OData__UIVersionString"]) {
+                            result.id = addResult.data.Id;
                             result.version = parseFloat(addResult.data["OData__UIVersionString"]);
                         }
-                        return [3 /*break*/, 14];
+                        if (!(item.id < -1)) return [3 /*break*/, 4];
+                        return [4 /*yield*/, this.updateLinksInDb(Number(item.id), Number(result.id))];
                     case 3:
-                        if (!item.version) return [3 /*break*/, 10];
+                        _a.sent();
+                        _a.label = 4;
+                    case 4: return [3 /*break*/, 18];
+                    case 5:
+                        if (!item.version) return [3 /*break*/, 13];
                         return [4 /*yield*/, this.list.items.getById(item.id).select("OData__UIVersionString").get()];
-                    case 4:
+                    case 6:
                         existing = _a.sent();
-                        if (!(parseFloat(existing["OData__UIVersionString"]) > item.version)) return [3 /*break*/, 5];
+                        if (!(parseFloat(existing["OData__UIVersionString"]) > item.version)) return [3 /*break*/, 7];
                         error = new Error(ServicesConfiguration.configuration.translations.versionHigherErrorMessage);
                         error.name = Constants.Errors.ItemVersionConfict;
                         throw error;
-                    case 5: return [4 /*yield*/, this.getSPRestItem(item)];
-                    case 6:
-                        converted = _a.sent();
-                        return [4 /*yield*/, this.list.items.getById(item.id).update(converted)];
-                    case 7:
-                        updateResult = _a.sent();
-                        return [4 /*yield*/, updateResult.item.select("OData__UIVersionString").get()];
+                    case 7: return [4 /*yield*/, this.getSPRestItem(item)];
                     case 8:
-                        version = _a.sent();
-                        if (version["OData__UIVersionString"]) {
-                            result.version = parseFloat(version["OData__UIVersionString"]);
-                        }
-                        _a.label = 9;
-                    case 9: return [3 /*break*/, 14];
-                    case 10: return [4 /*yield*/, this.getSPRestItem(item)];
-                    case 11:
                         converted = _a.sent();
                         return [4 /*yield*/, this.list.items.getById(item.id).update(converted)];
-                    case 12:
+                    case 9:
                         updateResult = _a.sent();
                         return [4 /*yield*/, updateResult.item.select("OData__UIVersionString").get()];
-                    case 13:
+                    case 10:
                         version = _a.sent();
                         if (version["OData__UIVersionString"]) {
                             result.version = parseFloat(version["OData__UIVersionString"]);
                         }
-                        _a.label = 14;
-                    case 14: return [2 /*return*/, result];
+                        return [4 /*yield*/, this.updateWssIds(result, version)];
+                    case 11:
+                        _a.sent();
+                        _a.label = 12;
+                    case 12: return [3 /*break*/, 18];
+                    case 13: return [4 /*yield*/, this.getSPRestItem(item)];
+                    case 14:
+                        converted = _a.sent();
+                        return [4 /*yield*/, this.list.items.getById(item.id).update(converted)];
+                    case 15:
+                        updateResult = _a.sent();
+                        return [4 /*yield*/, updateResult.item.select("OData__UIVersionString").get()];
+                    case 16:
+                        version = _a.sent();
+                        if (version["OData__UIVersionString"]) {
+                            result.version = parseFloat(version["OData__UIVersionString"]);
+                        }
+                        return [4 /*yield*/, this.updateWssIds(result, version)];
+                    case 17:
+                        _a.sent();
+                        _a.label = 18;
+                    case 18: return [2 /*return*/, result];
                 }
             });
         });
     };
     /**
      * Delete an item
-     * @param item SPItem derived class to be deletes
+     * @param item SPItem derived class to be deleted
      */
     BaseListItemService.prototype.deleteItem_Internal = function (item) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4 /*yield*/, this.list.items.getById(item.id).delete()];
+                    case 0: return [4 /*yield*/, this.list.items.getById(item.id).recycle()];
                     case 1:
                         _a.sent();
                         return [2 /*return*/];
@@ -745,40 +799,453 @@ var BaseListItemService = /** @class */ (function (_super) {
         });
         return fieldNames;
     };
+    /**
+     * convert full item to db format (with links only)
+     * @param item full provisionned item
+     */
     BaseListItemService.prototype.convertItemToDbFormat = function (item) {
-        // TODO: store object with minimal value
         var result = new this.itemType();
-        for (var key in this.ItemFields) {
-            if (this.ItemFields.hasOwnProperty(key)) {
-                var fieldDescriptor = this.ItemFields[key];
-                //switch
+        var _loop_1 = function (propertyName) {
+            if (this_1.ItemFields.hasOwnProperty(propertyName)) {
+                var fieldDescriptor = this_1.ItemFields[propertyName];
+                switch (fieldDescriptor.fieldType) {
+                    case FieldType.Lookup:
+                    case FieldType.User:
+                        if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                            //link defered
+                            result.__internalLinks[propertyName] = item[propertyName] ? item[propertyName].id : undefined;
+                        }
+                        else {
+                            result[propertyName] = item[propertyName];
+                        }
+                        break;
+                    case FieldType.LookupMulti:
+                    case FieldType.UserMulti:
+                        if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                            var ids_1 = [];
+                            if (item[propertyName]) {
+                                item[propertyName].forEach(function (element) {
+                                    if (element.id) {
+                                        if ((typeof (element.id) === "number" && element.id > 0) || (typeof (element.id) === "string" && !stringIsNullOrEmpty(element.id))) {
+                                            ids_1.push(element.id);
+                                        }
+                                    }
+                                });
+                            }
+                            result.__internalLinks[propertyName] = ids_1.length > 0 ? ids_1 : [];
+                        }
+                        else {
+                            result[propertyName] = item[propertyName];
+                        }
+                        break;
+                    default:
+                        result[propertyName] = item[propertyName];
+                        break;
+                }
             }
+        };
+        var this_1 = this;
+        for (var propertyName in this.ItemFields) {
+            _loop_1(propertyName);
         }
-        return item;
+        return result;
     };
+    /**
+     * populate item from db storage
+     * @param item db item with links in __internalLinks fields
+     */
     BaseListItemService.prototype.mapItem = function (item) {
-        // TODO: get lazy loading values
+        var result = new this.itemType();
+        var _loop_2 = function (propertyName) {
+            if (this_2.ItemFields.hasOwnProperty(propertyName)) {
+                var fieldDescriptor = this_2.ItemFields[propertyName];
+                switch (fieldDescriptor.fieldType) {
+                    case FieldType.Lookup:
+                        if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                            // get values from init values
+                            var lookupId_2 = item.__internalLinks[propertyName] ? item.__internalLinks[propertyName] : -1;
+                            if (lookupId_2 !== -1) {
+                                var destElements = this_2.getServiceInitValues(fieldDescriptor.modelName);
+                                var existing = find(destElements, function (destElement) {
+                                    return destElement.id === lookupId_2;
+                                });
+                                result[propertyName] = existing ? existing : fieldDescriptor.defaultValue;
+                            }
+                            else {
+                                result[propertyName] = fieldDescriptor.defaultValue;
+                            }
+                        }
+                        else {
+                            result[propertyName] = item[propertyName];
+                        }
+                        break;
+                    case FieldType.LookupMulti:
+                        if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                            // get values from init values
+                            var lookupIds = item.__internalLinks[propertyName] ? item.__internalLinks[propertyName] : [];
+                            if (lookupIds.length > 0) {
+                                var val_3 = [];
+                                var targetItems_2 = this_2.getServiceInitValues(fieldDescriptor.modelName);
+                                lookupIds.array.forEach(function (id) {
+                                    var existing = find(targetItems_2, function (item) {
+                                        return item.id === id;
+                                    });
+                                    if (existing) {
+                                        val_3.push(existing);
+                                    }
+                                });
+                                result[propertyName] = val_3;
+                            }
+                            else {
+                                result[propertyName] = fieldDescriptor.defaultValue;
+                            }
+                        }
+                        else {
+                            result[propertyName] = item[propertyName];
+                        }
+                        break;
+                    case FieldType.User:
+                        if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                            // get values from init values                            
+                            var id_2 = item.__internalLinks[propertyName] ? item.__internalLinks[propertyName] : -1;
+                            if (id_2 !== -1) {
+                                var users = this_2.getServiceInitValues(fieldDescriptor.modelName);
+                                var existing = find(users, function (user) {
+                                    return user.id === id_2;
+                                });
+                                result[propertyName] = existing ? existing : fieldDescriptor.defaultValue;
+                            }
+                            else {
+                                result[propertyName] = fieldDescriptor.defaultValue;
+                            }
+                        }
+                        else {
+                            result[propertyName] = item[propertyName];
+                        }
+                        break;
+                    case FieldType.UserMulti:
+                        if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                            // get values from init values
+                            var ids = item.__internalLinks[propertyName] ? item.__internalLinks[propertyName] : [];
+                            if (ids.length > 0) {
+                                var val_4 = [];
+                                var users_2 = this_2.getServiceInitValues(fieldDescriptor.modelName);
+                                ids.forEach(function (id) {
+                                    var existing = find(users_2, function (user) {
+                                        return user.id === id;
+                                    });
+                                    if (existing) {
+                                        val_4.push(existing);
+                                    }
+                                });
+                                result[propertyName] = val_4;
+                            }
+                            else {
+                                result[propertyName] = fieldDescriptor.defaultValue;
+                            }
+                        }
+                        else {
+                            result[propertyName] = item[propertyName];
+                        }
+                        break;
+                    default:
+                        result[propertyName] = item[propertyName];
+                        break;
+                }
+            }
+        };
+        var this_2 = this;
+        for (var propertyName in this.ItemFields) {
+            _loop_2(propertyName);
+        }
         return item;
     };
     BaseListItemService.prototype.updateLinkedTransactions = function (oldId, newId, nextTransactions) {
         return __awaiter(this, void 0, void 0, function () {
+            var _this = this;
             return __generator(this, function (_a) {
-                // TODO: update items pointing to this + user ids on transactions
+                // Update items pointing to this in transactions
+                nextTransactions.forEach(function (transaction) {
+                    var currentObject = null;
+                    var needUpdate = false;
+                    var service = ServicesConfiguration.configuration.serviceFactory.create(transaction.itemType);
+                    var fields = service.ItemFields;
+                    // search for lookup fields
+                    for (var propertyName in fields) {
+                        if (fields.hasOwnProperty(propertyName)) {
+                            var fieldDescription = fields[propertyName];
+                            if (fieldDescription.refItemName === _this.itemType["name"]) {
+                                // get object if not done yet
+                                if (!currentObject) {
+                                    var destType = ServicesConfiguration.configuration.serviceFactory.getItemTypeByName(transaction.itemType);
+                                    var currentObject_1 = new destType();
+                                    assign(currentObject_1, transaction.itemData);
+                                }
+                                if (fieldDescription.fieldType === FieldType.Lookup) {
+                                    if (fieldDescription.modelName) {
+                                        // serch in __internalLinks
+                                        if (currentObject.__internalLinks[propertyName] === oldId) {
+                                            currentObject.__internalLinks[propertyName] = newId;
+                                            needUpdate = true;
+                                        }
+                                    }
+                                    else if (currentObject[propertyName] === oldId) {
+                                        // change field
+                                        currentObject[propertyName] = newId;
+                                        needUpdate = true;
+                                    }
+                                }
+                                else if (fieldDescription.fieldType === FieldType.LookupMulti) {
+                                    if (fieldDescription.modelName) {
+                                        // serch in __internalLinks
+                                        if (currentObject.__internalLinks[propertyName] && isArray(currentObject.__internalLinks[propertyName])) {
+                                            // find item
+                                            var lookupidx = findIndex(currentObject.__internalLinks[propertyName], function (id) { return id === oldId; });
+                                            // change id
+                                            if (lookupidx > -1) {
+                                                currentObject.__internalLinks[propertyName] = newId;
+                                                needUpdate = true;
+                                            }
+                                        }
+                                    }
+                                    else if (currentObject[propertyName] && isArray(currentObject[propertyName])) {
+                                        // find index
+                                        var lookupidx = findIndex(currentObject[propertyName], function (id) { return id === oldId; });
+                                        // change field
+                                        // change id
+                                        if (lookupidx > -1) {
+                                            currentObject[propertyName] = newId;
+                                            needUpdate = true;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (needUpdate) {
+                        transaction.itemData = assign({}, currentObject);
+                        _this.transactionService.addOrUpdateItem(transaction);
+                    }
+                });
                 return [2 /*return*/, nextTransactions];
             });
         });
     };
-    BaseListItemService.prototype.updateLinksInDb = function (item) {
+    BaseListItemService.prototype.updateLinksInDb = function (oldId, newId) {
         return __awaiter(this, void 0, void 0, function () {
-            return __generator(this, function (_a) {
-                return [2 /*return*/];
+            var allFields, _loop_3, _a, _b, _i, modelName;
+            var _this = this;
+            return __generator(this, function (_c) {
+                switch (_c.label) {
+                    case 0:
+                        allFields = assign({}, this.itemType["Fields"]);
+                        allFields[SPItem["name"]] = undefined;
+                        allFields[this.itemType["name"]] = undefined;
+                        _loop_3 = function (modelName) {
+                            var modelFields_1, lookupProperties_1, service, allitems, updated_1;
+                            return __generator(this, function (_a) {
+                                switch (_a.label) {
+                                    case 0:
+                                        if (!allFields.hasOwnProperty(modelName)) return [3 /*break*/, 3];
+                                        modelFields_1 = allFields[modelName];
+                                        lookupProperties_1 = Object.keys(modelFields_1).filter(function (prop) {
+                                            return modelFields_1[prop].refItemName &&
+                                                modelFields_1[prop].refItemName === _this.itemType["name"];
+                                        });
+                                        if (!(lookupProperties_1.length > 0)) return [3 /*break*/, 3];
+                                        service = ServicesConfiguration.configuration.serviceFactory.create(modelName);
+                                        return [4 /*yield*/, service.__getAllFromCache()];
+                                    case 1:
+                                        allitems = _a.sent();
+                                        updated_1 = [];
+                                        allitems.forEach(function (element) {
+                                            var needUpdate = false;
+                                            lookupProperties_1.forEach(function (propertyName) {
+                                                var fieldDescription = modelFields_1[propertyName];
+                                                if (fieldDescription.fieldType === FieldType.Lookup) {
+                                                    if (fieldDescription.modelName) {
+                                                        // serch in __internalLinks
+                                                        if (element.__internalLinks[propertyName] === oldId) {
+                                                            element.__internalLinks[propertyName] = newId;
+                                                            needUpdate = true;
+                                                        }
+                                                    }
+                                                    else if (element[propertyName] === oldId) {
+                                                        // change field
+                                                        element[propertyName] = newId;
+                                                        needUpdate = true;
+                                                    }
+                                                }
+                                                else if (fieldDescription.fieldType === FieldType.LookupMulti) {
+                                                    if (fieldDescription.modelName) {
+                                                        // serch in __internalLinks
+                                                        if (element.__internalLinks[propertyName] && isArray(element.__internalLinks[propertyName])) {
+                                                            // find item
+                                                            var lookupidx = findIndex(element.__internalLinks[propertyName], function (id) { return id === oldId; });
+                                                            // change id
+                                                            if (lookupidx > -1) {
+                                                                element.__internalLinks[propertyName] = newId;
+                                                                needUpdate = true;
+                                                            }
+                                                        }
+                                                    }
+                                                    else if (element[propertyName] && isArray(element[propertyName])) {
+                                                        // find index
+                                                        var lookupidx = findIndex(element[propertyName], function (id) { return id === oldId; });
+                                                        // change field
+                                                        // change id
+                                                        if (lookupidx > -1) {
+                                                            element[propertyName] = newId;
+                                                            needUpdate = true;
+                                                        }
+                                                    }
+                                                }
+                                            });
+                                            if (needUpdate) {
+                                                updated_1.push(element);
+                                            }
+                                        });
+                                        if (!(updated_1.length > 0)) return [3 /*break*/, 3];
+                                        return [4 /*yield*/, service.__updateCache.apply(service, updated_1)];
+                                    case 2:
+                                        _a.sent();
+                                        _a.label = 3;
+                                    case 3: return [2 /*return*/];
+                                }
+                            });
+                        };
+                        _a = [];
+                        for (_b in allFields)
+                            _a.push(_b);
+                        _i = 0;
+                        _c.label = 1;
+                    case 1:
+                        if (!(_i < _a.length)) return [3 /*break*/, 4];
+                        modelName = _a[_i];
+                        return [5 /*yield**/, _loop_3(modelName)];
+                    case 2:
+                        _c.sent();
+                        _c.label = 3;
+                    case 3:
+                        _i++;
+                        return [3 /*break*/, 1];
+                    case 4: return [2 /*return*/];
+                }
             });
         });
     };
-    BaseListItemService.prototype.updateWssIdsAndUsersSpIds = function (item) {
+    BaseListItemService.prototype.updateWssIds = function (item, spItem) {
         return __awaiter(this, void 0, void 0, function () {
-            return __generator(this, function (_a) {
-                return [2 /*return*/];
+            var fields, _loop_4, this_3, _a, _b, _i, propertyName;
+            var _this = this;
+            return __generator(this, function (_c) {
+                switch (_c.label) {
+                    case 0:
+                        fields = this.ItemFields;
+                        _loop_4 = function (propertyName) {
+                            var fieldDescription_1, needUpdate, wssid, id_3, service, term, idx, updated_2, terms, service_1;
+                            return __generator(this, function (_a) {
+                                switch (_a.label) {
+                                    case 0:
+                                        if (!fields.hasOwnProperty(propertyName)) return [3 /*break*/, 8];
+                                        fieldDescription_1 = fields[propertyName];
+                                        if (!(fieldDescription_1.fieldType === FieldType.Taxonomy)) return [3 /*break*/, 4];
+                                        needUpdate = false;
+                                        wssid = spItem[fieldDescription_1.fieldName] ? spItem[fieldDescription_1.fieldName].WssId : -1;
+                                        if (!(wssid !== -1)) return [3 /*break*/, 3];
+                                        id_3 = item[propertyName].id;
+                                        service = ServicesConfiguration.configuration.serviceFactory.create(fieldDescription_1.modelName);
+                                        return [4 /*yield*/, service.__getFromCache(id_3)];
+                                    case 1:
+                                        term = _a.sent();
+                                        if (term instanceof TaxonomyTerm) {
+                                            term.wssids = term.wssids || [];
+                                            if (term.wssids.indexOf(wssid) === -1) {
+                                                term.wssids.push(wssid);
+                                                needUpdate = true;
+                                            }
+                                        }
+                                        if (!needUpdate) return [3 /*break*/, 3];
+                                        return [4 /*yield*/, service.__updateCache(term)];
+                                    case 2:
+                                        _a.sent();
+                                        idx = findIndex(this_3.initValues[fieldDescription_1.modelName], function (t) { return t.id === id_3; });
+                                        if (idx !== -1) {
+                                            this_3.initValues[fieldDescription_1.modelName][idx] = term;
+                                        }
+                                        _a.label = 3;
+                                    case 3: return [3 /*break*/, 8];
+                                    case 4:
+                                        if (!(fieldDescription_1.fieldType === FieldType.TaxonomyMulti)) return [3 /*break*/, 8];
+                                        updated_2 = [];
+                                        terms = spItem[fieldDescription_1.fieldName];
+                                        service_1 = ServicesConfiguration.configuration.serviceFactory.create(fieldDescription_1.modelName);
+                                        if (!terms) return [3 /*break*/, 6];
+                                        return [4 /*yield*/, Promise.all(terms.map(function (termitem) { return __awaiter(_this, void 0, void 0, function () {
+                                                var wssid, id, term;
+                                                return __generator(this, function (_a) {
+                                                    switch (_a.label) {
+                                                        case 0:
+                                                            wssid = termitem.WssId;
+                                                            id = termitem.Id.replace(/\/Guid\(([^)]+)\)\//g, "$1");
+                                                            term = find(updated_2, function (u) { return u.id === id; });
+                                                            if (!!term) return [3 /*break*/, 2];
+                                                            return [4 /*yield*/, service_1.__getFromCache(id)];
+                                                        case 1:
+                                                            term = _a.sent();
+                                                            _a.label = 2;
+                                                        case 2:
+                                                            if (term instanceof TaxonomyTerm) {
+                                                                term.wssids = term.wssids || [];
+                                                                if (term.wssids.indexOf(wssid) === -1) {
+                                                                    term.wssids.push(wssid);
+                                                                    if (!find(updated_2, function (u) { return u.id === id; })) {
+                                                                        updated_2.push(term);
+                                                                    }
+                                                                }
+                                                            }
+                                                            return [2 /*return*/];
+                                                    }
+                                                });
+                                            }); }))];
+                                    case 5:
+                                        _a.sent();
+                                        _a.label = 6;
+                                    case 6:
+                                        if (!(updated_2.length > 0)) return [3 /*break*/, 8];
+                                        return [4 /*yield*/, service_1.__updateCache.apply(service_1, updated_2)];
+                                    case 7:
+                                        _a.sent();
+                                        // update initValues
+                                        updated_2.forEach(function (u) {
+                                            var idx = findIndex(_this.initValues[fieldDescription_1.modelName], function (t) { return t.id === u.id; });
+                                            if (idx !== -1) {
+                                                _this.initValues[fieldDescription_1.modelName][idx] = u;
+                                            }
+                                        });
+                                        _a.label = 8;
+                                    case 8: return [2 /*return*/];
+                                }
+                            });
+                        };
+                        this_3 = this;
+                        _a = [];
+                        for (_b in fields)
+                            _a.push(_b);
+                        _i = 0;
+                        _c.label = 1;
+                    case 1:
+                        if (!(_i < _a.length)) return [3 /*break*/, 4];
+                        propertyName = _a[_i];
+                        return [5 /*yield**/, _loop_4(propertyName)];
+                    case 2:
+                        _c.sent();
+                        _c.label = 3;
+                    case 3:
+                        _i++;
+                        return [3 /*break*/, 1];
+                    case 4: return [2 /*return*/];
+                }
             });
         });
     };

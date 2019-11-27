@@ -127,12 +127,12 @@ export class BaseFileService<T extends IBaseItem> extends BaseDataService<T>{
     }
     public async deleteItem_Internal(item: T): Promise<void> {
         if (item instanceof SPFile) {
-            await sp.web.getFileByServerRelativeUrl(item.serverRelativeUrl).delete();
+            await sp.web.getFileByServerRelativeUrl(item.serverRelativeUrl).recycle();
             let folderUrl = UtilsService.getParentFolderUrl(item.serverRelativeUrl);
             let folder: Folder = sp.web.getFolderByServerRelativeUrl(folderUrl);
             let files = await folder.files.get();
             if (!files || files.length === 0) {
-                await folder.delete();
+                await folder.recycle();
             }
         }
     }

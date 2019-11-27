@@ -420,7 +420,8 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
             try {
 
                 let allRows = [];
-                if(this.itemType["name"] === SPFile["name"]) {
+                let tmp = new this.itemType();
+                if(tmp instanceof SPFile) {
                     allRows = await store.getAll();
                 }
                 results = await Promise.all(ids.map(async (id) => {

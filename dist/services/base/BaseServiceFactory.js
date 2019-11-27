@@ -3,16 +3,16 @@ var BaseServiceFactory = /** @class */ (function () {
     function BaseServiceFactory() {
     }
     /**
-     * Constructs a service given its name
-     * @param serviceName Name of the service instance to be instanciated
+     * Constructs a service given model name
+     * @param  typeName Name of the model for which a service has to be instanciated
      */
-    BaseServiceFactory.prototype.create = function (serviceName) {
+    BaseServiceFactory.prototype.create = function (typeName) {
         var result = null;
-        /*switch(serviceName) {
-            case UserService["name"]:
+        /*switch(typeName) {
+            case User["name"]:
                 result = new UserService();
                 break;
-            case TaxonomyHiddenListService["name"]:
+            case TaxonomyHidden["name"]:
                 result = new TaxonomyHiddenListService();
                 break;
             default: break;

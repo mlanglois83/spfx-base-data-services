@@ -15,16 +15,16 @@ export var FieldType;
     FieldType[FieldType["Date"] = 1] = "Date";
     /**
      * Single lookup type, please provide an item model type for linking
-     * Model field type must be integer or typed with linked model type if serviceName is defined
+     * Model field type must be integer or typed with linked model type if model name is defined
      */
     FieldType[FieldType["Lookup"] = 2] = "Lookup";
     /**
      * Multi lookup type, please provide an item model type for linking
-     * Model field type must be array of integers or an array of linked model type if serviceName is defined
+     * Model field type must be array of integers or an array of linked model type if model name is defined
      */
     FieldType[FieldType["LookupMulti"] = 3] = "LookupMulti";
     /**
-     * Single taxonomy type, please provide an service name for linking
+     * Single taxonomy type, please provide a model name name for linking
      * Model field type must inherit from TaxonomyTerm
      */
     FieldType[FieldType["Taxonomy"] = 4] = "Taxonomy";
@@ -35,12 +35,12 @@ export var FieldType;
     FieldType[FieldType["TaxonomyMulti"] = 5] = "TaxonomyMulti";
     /**
      * User type resolving a O365 user
-     * Model field type must be array of integers or an array of linked model type if serviceName is defined
+     * Model field type must be array of integers or an array of linked model type if model name is defined
      */
     FieldType[FieldType["User"] = 6] = "User";
     /**
      * Multi User type resolving a O365 user
-     * Model field type must be array of integers or an array of linked model type if serviceName is defined
+     * Model field type must be array of integers or an array of linked model type if model name is defined
      */
     FieldType[FieldType["UserMulti"] = 7] = "UserMulti";
     /**

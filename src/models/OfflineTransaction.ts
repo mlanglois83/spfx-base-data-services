@@ -18,10 +18,6 @@ export class OfflineTransaction implements IBaseItem {
      */
     public title: TransactionType;
     /**
-     * Name of the service that has to perform the operation
-     */
-    public serviceName: string;
-    /**
      * Type name of data item
      */
     public itemType: string;

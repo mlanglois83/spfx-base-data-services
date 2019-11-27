@@ -134,28 +134,25 @@ var UserService = /** @class */ (function (_super) {
      */
     UserService.prototype.getAll_Internal = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var spUsers, results, batch;
+            var results, spUsers, batch;
             return __generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4 /*yield*/, this.spUsers()];
+                    case 0:
+                        results = [];
+                        return [4 /*yield*/, this.spUsers()];
                     case 1:
                         spUsers = _a.sent();
-                        results = [];
                         batch = graph.createBatch();
                         spUsers.forEach(function (spu) {
-                            graph.users.select("id", "userPrincipalName", "mail", "displayName").filter("userPrincipalName eq '" + spu.UserPrincipalName + "'").inBatch(batch).get().then(function (graphUsers) {
-                                if (graphUsers && graphUsers.length > 0) {
-                                    var graphUser_1 = graphUsers[0];
-                                    var spuser = find(spUsers, function (spu) {
-                                        return spu.UserPrincipalName === graphUser_1.userPrincipalName;
-                                    });
-                                    var result = new User(graphUser_1);
-                                    if (spuser) {
-                                        result.spId = spuser.Id;
+                            if (spu.UserPrincipalName) {
+                                graph.users.select("id", "userPrincipalName", "mail", "displayName").filter("userPrincipalName eq '" + encodeURIComponent(spu.UserPrincipalName) + "'").inBatch(batch).get().then(function (graphUser) {
+                                    if (graphUser && graphUser.length > 0) {
+                                        var result = new User(graphUser[0]);
+                                        result.spId = spu.Id;
+                                        results.push(result);
                                     }
-                                    results.push(result);
-                                }
-                            });
+                                });
+                            }
                         });
                         return [4 /*yield*/, batch.execute()];
                     case 2:
@@ -191,22 +188,31 @@ var UserService = /** @class */ (function (_super) {
     };
     UserService.prototype.getItemsById_Internal = function (ids) {
         return __awaiter(this, void 0, void 0, function () {
-            var _a, graphUsers, spUsers;
-            return __generator(this, function (_b) {
-                switch (_b.label) {
-                    case 0: return [4 /*yield*/, Promise.all([graph.users.filter(ids.map(function (id) { return "id eq '" + id + "'"; }).join(' or ')).select("id", "userPrincipalName", "mail", "displayName").get(), this.spUsers])];
+            var results, spUsers, batch;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        results = [];
+                        return [4 /*yield*/, this.spUsers()];
                     case 1:
-                        _a = _b.sent(), graphUsers = _a[0], spUsers = _a[1];
-                        return [2 /*return*/, graphUsers.map(function (u) {
+                        spUsers = _a.sent();
+                        batch = graph.createBatch();
+                        ids.forEach(function (id) {
+                            graph.users.getById(id).select("id", "userPrincipalName", "mail", "displayName").inBatch(batch).get().then(function (graphUser) {
                                 var spuser = find(spUsers, function (spu) {
-                                    return spu.UserPrincipalName === u.userPrincipalName;
+                                    return spu.UserPrincipalName === graphUser.userPrincipalName;
                                 });
-                                var result = new User(u);
+                                var result = new User(graphUser);
                                 if (spuser) {
                                     result.spId = spuser.Id;
                                 }
-                                return result;
-                            })];
+                                results.push(result);
+                            });
+                        });
+                        return [4 /*yield*/, batch.execute()];
+                    case 2:
+                        _a.sent();
+                        return [2 /*return*/, results];
                 }
             });
         });

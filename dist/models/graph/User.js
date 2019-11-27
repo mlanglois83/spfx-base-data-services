@@ -11,11 +11,11 @@ var User = /** @class */ (function () {
          * internal field for linked items not stored in db
          */
         this.__internalLinks = {};
-        if (graphUser != undefined) {
-            this.title = graphUser.displayName != undefined ? graphUser.displayName : "";
-            this.id = graphUser.id != undefined ? graphUser.id : "";
-            this.mail = graphUser.mail != undefined ? graphUser.mail : "";
-            this.userPrincipalName = graphUser.userPrincipalName != undefined ? graphUser.userPrincipalName : "";
+        if (graphUser) {
+            this.title = graphUser.displayName ? graphUser.displayName : "";
+            this.id = graphUser.id ? graphUser.id : "";
+            this.mail = graphUser.mail ? graphUser.mail : "";
+            this.userPrincipalName = graphUser.userPrincipalName ? graphUser.userPrincipalName : "";
         }
     }
     Object.defineProperty(User.prototype, "displayName", {

@@ -77,6 +77,13 @@ var BaseDataService = /** @class */ (function (_super) {
         _this.transactionService = new TransactionService();
         return _this;
     }
+    Object.defineProperty(BaseDataService.prototype, "ItemFields", {
+        get: function () {
+            return {};
+        },
+        enumerable: true,
+        configurable: true
+    });
     Object.defineProperty(BaseDataService.prototype, "serviceName", {
         get: function () {
             return this.constructor["name"];
@@ -505,7 +512,6 @@ var BaseDataService = /** @class */ (function (_super) {
                         ot = new OfflineTransaction();
                         ot.itemData = assign({}, dbItem);
                         ot.itemType = result.item.constructor["name"];
-                        ot.serviceName = this.serviceName;
                         ot.title = TransactionType.AddOrUpdate;
                         return [4 /*yield*/, this.transactionService.addOrUpdateItem(ot)];
                     case 14:
@@ -543,7 +549,6 @@ var BaseDataService = /** @class */ (function (_super) {
                         ot = new OfflineTransaction();
                         ot.itemData = assign({}, this.convertItemToDbFormat(item));
                         ot.itemType = item.constructor["name"];
-                        ot.serviceName = this.serviceName;
                         ot.title = TransactionType.Delete;
                         return [4 /*yield*/, this.transactionService.addOrUpdateItem(ot)];
                     case 7:
@@ -566,6 +571,19 @@ var BaseDataService = /** @class */ (function (_super) {
                 return [2 /*return*/, nextTransactions];
             });
         });
+    };
+    BaseDataService.prototype.__getFromCache = function (id) {
+        return this.dbService.getItemById(id);
+    };
+    BaseDataService.prototype.__getAllFromCache = function () {
+        return this.dbService.getAll();
+    };
+    BaseDataService.prototype.__updateCache = function () {
+        var items = [];
+        for (var _i = 0; _i < arguments.length; _i++) {
+            items[_i] = arguments[_i];
+        }
+        return this.dbService.addOrUpdateItems(items);
     };
     /**
      * Stored promises to avoid multiple calls

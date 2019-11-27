@@ -87,26 +87,30 @@ var SynchronizationService = /** @class */ (function (_super) {
                                         switch (_b.label) {
                                             case 0:
                                                 itemType = ServicesConfiguration.configuration.serviceFactory.getItemTypeByName(transaction.itemType);
-                                                dataService = ServicesConfiguration.configuration.serviceFactory.create(transaction.serviceName);
+                                                dataService = ServicesConfiguration.configuration.serviceFactory.create(transaction.itemType);
+                                                // init service for tardive links
+                                                return [4 /*yield*/, dataService.Init()];
+                                            case 1:
+                                                // init service for tardive links
+                                                _b.sent();
                                                 item = assign(new itemType(), transaction.itemData);
                                                 _a = transaction.title;
                                                 switch (_a) {
-                                                    case TransactionType.AddOrUpdate: return [3 /*break*/, 1];
-                                                    case TransactionType.Delete: return [3 /*break*/, 13];
+                                                    case TransactionType.AddOrUpdate: return [3 /*break*/, 2];
+                                                    case TransactionType.Delete: return [3 /*break*/, 14];
                                                 }
-                                                return [3 /*break*/, 18];
-                                            case 1:
+                                                return [3 /*break*/, 19];
+                                            case 2:
                                                 oldId_1 = item.id;
                                                 isAdd = typeof (oldId_1) === "number" && oldId_1 < 0;
-                                                return [4 /*yield*/, dataService.addOrUpdateItem(item)];
-                                            case 2:
+                                                return [4 /*yield*/, dataService.addOrUpdateItem(dataService.mapItem(item))];
+                                            case 3:
                                                 updatedItem_1 = _b.sent();
-                                                if (!(isAdd && !updatedItem_1.error)) return [3 /*break*/, 7];
+                                                if (!(isAdd && !updatedItem_1.error)) return [3 /*break*/, 8];
                                                 nextTransactions = [];
-                                                if (!(index < transactions.length - 1)) return [3 /*break*/, 4];
+                                                if (!(index < transactions.length - 1)) return [3 /*break*/, 5];
                                                 return [4 /*yield*/, Promise.all(transactions.slice(index + 1).filter(function (t) {
                                                         return t.itemType === transaction.itemType &&
-                                                            t.serviceName === transaction.serviceName &&
                                                             t.itemData.id === oldId_1;
                                                     }).map(function (updatedTr) { return __awaiter(_this, void 0, void 0, function () {
                                                         var result;
@@ -128,53 +132,53 @@ var SynchronizationService = /** @class */ (function (_super) {
                                                             }
                                                         });
                                                     }); }))];
-                                            case 3:
-                                                nextTransactions = _b.sent();
-                                                _b.label = 4;
                                             case 4:
-                                                if (!dataService.updateLinkedTransactions) return [3 /*break*/, 6];
-                                                return [4 /*yield*/, dataService.updateLinkedTransactions(oldId_1, updatedItem_1.item.id, nextTransactions)];
-                                            case 5:
                                                 nextTransactions = _b.sent();
-                                                _b.label = 6;
+                                                _b.label = 5;
+                                            case 5:
+                                                if (!dataService.updateLinkedTransactions) return [3 /*break*/, 7];
+                                                return [4 /*yield*/, dataService.updateLinkedTransactions(oldId_1, updatedItem_1.item.id, nextTransactions)];
                                             case 6:
+                                                nextTransactions = _b.sent();
+                                                _b.label = 7;
+                                            case 7:
                                                 if (index < transactions.length - 1) {
                                                     transactions.splice.apply(transactions, __spreadArrays([index + 1, transactions.length - index - 1], nextTransactions));
                                                 }
-                                                _b.label = 7;
-                                            case 7:
-                                                if (!updatedItem_1.error) return [3 /*break*/, 10];
-                                                errors.push(this.formatError(transaction, updatedItem_1.error.message));
-                                                if (!(updatedItem_1.error.name === Constants.Errors.ItemVersionConfict)) return [3 /*break*/, 9];
-                                                return [4 /*yield*/, this.transactionService.deleteItem(transaction)];
+                                                _b.label = 8;
                                             case 8:
-                                                _b.sent();
-                                                _b.label = 9;
-                                            case 9: return [3 /*break*/, 12];
-                                            case 10: return [4 /*yield*/, this.transactionService.deleteItem(transaction)];
-                                            case 11:
-                                                _b.sent();
-                                                _b.label = 12;
-                                            case 12:
-                                                resolve();
-                                                return [3 /*break*/, 18];
-                                            case 13:
-                                                _b.trys.push([13, 16, , 17]);
-                                                return [4 /*yield*/, dataService.deleteItem(item)];
-                                            case 14:
-                                                _b.sent();
+                                                if (!updatedItem_1.error) return [3 /*break*/, 11];
+                                                errors.push(this.formatError(transaction, updatedItem_1.error.message));
+                                                if (!(updatedItem_1.error.name === Constants.Errors.ItemVersionConfict)) return [3 /*break*/, 10];
                                                 return [4 /*yield*/, this.transactionService.deleteItem(transaction)];
+                                            case 9:
+                                                _b.sent();
+                                                _b.label = 10;
+                                            case 10: return [3 /*break*/, 13];
+                                            case 11: return [4 /*yield*/, this.transactionService.deleteItem(transaction)];
+                                            case 12:
+                                                _b.sent();
+                                                _b.label = 13;
+                                            case 13:
+                                                resolve();
+                                                return [3 /*break*/, 19];
+                                            case 14:
+                                                _b.trys.push([14, 17, , 18]);
+                                                return [4 /*yield*/, dataService.deleteItem(item)];
                                             case 15:
                                                 _b.sent();
-                                                resolve();
-                                                return [3 /*break*/, 17];
+                                                return [4 /*yield*/, this.transactionService.deleteItem(transaction)];
                                             case 16:
+                                                _b.sent();
+                                                resolve();
+                                                return [3 /*break*/, 18];
+                                            case 17:
                                                 error_1 = _b.sent();
                                                 errors.push(this.formatError(transaction, error_1.message));
                                                 resolve();
-                                                return [3 /*break*/, 17];
-                                            case 17: return [3 /*break*/, 18];
-                                            case 18: return [2 /*return*/];
+                                                return [3 /*break*/, 18];
+                                            case 18: return [3 /*break*/, 19];
+                                            case 19: return [2 /*return*/];
                                         }
                                     });
                                 }); });

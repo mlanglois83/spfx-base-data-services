@@ -631,7 +631,7 @@ var BaseDbService = /** @class */ (function (_super) {
     };
     BaseDbService.prototype.getItemsById = function (ids) {
         return __awaiter(this, void 0, void 0, function () {
-            var results, tx, store_1, allRows_1, error_7;
+            var results, tx, store_1, allRows_1, tmp, error_7;
             var _this = this;
             return __generator(this, function (_a) {
                 switch (_a.label) {
@@ -647,7 +647,8 @@ var BaseDbService = /** @class */ (function (_super) {
                     case 2:
                         _a.trys.push([2, 6, , 7]);
                         allRows_1 = [];
-                        if (!(this.itemType["name"] === SPFile["name"])) return [3 /*break*/, 4];
+                        tmp = new this.itemType();
+                        if (!(tmp instanceof SPFile)) return [3 /*break*/, 4];
                         return [4 /*yield*/, store_1.getAll()];
                     case 3:
                         allRows_1 = _a.sent();

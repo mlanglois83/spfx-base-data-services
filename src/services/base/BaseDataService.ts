@@ -19,6 +19,9 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
     protected dbService: BaseDbService<T>;
     protected cacheDuration: number = -1;
 
+    public get ItemFields() {
+        return {};
+    }
     /**
      * Stored promises to avoid multiple calls
      */
@@ -364,7 +367,6 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
             let ot: OfflineTransaction = new OfflineTransaction();
             ot.itemData = assign({}, dbItem);
             ot.itemType = result.item.constructor["name"];
-            ot.serviceName = this.serviceName;
             ot.title = TransactionType.AddOrUpdate;
             await this.transactionService.addOrUpdateItem(ot);
         }
@@ -390,7 +392,6 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
             let ot: OfflineTransaction = new OfflineTransaction();
             ot.itemData = assign({}, this.convertItemToDbFormat(item));
             ot.itemType = item.constructor["name"];
-            ot.serviceName = this.serviceName;
             ot.title = TransactionType.Delete;
             await this.transactionService.addOrUpdateItem(ot);
         }
@@ -409,5 +410,17 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
     
     public async updateLinkedTransactions(oldId: number | string, newId: number | string, nextTransactions: Array<OfflineTransaction>): Promise<Array<OfflineTransaction>> {
         return nextTransactions;
+    }
+
+    public __getFromCache(id: string): Promise<T> {
+        return this.dbService.getItemById(id);
+    }
+
+    public __getAllFromCache(): Promise<Array<T>> {
+        return this.dbService.getAll();
+    }
+
+    public __updateCache(...items: Array<T>): Promise<Array<T>> {
+        return this.dbService.addOrUpdateItems(items);
     }
 }
