@@ -303,7 +303,7 @@ var BaseDataService = /** @class */ (function (_super) {
                 }
                 else {
                     promise = new Promise(function (resolve, reject) { return __awaiter(_this, void 0, void 0, function () {
-                        var result, reloadData, temp, error_3;
+                        var result, reloadData, error_3;
                         return __generator(this, function (_a) {
                             switch (_a.label) {
                                 case 0:
@@ -322,17 +322,14 @@ var BaseDataService = /** @class */ (function (_super) {
                                     return [4 /*yield*/, this.getById_Internal(id)];
                                 case 4:
                                     result = _a.sent();
-                                    return [4 /*yield*/, this.dbService.addOrUpdateItems([result], keyCached)];
+                                    return [4 /*yield*/, this.dbService.addOrUpdateItems([result])];
                                 case 5:
                                     _a.sent();
                                     this.UpdateCacheData(_super.prototype.hashCode.call(this, keyCached).toString());
                                     return [3 /*break*/, 8];
-                                case 6: return [4 /*yield*/, this.dbService.get(keyCached)];
+                                case 6: return [4 /*yield*/, this.dbService.getById(id)];
                                 case 7:
-                                    temp = _a.sent();
-                                    if (temp && temp.length > 0) {
-                                        result = temp[0];
-                                    }
+                                    result = _a.sent();
                                     _a.label = 8;
                                 case 8:
                                     this.removePromise(keyCached);

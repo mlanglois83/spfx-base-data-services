@@ -25,7 +25,7 @@ export class UserService extends BaseDataService<User> {
         let reverseFilter = query;
         let parts = query.split(" ");
         if (parts.length > 1) {
-        reverseFilter = parts[1].trim() + " " + parts[0].trim();
+            reverseFilter = parts[1].trim() + " " + parts[0].trim();
         }
         let users = await graph.users
         .filter(
@@ -52,20 +52,25 @@ export class UserService extends BaseDataService<User> {
     }
 
     /**
-     * Retrieve all users
+     * Retrieve all users from site
      */
     protected async getAll_Internal(): Promise<Array<User>> {
-        let [spUsers, users]  = await Promise.all([sp.web.siteUsers.get(), graph.users.get()]);
-       return users.map((u) => { 
-           let spuser = find(spUsers, (spu)=> {
-               return spu.UserPrincipalName === u.userPrincipalName;
-           });
-        let result= new this.itemType(u);
-        if(spuser) {
-            result.spId = spuser.Id;
-        }
-        return result;
-       });                    
+        let results = [];
+        let spUsers  = await sp.web.siteUsers.get();
+        let batch = graph.createBatch();
+        spUsers.forEach((spu) => {
+            if(spu.UserPrincipalName) {
+                graph.users.filter(`userPrincipalName eq '${encodeURIComponent(spu.UserPrincipalName)}'`).inBatch(batch).get().then((graphUser) => {
+                    if(graphUser && graphUser.length > 0) {
+                        let result = new User(graphUser[0]);
+                        result.spId = spu.Id;
+                        results.push(result);
+                    }
+                });
+            }
+        });
+        await batch.execute();
+        return results;       
     }
 
     public async getById_Internal(id: string): Promise<User> {

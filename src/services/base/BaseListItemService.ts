@@ -197,6 +197,6 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
     }
 
     protected async deleteItem_Internal(item: T): Promise<void> {
-        await this.list.items.getById(<number>item.id).delete();
+        await this.list.items.getById(<number>item.id).recycle();
     }
 }

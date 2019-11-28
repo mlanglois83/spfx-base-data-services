@@ -12,11 +12,11 @@ var User = /** @class */ (function () {
     "userPrincipalName": "Adams@M365x214355.onmicrosoft.com",
     "id": "6e7b768e-07e2-4810-8459-485f84f8f204"*/
     function User(graphUser) {
-        if (graphUser != undefined && graphUser) {
-            this.title = graphUser.displayName != undefined ? graphUser.displayName : "";
-            this.id = graphUser.id != undefined ? graphUser.id : "";
-            this.mail = graphUser.mail != undefined ? graphUser.mail : "";
-            this.userPrincipalName = graphUser.userPrincipalName != undefined ? graphUser.userPrincipalName : "";
+        if (graphUser) {
+            this.title = graphUser.displayName ? graphUser.displayName : "";
+            this.id = graphUser.id ? graphUser.id : "";
+            this.mail = graphUser.mail ? graphUser.mail : "";
+            this.userPrincipalName = graphUser.userPrincipalName ? graphUser.userPrincipalName : "";
         }
     }
     Object.defineProperty(User.prototype, "displayName", {

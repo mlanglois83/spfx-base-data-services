@@ -107,27 +107,34 @@ var UserService = /** @class */ (function (_super) {
         });
     };
     /**
-     * Retrieve all users
+     * Retrieve all users from site
      */
     UserService.prototype.getAll_Internal = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var _a, spUsers, users;
-            var _this = this;
-            return __generator(this, function (_b) {
-                switch (_b.label) {
-                    case 0: return [4 /*yield*/, Promise.all([sp.web.siteUsers.get(), graph.users.get()])];
+            var results, spUsers, batch;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        results = [];
+                        return [4 /*yield*/, sp.web.siteUsers.get()];
                     case 1:
-                        _a = _b.sent(), spUsers = _a[0], users = _a[1];
-                        return [2 /*return*/, users.map(function (u) {
-                                var spuser = find(spUsers, function (spu) {
-                                    return spu.UserPrincipalName === u.userPrincipalName;
+                        spUsers = _a.sent();
+                        batch = graph.createBatch();
+                        spUsers.forEach(function (spu) {
+                            if (spu.UserPrincipalName) {
+                                graph.users.filter("userPrincipalName eq '" + encodeURIComponent(spu.UserPrincipalName) + "'").inBatch(batch).get().then(function (graphUser) {
+                                    if (graphUser && graphUser.length > 0) {
+                                        var result = new User(graphUser[0]);
+                                        result.spId = spu.Id;
+                                        results.push(result);
+                                    }
                                 });
-                                var result = new _this.itemType(u);
-                                if (spuser) {
-                                    result.spId = spuser.Id;
-                                }
-                                return result;
-                            })];
+                            }
+                        });
+                        return [4 /*yield*/, batch.execute()];
+                    case 2:
+                        _a.sent();
+                        return [2 /*return*/, results];
                 }
             });
         });
