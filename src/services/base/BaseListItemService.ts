@@ -653,18 +653,21 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 const fieldDescriptor = this.ItemFields[propertyName];
                 switch(fieldDescriptor.fieldType) {
                     case FieldType.Lookup:  
-                    case FieldType.User:                
+                    case FieldType.User:           
+                    case FieldType.Taxonomy:       
                         if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                             //link defered
                             result.__internalLinks = result.__internalLinks || {};
                             result.__internalLinks[propertyName] = item[propertyName] ? item[propertyName].id : undefined;
+                            result[propertyName] = undefined;
                         }
                         else {
                             result[propertyName] = item[propertyName];
                         }   
                         break;
                     case FieldType.LookupMulti:
-                    case FieldType.UserMulti:                           
+                    case FieldType.UserMulti:            
+                    case FieldType.TaxonomyMulti:                      
                         if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {  
                             let ids = [];
                             if(item[propertyName]) {
@@ -677,7 +680,8 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                                 });
                             }                          
                             result.__internalLinks = result.__internalLinks || {};
-                            result.__internalLinks[propertyName] = ids.length > 0 ? ids : [];
+                            result.__internalLinks[propertyName] = ids.length > 0 ? ids : [];                            
+                            result[propertyName] = undefined;
                         }
                         else {
                             result[propertyName] = item[propertyName];
@@ -704,14 +708,16 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
             if (this.ItemFields.hasOwnProperty(propertyName)) {
                 const fieldDescriptor = this.ItemFields[propertyName];
                 switch(fieldDescriptor.fieldType) {
-                    case FieldType.Lookup:                    
+                    case FieldType.Lookup:
+                    case FieldType.User:
+                    case FieldType.Taxonomy:                    
                         if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                             // get values from init values
-                            let lookupId: number = item.__internalLinks[propertyName] ? item.__internalLinks[propertyName] : -1;
-                            if(lookupId !== -1) {
+                            let id: number = item.__internalLinks[propertyName] ? item.__internalLinks[propertyName] : null;
+                            if(id !== null) {
                                 let destElements = this.getServiceInitValues(fieldDescriptor.modelName);                        
                                 let existing = find(destElements, (destElement) => {
-                                    return destElement.id === lookupId;
+                                    return destElement.id === id;
                                 });
                                 result[propertyName] = existing ? existing : fieldDescriptor.defaultValue;
                             }
@@ -723,14 +729,16 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                             result[propertyName] = item[propertyName];
                         }                    
                         break;
-                    case FieldType.LookupMulti:                        
+                    case FieldType.LookupMulti:  
+                    case FieldType.UserMulti:
+                    case FieldType.TaxonomyMulti:                      
                         if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {    
                             // get values from init values
-                            let lookupIds: Array<number> = item.__internalLinks[propertyName] ? item.__internalLinks[propertyName] : [];
-                            if(lookupIds.length > 0) {
+                            let ids = item.__internalLinks[propertyName] ? item.__internalLinks[propertyName] : [];
+                            if(ids.length > 0) {
                                 let val = [];
                                 let targetItems = this.getServiceInitValues(fieldDescriptor.modelName);
-                                lookupIds.forEach(id => {
+                                ids.forEach(id => {
                                     let existing = find(targetItems, (item) => {
                                         return item.id === id;
                                     });
@@ -747,51 +755,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                         else {
                             result[propertyName] = item[propertyName];
                         }
-                        break;
-                    case FieldType.User:
-                        if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {                         
-                            // get values from init values                            
-                            let id: number = item.__internalLinks[propertyName] ? item.__internalLinks[propertyName] : -1;
-                            if(id !== -1) {
-                                let users = this.getServiceInitValues(fieldDescriptor.modelName);                        
-                                let existing = find(users, (user) => {
-                                    return user.id === id;
-                                });
-                                result[propertyName] = existing ? existing : fieldDescriptor.defaultValue;
-                            }
-                            else {
-                                result[propertyName] = fieldDescriptor.defaultValue;
-                            }
-                        }
-                        else {
-                            result[propertyName] = item[propertyName];
-                        }                     
-                        break;
-                    case FieldType.UserMulti:                    
-                        if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {    
-                            // get values from init values
-                            let ids: Array<number> = item.__internalLinks[propertyName] ? item.__internalLinks[propertyName] : [];                
-                            if(ids.length > 0) {
-                                let val = [];
-                                let users = this.getServiceInitValues(fieldDescriptor.modelName);
-                                ids.forEach(id => {
-                                    let existing = find(users, (user) => {
-                                        return user.id === id;
-                                    });
-                                    if(existing) {
-                                        val.push(existing);
-                                    } 
-                                });
-                                result[propertyName] = val;
-                            }
-                            else {
-                                result[propertyName] = fieldDescriptor.defaultValue;
-                            }
-                        }
-                        else {
-                            result[propertyName] = item[propertyName];
-                        }                    
-                        break;
+                        break;                    
                     default:                        
                         result[propertyName] = item[propertyName] ;
                         break;                    

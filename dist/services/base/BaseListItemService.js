@@ -885,10 +885,12 @@ var BaseListItemService = /** @class */ (function (_super) {
                 switch (fieldDescriptor.fieldType) {
                     case FieldType.Lookup:
                     case FieldType.User:
+                    case FieldType.Taxonomy:
                         if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                             //link defered
                             result.__internalLinks = result.__internalLinks || {};
                             result.__internalLinks[propertyName] = item[propertyName] ? item[propertyName].id : undefined;
+                            result[propertyName] = undefined;
                         }
                         else {
                             result[propertyName] = item[propertyName];
@@ -896,6 +898,7 @@ var BaseListItemService = /** @class */ (function (_super) {
                         break;
                     case FieldType.LookupMulti:
                     case FieldType.UserMulti:
+                    case FieldType.TaxonomyMulti:
                         if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                             var ids_1 = [];
                             if (item[propertyName]) {
@@ -909,6 +912,7 @@ var BaseListItemService = /** @class */ (function (_super) {
                             }
                             result.__internalLinks = result.__internalLinks || {};
                             result.__internalLinks[propertyName] = ids_1.length > 0 ? ids_1 : [];
+                            result[propertyName] = undefined;
                         }
                         else {
                             result[propertyName] = item[propertyName];
@@ -945,13 +949,15 @@ var BaseListItemService = /** @class */ (function (_super) {
                                 var fieldDescriptor = this_2.ItemFields[propertyName];
                                 switch (fieldDescriptor.fieldType) {
                                     case FieldType.Lookup:
+                                    case FieldType.User:
+                                    case FieldType.Taxonomy:
                                         if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                                             // get values from init values
-                                            var lookupId_2 = item.__internalLinks[propertyName] ? item.__internalLinks[propertyName] : -1;
-                                            if (lookupId_2 !== -1) {
+                                            var id_2 = item.__internalLinks[propertyName] ? item.__internalLinks[propertyName] : null;
+                                            if (id_2 !== null) {
                                                 var destElements = this_2.getServiceInitValues(fieldDescriptor.modelName);
                                                 var existing = find(destElements, function (destElement) {
-                                                    return destElement.id === lookupId_2;
+                                                    return destElement.id === id_2;
                                                 });
                                                 result[propertyName] = existing ? existing : fieldDescriptor.defaultValue;
                                             }
@@ -964,13 +970,15 @@ var BaseListItemService = /** @class */ (function (_super) {
                                         }
                                         break;
                                     case FieldType.LookupMulti:
+                                    case FieldType.UserMulti:
+                                    case FieldType.TaxonomyMulti:
                                         if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                                             // get values from init values
-                                            var lookupIds = item.__internalLinks[propertyName] ? item.__internalLinks[propertyName] : [];
-                                            if (lookupIds.length > 0) {
+                                            var ids = item.__internalLinks[propertyName] ? item.__internalLinks[propertyName] : [];
+                                            if (ids.length > 0) {
                                                 var val_3 = [];
                                                 var targetItems_2 = this_2.getServiceInitValues(fieldDescriptor.modelName);
-                                                lookupIds.forEach(function (id) {
+                                                ids.forEach(function (id) {
                                                     var existing = find(targetItems_2, function (item) {
                                                         return item.id === id;
                                                     });
@@ -979,50 +987,6 @@ var BaseListItemService = /** @class */ (function (_super) {
                                                     }
                                                 });
                                                 result[propertyName] = val_3;
-                                            }
-                                            else {
-                                                result[propertyName] = fieldDescriptor.defaultValue;
-                                            }
-                                        }
-                                        else {
-                                            result[propertyName] = item[propertyName];
-                                        }
-                                        break;
-                                    case FieldType.User:
-                                        if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                                            // get values from init values                            
-                                            var id_2 = item.__internalLinks[propertyName] ? item.__internalLinks[propertyName] : -1;
-                                            if (id_2 !== -1) {
-                                                var users = this_2.getServiceInitValues(fieldDescriptor.modelName);
-                                                var existing = find(users, function (user) {
-                                                    return user.id === id_2;
-                                                });
-                                                result[propertyName] = existing ? existing : fieldDescriptor.defaultValue;
-                                            }
-                                            else {
-                                                result[propertyName] = fieldDescriptor.defaultValue;
-                                            }
-                                        }
-                                        else {
-                                            result[propertyName] = item[propertyName];
-                                        }
-                                        break;
-                                    case FieldType.UserMulti:
-                                        if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                                            // get values from init values
-                                            var ids = item.__internalLinks[propertyName] ? item.__internalLinks[propertyName] : [];
-                                            if (ids.length > 0) {
-                                                var val_4 = [];
-                                                var users_2 = this_2.getServiceInitValues(fieldDescriptor.modelName);
-                                                ids.forEach(function (id) {
-                                                    var existing = find(users_2, function (user) {
-                                                        return user.id === id;
-                                                    });
-                                                    if (existing) {
-                                                        val_4.push(existing);
-                                                    }
-                                                });
-                                                result[propertyName] = val_4;
                                             }
                                             else {
                                                 result[propertyName] = fieldDescriptor.defaultValue;
