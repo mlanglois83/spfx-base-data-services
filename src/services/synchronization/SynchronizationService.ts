@@ -38,8 +38,9 @@ export class SynchronizationService extends BaseService {
                 switch (transaction.title) {
                     case TransactionType.AddOrUpdate:
                         const oldId = item.id;
-                        const isAdd = typeof (oldId) === "number" && oldId < 0;            
-                        const updatedItem = await dataService.addOrUpdateItem(dataService.mapItem(item));
+                        const isAdd = typeof (oldId) === "number" && oldId < 0;       
+                        let dbItem = await dataService.mapItem(item);
+                        const updatedItem = await dataService.addOrUpdateItem(dbItem);
                         // handle id and version changed
                         if (isAdd && !updatedItem.error) {
                             

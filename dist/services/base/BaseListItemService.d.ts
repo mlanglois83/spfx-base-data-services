@@ -10,7 +10,7 @@ export declare class BaseListItemService<T extends IBaseItem> extends BaseDataSe
     /***************************** Fields and properties **************************************/
     protected listRelativeUrl: string;
     protected initValues: any;
-    protected tardiveLinks: any;
+    protected taxoMultiFieldNames: any;
     readonly ItemFields: any;
     /**
      * Associeted list (pnpjs)
@@ -30,6 +30,9 @@ export declare class BaseListItemService<T extends IBaseItem> extends BaseDataSe
     private initPromise;
     protected init_internal(): Promise<void>;
     Init(): Promise<void>;
+    private fieldsInitialized;
+    private initFieldsPromise;
+    private initFields;
     private getServiceInitValues;
     /****************************** get item methods ***********************************/
     private getItemFromRest;
@@ -39,6 +42,7 @@ export declare class BaseListItemService<T extends IBaseItem> extends BaseDataSe
     private setRestFieldValue;
     /********************** SP Fields conversion helpers *****************************/
     private convertTaxonomyFieldValue;
+    private convertTaxonomyMultiFieldValue;
     private convertSingleUserFieldValue;
     /**
      *
@@ -104,7 +108,7 @@ export declare class BaseListItemService<T extends IBaseItem> extends BaseDataSe
      * populate item from db storage
      * @param item db item with links in __internalLinks fields
      */
-    mapItem(item: T): T;
+    mapItem(item: T): Promise<T>;
     updateLinkedTransactions(oldId: number, newId: number, nextTransactions: Array<OfflineTransaction>): Promise<Array<OfflineTransaction>>;
     private updateLinksInDb;
     private updateWssIds;

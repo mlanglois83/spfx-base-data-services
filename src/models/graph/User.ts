@@ -6,7 +6,7 @@ export class User implements IBaseItem {
     /**
      * internal field for linked items not stored in db
      */
-    public __internalLinks: any = {};
+    public __internalLinks: any = undefined;
     /**
      * O365 id of the user
      */

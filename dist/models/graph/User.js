@@ -10,7 +10,7 @@ var User = /** @class */ (function () {
         /**
          * internal field for linked items not stored in db
          */
-        this.__internalLinks = {};
+        this.__internalLinks = undefined;
         if (graphUser) {
             this.title = graphUser.displayName ? graphUser.displayName : "";
             this.id = graphUser.id ? graphUser.id : "";

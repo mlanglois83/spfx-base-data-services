@@ -1,1 +1,1 @@
-{"version":3,"file":"OfflineTransaction.js","sourceRoot":"","sources":["../../src/models/OfflineTransaction.ts"],"names":[],"mappings":"AAGA;;GAEG;AACH;IAAA;QACI;;WAEG;QACI,oBAAe,GAAQ,EAAE,CAAC;IAiBrC,CAAC;IAAD,yBAAC;AAAD,CAAC,AArBD,IAqBC"}
+{"version":3,"file":"OfflineTransaction.js","sourceRoot":"","sources":["../../src/models/OfflineTransaction.ts"],"names":[],"mappings":"AAGA;;GAEG;AACH;IAAA;QACI;;WAEG;QACI,oBAAe,GAAQ,SAAS,CAAC;IAiB5C,CAAC;IAAD,yBAAC;AAAD,CAAC,AArBD,IAqBC"}

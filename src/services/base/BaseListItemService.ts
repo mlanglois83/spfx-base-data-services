@@ -21,7 +21,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
     /***************************** Fields and properties **************************************/
     protected listRelativeUrl: string;
     protected initValues: any = {};
-    protected tardiveLinks: any = {};
+    protected taxoMultiFieldNames: any = {};
 
     public get ItemFields(): any {
         let result = {}
@@ -72,6 +72,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                     resolve();
                 }
                 else {
+                    this.initValues = {};
                     try {
                         if(this.init_internal) {
                             await this.init_internal();
@@ -83,7 +84,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                                 const fieldDescription = fields[key];
                                 if(fieldDescription.modelName && models.indexOf(fieldDescription.modelName) === -1) {
                                     models.push(fieldDescription.modelName);
-                                }                
+                                }                                            
                             }
                         }
                         await Promise.all(models.map(async (modelName) => {
@@ -108,8 +109,49 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         
     }  
 
-    private getServiceInitValues(serviceName: string): any {
-        return this.initValues[serviceName];        
+    private fieldsInitialized: boolean = false;
+    private initFieldsPromise: Promise<void> = null;
+
+    private async initFields(): Promise<void> {
+        if(!this.initFieldsPromise) {
+            this.initFieldsPromise =  new Promise<void>(async (resolve, reject) => {
+                if(this.fieldsInitialized) {
+                    resolve();
+                }
+                else {
+                    this.taxoMultiFieldNames = {};
+                    try {
+                        let fields = this.ItemFields;
+                        let taxofields = [];
+                        for (const key in fields) {
+                            if (fields.hasOwnProperty(key)) {
+                                const fieldDescription = fields[key];
+                                if(fieldDescription.fieldType === FieldType.TaxonomyMulti) {
+                                    taxofields.push(fieldDescription.fieldName);
+                                }                                      
+                            }
+                        }
+                        await Promise.all(taxofields.map(async (tf) => {
+                            let hiddenField = await this.list.fields.getByTitle(`${tf}_0`).select("InternalName").get();
+                            this.taxoMultiFieldNames[tf] = hiddenField.InternalName;
+                        }));
+                        this.fieldsInitialized = true;
+                        this.initFieldsPromise = null;
+                        resolve();
+                    }
+                    catch(error) {
+                        this.initFieldsPromise = null;
+                        reject(error);
+                    }
+                }                
+            });
+        }
+        return this.initFieldsPromise;
+        
+    }  
+
+    private getServiceInitValues(modelName: string): any {
+        return this.initValues[modelName];        
     }
 
     /****************************** get item methods ***********************************/
@@ -137,7 +179,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                     destItem[propertyName] = spitem[fieldDescriptor.fieldName] ? new Date(spitem[fieldDescriptor.fieldName]) : fieldDescriptor.defaultValue;
                 break;
             case FieldType.Lookup:
-                let lookupId = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"] : -1;
+                let lookupId: number = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"] : -1;
                 if(lookupId !== -1) {
                     if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                         // get values from init values
@@ -158,13 +200,13 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                   
                 break;
             case FieldType.LookupMulti:
-                    let lookupIds = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"] : [];
+                    let lookupIds: Array<number> = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"].results : [];
                     if(lookupIds.length > 0) {
                         if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {    
                             // get values from init values
                             let val = [];
                             let targetItems = this.getServiceInitValues(fieldDescriptor.modelName);
-                            lookupIds.array.forEach(id => {
+                            lookupIds.forEach(id => {
                                 let existing = find(targetItems, (item) => {
                                     return item.id === id;
                                 });
@@ -183,7 +225,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                     }
                     break;
             case FieldType.User:
-                let id = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"] : -1;
+                let id: number = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"] : -1;
                 if(id !== -1) {
                     if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {                         
                         // get values from init values
@@ -202,7 +244,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 }                      
                 break;
             case FieldType.UserMulti:
-                let ids = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"] : [];                
+                let ids: Array<number> = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"].results : [];                
                 if(ids.length > 0) {
                     if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {    
                         // get values from init values
@@ -227,9 +269,9 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 }
                 break;
             case FieldType.Taxonomy:
-                let wssid = spitem[fieldDescriptor.fieldName] ? spitem[fieldDescriptor.fieldName].WssId : -1;
+                let wssid: number = spitem[fieldDescriptor.fieldName] ? spitem[fieldDescriptor.fieldName].WssId : -1;
                 if(id !== -1) {
-                    let terms = this.getServiceInitValues(fieldDescriptor.fieldName);
+                    let terms = this.getServiceInitValues(fieldDescriptor.modelName);
                     destItem[propertyName] = this.getTaxonomyTermByWssId(wssid, terms);
                 }
                 else {
@@ -238,10 +280,10 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 break;
             case FieldType.TaxonomyMulti:
                     const terms = spitem[fieldDescriptor.fieldName];
-                    if(terms) {
-                        let allterms = this.getServiceInitValues(fieldDescriptor.fieldName);
-                        destItem[propertyName] = terms.map((term) => {
-                            return term.getTaxonomyTermByWssId(term.WssId, allterms);
+                    if(terms && terms.results) {
+                        let allterms = this.getServiceInitValues(fieldDescriptor.modelName);
+                        destItem[propertyName] = terms.results.map((term) => {
+                            return this.getTaxonomyTermByWssId(term.WssId, allterms);
                         });
                     }
                     else {
@@ -284,18 +326,20 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 else {
                     destItem[fieldDescriptor.fieldName + "Id"] = null;
                 }
+                break;
             case FieldType.LookupMulti:      
                 if(itemValue && isArray(itemValue) && itemValue.length > 0){
                     let firstLookupVal = itemValue[0];
                     if(typeof(firstLookupVal) === "number") {
-                        destItem[fieldDescriptor.fieldName + "Id"] = itemValue;
+                        destItem[fieldDescriptor.fieldName + "Id"] = {results: itemValue};
                     }
                     else {
-                        destItem[fieldDescriptor.fieldName + "Id"] = itemValue.map((lookupMultiElt) => {return lookupMultiElt.id; });
+                        let idArray = 
+                        destItem[fieldDescriptor.fieldName + "Id"] = {results: itemValue.map((lookupMultiElt) => {return lookupMultiElt.id; })};
                     }
                 }      
                 else {
-                    destItem[fieldDescriptor.fieldName + "Id"] = null;
+                    destItem[fieldDescriptor.fieldName + "Id"] = {results: []};
                 }
                 break;
             case FieldType.User:
@@ -315,29 +359,29 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 if(itemValue && isArray(itemValue) && itemValue.length > 0) {
                     let firstUserVal = itemValue[0];
                     if(typeof(firstUserVal) === "number") {
-                        destItem[fieldDescriptor.fieldName + "Id"] = itemValue;
+                        destItem[fieldDescriptor.fieldName + "Id"] = {results: itemValue};
                     }
                     else {
-                        destItem[fieldDescriptor.fieldName + "Id"] = await Promise.all(itemValue.map((user) => {
+                        let userIds = await Promise.all(itemValue.map((user) => {
                             return this.convertSingleUserFieldValue(user);
                         }));
+                        destItem[fieldDescriptor.fieldName + "Id"] = {results: userIds};
                     }
                 }
                 else {
-                    destItem[fieldDescriptor.fieldName + "Id"] = null;
+                    destItem[fieldDescriptor.fieldName + "Id"] = {results: []};
                 }
                 break;
             case FieldType.Taxonomy:
                 destItem[fieldDescriptor.fieldName] = this.convertTaxonomyFieldValue(itemValue);
                 break;
             case FieldType.TaxonomyMulti:
+                let hiddenFieldName = this.taxoMultiFieldNames[fieldDescriptor.fieldName];
                 if(itemValue && isArray(itemValue) && itemValue.length > 0) {
-                    destItem[fieldDescriptor.fieldName] = itemValue.map((term) => {
-                        return this.convertTaxonomyFieldValue(term);
-                    });
+                    destItem[hiddenFieldName] = this.convertTaxonomyMultiFieldValue(itemValue);
                 }
                 else {
-                    destItem[fieldDescriptor.fieldName] = null;
+                    destItem[hiddenFieldName] = null;
                 }
                 break;
             case FieldType.Json:
@@ -356,6 +400,13 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 TermGuid: value.id,
                 WssId: -1 // fake
             };
+        }
+        return result;
+    }
+    private convertTaxonomyMultiFieldValue(value: Array<TaxonomyTerm>): any {
+        let result: any = null;
+        if (value) {
+            result = value.map(term => `-1;#${term.title}|${term.id};#`).join("");            
         }
         return result;
     }
@@ -513,6 +564,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
      */
     protected async addOrUpdateItem_Internal(item: T): Promise<T> {
         let result = cloneDeep(item);
+        await this.initFields();
         if (item.id < 0) {
             let converted = await this.getSPRestItem(item);
             let addResult = await this.list.items.add(converted);
@@ -604,6 +656,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                     case FieldType.User:                
                         if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                             //link defered
+                            result.__internalLinks = result.__internalLinks || {};
                             result.__internalLinks[propertyName] = item[propertyName] ? item[propertyName].id : undefined;
                         }
                         else {
@@ -623,6 +676,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                                     }
                                 });
                             }                          
+                            result.__internalLinks = result.__internalLinks || {};
                             result.__internalLinks[propertyName] = ids.length > 0 ? ids : [];
                         }
                         else {
@@ -643,8 +697,9 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
      * populate item from db storage
      * @param item db item with links in __internalLinks fields
      */
-    public mapItem(item: T): T {
+    public async mapItem(item: T): Promise<T> {
         let result: T = new this.itemType();
+        await this.Init();
         for (const propertyName in this.ItemFields) {
             if (this.ItemFields.hasOwnProperty(propertyName)) {
                 const fieldDescriptor = this.ItemFields[propertyName];
@@ -652,7 +707,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                     case FieldType.Lookup:                    
                         if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                             // get values from init values
-                            let lookupId = item.__internalLinks[propertyName] ? item.__internalLinks[propertyName] : -1;
+                            let lookupId: number = item.__internalLinks[propertyName] ? item.__internalLinks[propertyName] : -1;
                             if(lookupId !== -1) {
                                 let destElements = this.getServiceInitValues(fieldDescriptor.modelName);                        
                                 let existing = find(destElements, (destElement) => {
@@ -671,11 +726,11 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                     case FieldType.LookupMulti:                        
                         if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {    
                             // get values from init values
-                            let lookupIds = item.__internalLinks[propertyName] ? item.__internalLinks[propertyName] : [];
+                            let lookupIds: Array<number> = item.__internalLinks[propertyName] ? item.__internalLinks[propertyName] : [];
                             if(lookupIds.length > 0) {
                                 let val = [];
                                 let targetItems = this.getServiceInitValues(fieldDescriptor.modelName);
-                                lookupIds.array.forEach(id => {
+                                lookupIds.forEach(id => {
                                     let existing = find(targetItems, (item) => {
                                         return item.id === id;
                                     });
@@ -696,7 +751,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                     case FieldType.User:
                         if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {                         
                             // get values from init values                            
-                            let id = item.__internalLinks[propertyName] ? item.__internalLinks[propertyName] : -1;
+                            let id: number = item.__internalLinks[propertyName] ? item.__internalLinks[propertyName] : -1;
                             if(id !== -1) {
                                 let users = this.getServiceInitValues(fieldDescriptor.modelName);                        
                                 let existing = find(users, (user) => {
@@ -715,7 +770,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                     case FieldType.UserMulti:                    
                         if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {    
                             // get values from init values
-                            let ids = item.__internalLinks[propertyName] ? item.__internalLinks[propertyName] : [];                
+                            let ids: Array<number> = item.__internalLinks[propertyName] ? item.__internalLinks[propertyName] : [];                
                             if(ids.length > 0) {
                                 let val = [];
                                 let users = this.getServiceInitValues(fieldDescriptor.modelName);
@@ -763,11 +818,11 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                             let destType = ServicesConfiguration.configuration.serviceFactory.getItemTypeByName(transaction.itemType);
                             let currentObject = new destType();
                             assign(currentObject, transaction.itemData);
-                        }
+                        }                        
                         if(fieldDescription.fieldType === FieldType.Lookup) {
                             if(fieldDescription.modelName) {
-                                // serch in __internalLinks
-                                if(currentObject.__internalLinks[propertyName] === oldId) {
+                                // search in __internalLinks
+                                if(currentObject.__internalLinks && currentObject.__internalLinks[propertyName] === oldId) {
                                     currentObject.__internalLinks[propertyName] = newId;
                                     needUpdate = true;
                                 }
@@ -781,7 +836,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                         else if (fieldDescription.fieldType === FieldType.LookupMulti) {
                             if(fieldDescription.modelName) {
                                 // serch in __internalLinks
-                                if(currentObject.__internalLinks[propertyName] && isArray(currentObject.__internalLinks[propertyName])) {
+                                if(currentObject.__internalLinks && currentObject.__internalLinks[propertyName] && isArray(currentObject.__internalLinks[propertyName])) {
                                     // find item
                                     let lookupidx = findIndex(currentObject.__internalLinks[propertyName], (id) => {return id === oldId});
                                     // change id
@@ -837,7 +892,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                             if(fieldDescription.fieldType === FieldType.Lookup) {
                                 if(fieldDescription.modelName) {
                                     // serch in __internalLinks
-                                    if(element.__internalLinks[propertyName] === oldId) {
+                                    if(element.__internalLinks && element.__internalLinks[propertyName] === oldId) {
                                         element.__internalLinks[propertyName] = newId;
                                         needUpdate = true;
                                     }
@@ -851,7 +906,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                             else if (fieldDescription.fieldType === FieldType.LookupMulti) {
                                 if(fieldDescription.modelName) {
                                     // serch in __internalLinks
-                                    if(element.__internalLinks[propertyName] && isArray(element.__internalLinks[propertyName])) {
+                                    if(element.__internalLinks && element.__internalLinks[propertyName] && isArray(element.__internalLinks[propertyName])) {
                                         // find item
                                         let lookupidx = findIndex(element.__internalLinks[propertyName], (id) => {return id === oldId});
                                         // change id
@@ -914,9 +969,11 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                         if(needUpdate) {
                             await service.__updateCache(term);
                             // update initValues
-                            let idx = findIndex(this.initValues[fieldDescription.modelName], (t: any) => { return t.id === id; });
-                            if(idx !== -1) {
-                                this.initValues[fieldDescription.modelName][idx] = term;
+                            if(this.initialized) {
+                                let idx = findIndex(this.initValues[fieldDescription.modelName], (t: any) => { return t.id === id; });
+                                if(idx !== -1) {
+                                    this.initValues[fieldDescription.modelName][idx] = term;
+                                }
                             }
                         }
                     }
@@ -948,12 +1005,14 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                     if(updated.length > 0) {
                         await service.__updateCache(...updated)
                         // update initValues
-                        updated.forEach((u) => {
-                            let idx = findIndex(this.initValues[fieldDescription.modelName], (t: any) => { return t.id === u.id; });
-                            if(idx !== -1) {
-                                this.initValues[fieldDescription.modelName][idx] = u;
-                            }
-                        })                        
+                        if(this.initialized) {
+                            updated.forEach((u) => {
+                                let idx = findIndex(this.initValues[fieldDescription.modelName], (t: any) => { return t.id === u.id; });
+                                if(idx !== -1) {
+                                    this.initValues[fieldDescription.modelName][idx] = u;
+                                }
+                            })      
+                        }                  
                     }
                 }
             }

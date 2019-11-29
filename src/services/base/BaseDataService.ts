@@ -167,9 +167,9 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                     }
                     else {
                         let tmp = await this.dbService.getAll();
-                        result = tmp.map((res) => {
+                        result = await Promise.all(tmp.map((res) => {
                             return this.mapItem(res);
-                        });
+                        }));
                     }
 
 
@@ -216,9 +216,9 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                     }
                     else {
                         let tmp = await this.dbService.get(query);
-                        result = tmp.map((res) => {
+                        result = await Promise.all(tmp.map((res) => {
                             return this.mapItem(res);
-                        });
+                        }));
                     }
 
                     this.removePromise(keyCached);
@@ -261,7 +261,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                     else {
                         let temp = await this.dbService.getItemById(id);
                         if (temp) { 
-                            result = this.mapItem(temp); 
+                            result = await this.mapItem(temp); 
                         }
                     }
 
@@ -306,9 +306,9 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                     }
                     else {
                         let tmp = await this.dbService.getItemsById(ids);
-                        results = tmp.map((res) => {
+                        results = await Promise.all(tmp.map((res) => {
                             return this.mapItem(res);
-                        });
+                        }));
                     }
                     this.removePromise(keyCached);
                     resolve(results);
@@ -404,8 +404,8 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         return item;
     }
 
-    public mapItem(item: T): T {
-        return item;
+    public mapItem(item: T): Promise<T> {
+        return Promise.resolve(item);
     }
     
     public async updateLinkedTransactions(oldId: number | string, newId: number | string, nextTransactions: Array<OfflineTransaction>): Promise<Array<OfflineTransaction>> {

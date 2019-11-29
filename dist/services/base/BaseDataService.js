@@ -211,7 +211,7 @@ var BaseDataService = /** @class */ (function (_super) {
                         return __generator(this, function (_a) {
                             switch (_a.label) {
                                 case 0:
-                                    _a.trys.push([0, 9, , 10]);
+                                    _a.trys.push([0, 10, , 11]);
                                     result = new Array();
                                     return [4 /*yield*/, this.needRefreshCache()];
                                 case 1:
@@ -232,24 +232,26 @@ var BaseDataService = /** @class */ (function (_super) {
                                 case 5:
                                     _a.sent();
                                     this.UpdateCacheData();
-                                    return [3 /*break*/, 8];
+                                    return [3 /*break*/, 9];
                                 case 6: return [4 /*yield*/, this.dbService.getAll()];
                                 case 7:
                                     tmp = _a.sent();
-                                    result = tmp.map(function (res) {
-                                        return _this.mapItem(res);
-                                    });
-                                    _a.label = 8;
+                                    return [4 /*yield*/, Promise.all(tmp.map(function (res) {
+                                            return _this.mapItem(res);
+                                        }))];
                                 case 8:
+                                    result = _a.sent();
+                                    _a.label = 9;
+                                case 9:
                                     this.removePromise();
                                     resolve(result);
-                                    return [3 /*break*/, 10];
-                                case 9:
+                                    return [3 /*break*/, 11];
+                                case 10:
                                     error_1 = _a.sent();
                                     this.removePromise();
                                     reject(error_1);
-                                    return [3 /*break*/, 10];
-                                case 10: return [2 /*return*/];
+                                    return [3 /*break*/, 11];
+                                case 11: return [2 /*return*/];
                             }
                         });
                     }); });
@@ -276,7 +278,7 @@ var BaseDataService = /** @class */ (function (_super) {
                         return __generator(this, function (_a) {
                             switch (_a.label) {
                                 case 0:
-                                    _a.trys.push([0, 9, , 10]);
+                                    _a.trys.push([0, 10, , 11]);
                                     result = new Array();
                                     return [4 /*yield*/, this.needRefreshCache(keyCached)];
                                 case 1:
@@ -297,24 +299,26 @@ var BaseDataService = /** @class */ (function (_super) {
                                 case 5:
                                     _a.sent();
                                     this.UpdateCacheData(keyCached);
-                                    return [3 /*break*/, 8];
+                                    return [3 /*break*/, 9];
                                 case 6: return [4 /*yield*/, this.dbService.get(query)];
                                 case 7:
                                     tmp = _a.sent();
-                                    result = tmp.map(function (res) {
-                                        return _this.mapItem(res);
-                                    });
-                                    _a.label = 8;
+                                    return [4 /*yield*/, Promise.all(tmp.map(function (res) {
+                                            return _this.mapItem(res);
+                                        }))];
                                 case 8:
+                                    result = _a.sent();
+                                    _a.label = 9;
+                                case 9:
                                     this.removePromise(keyCached);
                                     resolve(result);
-                                    return [3 /*break*/, 10];
-                                case 9:
+                                    return [3 /*break*/, 11];
+                                case 10:
                                     error_2 = _a.sent();
                                     this.removePromise(keyCached);
                                     reject(error_2);
-                                    return [3 /*break*/, 10];
-                                case 10: return [2 /*return*/];
+                                    return [3 /*break*/, 11];
+                                case 11: return [2 /*return*/];
                             }
                         });
                     }); });
@@ -340,7 +344,7 @@ var BaseDataService = /** @class */ (function (_super) {
                         return __generator(this, function (_a) {
                             switch (_a.label) {
                                 case 0:
-                                    _a.trys.push([0, 9, , 10]);
+                                    _a.trys.push([0, 10, , 11]);
                                     result = void 0;
                                     return [4 /*yield*/, this.needRefreshCache(keyCached)];
                                 case 1:
@@ -359,24 +363,25 @@ var BaseDataService = /** @class */ (function (_super) {
                                 case 5:
                                     _a.sent();
                                     this.UpdateCacheData(_super.prototype.hashCode.call(this, keyCached).toString());
-                                    return [3 /*break*/, 8];
+                                    return [3 /*break*/, 9];
                                 case 6: return [4 /*yield*/, this.dbService.getItemById(id)];
                                 case 7:
                                     temp = _a.sent();
-                                    if (temp) {
-                                        result = this.mapItem(temp);
-                                    }
-                                    _a.label = 8;
+                                    if (!temp) return [3 /*break*/, 9];
+                                    return [4 /*yield*/, this.mapItem(temp)];
                                 case 8:
+                                    result = _a.sent();
+                                    _a.label = 9;
+                                case 9:
                                     this.removePromise(keyCached);
                                     resolve(result);
-                                    return [3 /*break*/, 10];
-                                case 9:
+                                    return [3 /*break*/, 11];
+                                case 10:
                                     error_3 = _a.sent();
                                     this.removePromise(keyCached);
                                     reject(error_3);
-                                    return [3 /*break*/, 10];
-                                case 10: return [2 /*return*/];
+                                    return [3 /*break*/, 11];
+                                case 11: return [2 /*return*/];
                             }
                         });
                     }); });
@@ -403,7 +408,7 @@ var BaseDataService = /** @class */ (function (_super) {
                         return __generator(this, function (_a) {
                             switch (_a.label) {
                                 case 0:
-                                    _a.trys.push([0, 9, , 10]);
+                                    _a.trys.push([0, 10, , 11]);
                                     results = void 0;
                                     return [4 /*yield*/, this.needRefreshCache(keyCached)];
                                 case 1:
@@ -424,24 +429,26 @@ var BaseDataService = /** @class */ (function (_super) {
                                 case 5:
                                     _a.sent();
                                     this.UpdateCacheData(_super.prototype.hashCode.call(this, keyCached).toString());
-                                    return [3 /*break*/, 8];
+                                    return [3 /*break*/, 9];
                                 case 6: return [4 /*yield*/, this.dbService.getItemsById(ids)];
                                 case 7:
                                     tmp = _a.sent();
-                                    results = tmp.map(function (res) {
-                                        return _this.mapItem(res);
-                                    });
-                                    _a.label = 8;
+                                    return [4 /*yield*/, Promise.all(tmp.map(function (res) {
+                                            return _this.mapItem(res);
+                                        }))];
                                 case 8:
+                                    results = _a.sent();
+                                    _a.label = 9;
+                                case 9:
                                     this.removePromise(keyCached);
                                     resolve(results);
-                                    return [3 /*break*/, 10];
-                                case 9:
+                                    return [3 /*break*/, 11];
+                                case 10:
                                     error_4 = _a.sent();
                                     this.removePromise(keyCached);
                                     reject(error_4);
-                                    return [3 /*break*/, 10];
-                                case 10: return [2 /*return*/];
+                                    return [3 /*break*/, 11];
+                                case 11: return [2 /*return*/];
                             }
                         });
                     }); });
@@ -563,7 +570,7 @@ var BaseDataService = /** @class */ (function (_super) {
         return item;
     };
     BaseDataService.prototype.mapItem = function (item) {
-        return item;
+        return Promise.resolve(item);
     };
     BaseDataService.prototype.updateLinkedTransactions = function (oldId, newId, nextTransactions) {
         return __awaiter(this, void 0, void 0, function () {

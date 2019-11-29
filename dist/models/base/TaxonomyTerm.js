@@ -10,7 +10,7 @@ var TaxonomyTerm = /** @class */ (function () {
         /**
          * internal field for linked items not stored in db
          */
-        this.__internalLinks = {};
+        this.__internalLinks = undefined;
         if (term != undefined) {
             this.title = term.Name != undefined ? term.Name : "";
             this.id = term.Id != undefined ? term.Id.replace(/\/Guid\(([^)]+)\)\//g, "$1") : "";

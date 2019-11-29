@@ -16,7 +16,7 @@ var SPItem = /** @class */ (function () {
         /**
          * internal field for linked items not stored in db
          */
-        this.__internalLinks = {};
+        this.__internalLinks = undefined;
         /**
          * Item id
          */
