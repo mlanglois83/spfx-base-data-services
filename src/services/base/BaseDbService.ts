@@ -401,13 +401,8 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
             await tx.complete;
             return result;
         } catch (error) {
-            console.error(error.message + " - " + error.Name);
-            try {                
-                tx.abort();
-            } catch { 
-                // error allready thrown
-            }
-            throw error;
+            // key not found
+            return null;
         }
     }
 }

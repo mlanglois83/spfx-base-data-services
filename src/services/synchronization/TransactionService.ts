@@ -1,6 +1,6 @@
 import { BaseDbService } from "../base/BaseDbService";
 import { OfflineTransaction, SPFile } from "../../models/index";
-import { assign } from "@microsoft/sp-lodash-subset";
+import { assign, update } from "@microsoft/sp-lodash-subset";
 import { BaseComponentContext } from "@microsoft/sp-component-base";
 import { IAddOrUpdateResult } from "../../interfaces";
 
@@ -17,14 +17,27 @@ export class TransactionService extends BaseDbService<OfflineTransaction> {
      * @param item Item to add or update
      */
     public async addOrUpdateItem(item: OfflineTransaction): Promise<IAddOrUpdateResult<OfflineTransaction>> {
+        let result : IAddOrUpdateResult<OfflineTransaction> = null;
         if (item.itemType === SPFile["name"]) {
+            // if existing transaction, remove with associated files
+            let existing = await this.getById(item.id);
+            if(existing) {
+                await this.deleteItem(existing);
+            }
             //create a file stored in a separate table
             let file: SPFile = assign(new SPFile(), item.itemData);
+            let baseUrl = file.serverRelativeUrl;
             item.itemData = new Date().getTime() + "_" + file.serverRelativeUrl;
             file.serverRelativeUrl = item.itemData;
-            await this.transactionFileService.addOrUpdateItem(file);
+            await this.transactionFileService.addOrUpdateItem(file);            
+            result = await super.addOrUpdateItem(item);
+            // reassign values for result
+            file.serverRelativeUrl = baseUrl;
+            result.item.itemData = assign({}, file);
         }
-        let result = await super.addOrUpdateItem(item);
+        else {
+            result = await super.addOrUpdateItem(item);
+        }
         return result;
     }
 
@@ -44,18 +57,11 @@ export class TransactionService extends BaseDbService<OfflineTransaction> {
      * @param newItems 
      */
     public async addOrUpdateItems(newItems: Array<OfflineTransaction>): Promise<Array<OfflineTransaction>> {
-        newItems = await Promise.all(newItems.map(async (item) => {
-            if (item.itemType === SPFile["name"]) {
-                //create a file stored in a separate table
-                let file: SPFile = assign(new SPFile(), item.itemData);
-                item.itemData = new Date().getTime() + "_" + file.serverRelativeUrl;
-                file.serverRelativeUrl = item.itemData;
-                await this.transactionFileService.addOrUpdateItem(file);
-            }
-            return item;
+        let updateResults = Promise.all(newItems.map(async (item) => {
+            let result = await this.addOrUpdateItem(item);
+            return result.item;
         }));
-        newItems = await super.addOrUpdateItems(newItems);
-        return newItems;
+        return updateResults;
     }
 
     /**
@@ -73,6 +79,18 @@ export class TransactionService extends BaseDbService<OfflineTransaction> {
             }
             return item;
         }));
+        return result;
+    }
+
+    public async getById(id: number): Promise<OfflineTransaction> {
+        let result = await super.getById(id);
+        if (result && result.itemType === SPFile["name"]) {
+            let file = await this.transactionFileService.getById(result.itemData);
+            if (file) {
+                file.serverRelativeUrl = file.serverRelativeUrl.replace(/^\d+_(.*)$/g, "$1");
+                result.itemData = assign({}, file);
+            }
+        }
         return result;
     }
 

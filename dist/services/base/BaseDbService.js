@@ -616,14 +616,8 @@ var BaseDbService = /** @class */ (function (_super) {
                         return [2 /*return*/, result];
                     case 8:
                         error_6 = _a.sent();
-                        console.error(error_6.message + " - " + error_6.Name);
-                        try {
-                            tx.abort();
-                        }
-                        catch (_b) {
-                            // error allready thrown
-                        }
-                        throw error_6;
+                        // key not found
+                        return [2 /*return*/, null];
                     case 9: return [2 /*return*/];
                 }
             });

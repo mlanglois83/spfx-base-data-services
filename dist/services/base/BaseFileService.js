@@ -53,6 +53,7 @@ import { UtilsService } from "../";
 import { SPFile } from "../../models";
 import { BaseDataService } from "./BaseDataService";
 import { ServicesConfiguration } from "../..";
+import { stringIsNullOrEmpty } from "@pnp/common";
 /**
  * Base service for sp files operations
  */
@@ -188,7 +189,13 @@ var BaseFileService = /** @class */ (function (_super) {
                 switch (_a.label) {
                     case 0:
                         if (!(item instanceof SPFile && item.content)) return [3 /*break*/, 7];
-                        folderUrl = UtilsService.getParentFolderUrl(item.serverRelativeUrl);
+                        folderUrl = "";
+                        if (!stringIsNullOrEmpty(item.id)) {
+                            folderUrl = UtilsService.getParentFolderUrl(item.serverRelativeUrl);
+                        }
+                        else {
+                            folderUrl = this.listRelativeUrl + "/" + item.title;
+                        }
                         folder = sp.web.getFolderByServerRelativeUrl(folderUrl);
                         return [4 /*yield*/, this.folderExists(folderUrl)];
                     case 1:

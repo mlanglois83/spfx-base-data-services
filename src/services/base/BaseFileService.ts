@@ -8,6 +8,7 @@ import { SPFile } from "../../models";
 import { BaseDataService } from "./BaseDataService";
 import { BaseService } from "./BaseService";
 import { ServicesConfiguration } from "../..";
+import { stringIsNullOrEmpty } from "@pnp/common";
 
 /**
  * Base service for sp files operations
@@ -15,8 +16,6 @@ import { ServicesConfiguration } from "../..";
 export class BaseFileService<T extends IBaseItem> extends BaseDataService<T> implements IDataService<T>{
     protected itemType: (new (item?: any) => T);
     protected listRelativeUrl: string;
-
-
 
 
     /**
@@ -97,7 +96,13 @@ export class BaseFileService<T extends IBaseItem> extends BaseDataService<T> imp
 
     public async addOrUpdateItem_Internal(item: T): Promise<T> {
         if (item instanceof SPFile && item.content) {
-            let folderUrl = UtilsService.getParentFolderUrl(item.serverRelativeUrl);
+            let folderUrl = "";
+            if(!stringIsNullOrEmpty(item.id)){
+                folderUrl = UtilsService.getParentFolderUrl(item.serverRelativeUrl);
+            }
+            else {
+                folderUrl = this.listRelativeUrl + "/" + item.title;
+            }
             let folder: Folder = sp.web.getFolderByServerRelativeUrl(folderUrl);
             const exists = await this.folderExists(folderUrl);
             if (!exists) {

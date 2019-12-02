@@ -63,22 +63,40 @@ var TransactionService = /** @class */ (function (_super) {
      */
     TransactionService.prototype.addOrUpdateItem = function (item) {
         return __awaiter(this, void 0, void 0, function () {
-            var file, result;
+            var result, existing, file, baseUrl;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        if (!(item.itemType === SPFile["name"])) return [3 /*break*/, 2];
+                        result = null;
+                        if (!(item.itemType === SPFile["name"])) return [3 /*break*/, 6];
+                        return [4 /*yield*/, this.getById(item.id)];
+                    case 1:
+                        existing = _a.sent();
+                        if (!existing) return [3 /*break*/, 3];
+                        return [4 /*yield*/, this.deleteItem(existing)];
+                    case 2:
+                        _a.sent();
+                        _a.label = 3;
+                    case 3:
                         file = assign(new SPFile(), item.itemData);
+                        baseUrl = file.serverRelativeUrl;
                         item.itemData = new Date().getTime() + "_" + file.serverRelativeUrl;
                         file.serverRelativeUrl = item.itemData;
                         return [4 /*yield*/, this.transactionFileService.addOrUpdateItem(file)];
-                    case 1:
+                    case 4:
                         _a.sent();
-                        _a.label = 2;
-                    case 2: return [4 /*yield*/, _super.prototype.addOrUpdateItem.call(this, item)];
-                    case 3:
+                        return [4 /*yield*/, _super.prototype.addOrUpdateItem.call(this, item)];
+                    case 5:
                         result = _a.sent();
-                        return [2 /*return*/, result];
+                        // reassign values for result
+                        file.serverRelativeUrl = baseUrl;
+                        result.item.itemData = assign({}, file);
+                        return [3 /*break*/, 8];
+                    case 6: return [4 /*yield*/, _super.prototype.addOrUpdateItem.call(this, item)];
+                    case 7:
+                        result = _a.sent();
+                        _a.label = 8;
+                    case 8: return [2 /*return*/, result];
                 }
             });
         });
@@ -113,33 +131,21 @@ var TransactionService = /** @class */ (function (_super) {
      */
     TransactionService.prototype.addOrUpdateItems = function (newItems) {
         return __awaiter(this, void 0, void 0, function () {
+            var updateResults;
             var _this = this;
             return __generator(this, function (_a) {
-                switch (_a.label) {
-                    case 0: return [4 /*yield*/, Promise.all(newItems.map(function (item) { return __awaiter(_this, void 0, void 0, function () {
-                            var file;
-                            return __generator(this, function (_a) {
-                                switch (_a.label) {
-                                    case 0:
-                                        if (!(item.itemType === SPFile["name"])) return [3 /*break*/, 2];
-                                        file = assign(new SPFile(), item.itemData);
-                                        item.itemData = new Date().getTime() + "_" + file.serverRelativeUrl;
-                                        file.serverRelativeUrl = item.itemData;
-                                        return [4 /*yield*/, this.transactionFileService.addOrUpdateItem(file)];
-                                    case 1:
-                                        _a.sent();
-                                        _a.label = 2;
-                                    case 2: return [2 /*return*/, item];
-                                }
-                            });
-                        }); }))];
-                    case 1:
-                        newItems = _a.sent();
-                        return [4 /*yield*/, _super.prototype.addOrUpdateItems.call(this, newItems)];
-                    case 2:
-                        newItems = _a.sent();
-                        return [2 /*return*/, newItems];
-                }
+                updateResults = Promise.all(newItems.map(function (item) { return __awaiter(_this, void 0, void 0, function () {
+                    var result;
+                    return __generator(this, function (_a) {
+                        switch (_a.label) {
+                            case 0: return [4 /*yield*/, this.addOrUpdateItem(item)];
+                            case 1:
+                                result = _a.sent();
+                                return [2 /*return*/, result.item];
+                        }
+                    });
+                }); }));
+                return [2 /*return*/, updateResults];
             });
         });
     };
@@ -176,6 +182,28 @@ var TransactionService = /** @class */ (function (_super) {
                     case 2:
                         result = _a.sent();
                         return [2 /*return*/, result];
+                }
+            });
+        });
+    };
+    TransactionService.prototype.getById = function (id) {
+        return __awaiter(this, void 0, void 0, function () {
+            var result, file;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, _super.prototype.getById.call(this, id)];
+                    case 1:
+                        result = _a.sent();
+                        if (!(result && result.itemType === SPFile["name"])) return [3 /*break*/, 3];
+                        return [4 /*yield*/, this.transactionFileService.getById(result.itemData)];
+                    case 2:
+                        file = _a.sent();
+                        if (file) {
+                            file.serverRelativeUrl = file.serverRelativeUrl.replace(/^\d+_(.*)$/g, "$1");
+                            result.itemData = assign({}, file);
+                        }
+                        _a.label = 3;
+                    case 3: return [2 /*return*/, result];
                 }
             });
         });
