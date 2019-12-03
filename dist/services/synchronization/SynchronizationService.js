@@ -111,26 +111,19 @@ var SynchronizationService = /** @class */ (function (_super) {
                                         if (!(isAdd && !updatedItem_1.error)) return [3 /*break*/, 9];
                                         nextTransactions = [];
                                         if (!(index < transactions.length - 1)) return [3 /*break*/, 6];
-                                        return [4 /*yield*/, Promise.all(transactions.slice(index + 1).filter(function (t) {
-                                                return t.itemType === transaction.itemType &&
-                                                    t.itemData.id === oldId_1;
-                                            }).map(function (updatedTr) { return __awaiter(_this, void 0, void 0, function () {
-                                                var result;
+                                        return [4 /*yield*/, Promise.all(transactions.slice(index + 1).map(function (updatedTr) { return __awaiter(_this, void 0, void 0, function () {
                                                 return __generator(this, function (_a) {
                                                     switch (_a.label) {
                                                         case 0:
+                                                            if (!(updatedTr.itemType === transaction.itemType &&
+                                                                updatedTr.itemData.id === oldId_1)) return [3 /*break*/, 2];
                                                             updatedTr.itemData.id = updatedItem_1.item.id;
                                                             updatedTr.itemData.version = updatedItem_1.item.version;
                                                             return [4 /*yield*/, this.transactionService.addOrUpdateItem(updatedTr)];
                                                         case 1:
-                                                            result = _a.sent();
-                                                            if (result.error) {
-                                                                throw result.error;
-                                                            }
-                                                            else {
-                                                                return [2 /*return*/, result.item];
-                                                            }
-                                                            return [2 /*return*/];
+                                                            _a.sent();
+                                                            _a.label = 2;
+                                                        case 2: return [2 /*return*/, updatedTr];
                                                     }
                                                 });
                                             }); }))];

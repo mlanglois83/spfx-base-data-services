@@ -54,7 +54,7 @@ import { sp } from "@pnp/sp";
 import { Constants, FieldType } from "../../constants/index";
 import { BaseDataService } from "./BaseDataService";
 import { UtilsService } from "..";
-import { SPItem, TaxonomyTerm } from "../../models";
+import { SPItem, User, TaxonomyTerm } from "../../models";
 import { UserService } from "../graph/UserService";
 import { isArray, stringIsNullOrEmpty } from "@pnp/common";
 /**
@@ -77,6 +77,7 @@ var BaseListItemService = /** @class */ (function (_super) {
         /***************************** External sources init and access **************************************/
         _this.initialized = false;
         _this.initPromise = null;
+        /********** init for taxo multi ************/
         _this.fieldsInitialized = false;
         _this.initFieldsPromise = null;
         _this.listRelativeUrl = ServicesConfiguration.context.pageContext.web.serverRelativeUrl + listRelativeUrl;
@@ -766,74 +767,78 @@ var BaseListItemService = /** @class */ (function (_super) {
      */
     BaseListItemService.prototype.addOrUpdateItem_Internal = function (item) {
         return __awaiter(this, void 0, void 0, function () {
-            var result, converted, addResult, existing, error, converted, updateResult, version, converted, updateResult, version;
-            return __generator(this, function (_a) {
-                switch (_a.label) {
+            var result, selectFields, converted, addResult, existing, error, converted, updateResult, version, converted, updateResult, version;
+            var _a, _b, _c, _d;
+            return __generator(this, function (_e) {
+                switch (_e.label) {
                     case 0:
                         result = cloneDeep(item);
                         return [4 /*yield*/, this.initFields()];
                     case 1:
-                        _a.sent();
-                        if (!(item.id < 0)) return [3 /*break*/, 6];
+                        _e.sent();
+                        selectFields = this.getOdataCommonFieldNames();
+                        if (!(item.id < 0)) return [3 /*break*/, 8];
                         return [4 /*yield*/, this.getSPRestItem(item)];
                     case 2:
-                        converted = _a.sent();
-                        return [4 /*yield*/, this.list.items.add(converted)];
+                        converted = _e.sent();
+                        return [4 /*yield*/, (_a = this.list.items).select.apply(_a, selectFields).add(converted)];
                     case 3:
-                        addResult = _a.sent();
-                        if (addResult.data[Constants.commonFields.version]) {
-                            result.id = addResult.data.Id;
-                            result.version = parseFloat(addResult.data[Constants.commonFields.version]);
-                        }
-                        if (!(item.id < -1)) return [3 /*break*/, 5];
-                        return [4 /*yield*/, this.updateLinksInDb(Number(item.id), Number(result.id))];
+                        addResult = _e.sent();
+                        return [4 /*yield*/, this.populateCommonFields(result, addResult.data)];
                     case 4:
-                        _a.sent();
-                        _a.label = 5;
-                    case 5: return [3 /*break*/, 19];
+                        _e.sent();
+                        return [4 /*yield*/, this.updateWssIds(result, addResult.data)];
+                    case 5:
+                        _e.sent();
+                        if (!(item.id < -1)) return [3 /*break*/, 7];
+                        return [4 /*yield*/, this.updateLinksInDb(Number(item.id), Number(result.id))];
                     case 6:
-                        if (!item.version) return [3 /*break*/, 14];
+                        _e.sent();
+                        _e.label = 7;
+                    case 7: return [3 /*break*/, 23];
+                    case 8:
+                        if (!item.version) return [3 /*break*/, 17];
                         return [4 /*yield*/, this.list.items.getById(item.id).select(Constants.commonFields.version).get()];
-                    case 7:
-                        existing = _a.sent();
-                        if (!(parseFloat(existing[Constants.commonFields.version]) > item.version)) return [3 /*break*/, 8];
+                    case 9:
+                        existing = _e.sent();
+                        if (!(parseFloat(existing[Constants.commonFields.version]) > item.version)) return [3 /*break*/, 10];
                         error = new Error(ServicesConfiguration.configuration.translations.versionHigherErrorMessage);
                         error.name = Constants.Errors.ItemVersionConfict;
                         throw error;
-                    case 8: return [4 /*yield*/, this.getSPRestItem(item)];
-                    case 9:
-                        converted = _a.sent();
-                        return [4 /*yield*/, this.list.items.getById(item.id).update(converted)];
-                    case 10:
-                        updateResult = _a.sent();
-                        return [4 /*yield*/, updateResult.item.select(Constants.commonFields.version).get()];
+                    case 10: return [4 /*yield*/, this.getSPRestItem(item)];
                     case 11:
-                        version = _a.sent();
-                        if (version[Constants.commonFields.version]) {
-                            result.version = parseFloat(version[Constants.commonFields.version]);
-                        }
-                        return [4 /*yield*/, this.updateWssIds(result, version)];
+                        converted = _e.sent();
+                        return [4 /*yield*/, (_b = this.list.items.getById(item.id)).select.apply(_b, selectFields).update(converted)];
                     case 12:
-                        _a.sent();
-                        _a.label = 13;
-                    case 13: return [3 /*break*/, 19];
-                    case 14: return [4 /*yield*/, this.getSPRestItem(item)];
-                    case 15:
-                        converted = _a.sent();
-                        return [4 /*yield*/, this.list.items.getById(item.id).update(converted)];
-                    case 16:
-                        updateResult = _a.sent();
-                        return [4 /*yield*/, updateResult.item.select(Constants.commonFields.version).get()];
-                    case 17:
-                        version = _a.sent();
-                        if (version[Constants.commonFields.version]) {
-                            result.version = parseFloat(version[Constants.commonFields.version]);
-                        }
+                        updateResult = _e.sent();
+                        return [4 /*yield*/, (_c = updateResult.item).select.apply(_c, selectFields).get()];
+                    case 13:
+                        version = _e.sent();
+                        return [4 /*yield*/, this.populateCommonFields(result, version)];
+                    case 14:
+                        _e.sent();
                         return [4 /*yield*/, this.updateWssIds(result, version)];
+                    case 15:
+                        _e.sent();
+                        _e.label = 16;
+                    case 16: return [3 /*break*/, 23];
+                    case 17: return [4 /*yield*/, this.getSPRestItem(item)];
                     case 18:
-                        _a.sent();
-                        _a.label = 19;
-                    case 19: return [2 /*return*/, result];
+                        converted = _e.sent();
+                        return [4 /*yield*/, this.list.items.getById(item.id).update(converted)];
+                    case 19:
+                        updateResult = _e.sent();
+                        return [4 /*yield*/, (_d = updateResult.item).select.apply(_d, selectFields).get()];
+                    case 20:
+                        version = _e.sent();
+                        return [4 /*yield*/, this.populateCommonFields(result, version)];
+                    case 21:
+                        _e.sent();
+                        return [4 /*yield*/, this.updateWssIds(result, version)];
+                    case 22:
+                        _e.sent();
+                        _e.label = 23;
+                    case 23: return [2 /*return*/, result];
                 }
             });
         });
@@ -877,12 +882,108 @@ var BaseListItemService = /** @class */ (function (_super) {
         });
         return fieldNames;
     };
+    BaseListItemService.prototype.getOdataCommonFieldNames = function () {
+        var fields = this.ItemFields;
+        var fieldNames = [Constants.commonFields.version];
+        Object.keys(fields).filter(function (propertyName) {
+            return fields.hasOwnProperty(propertyName);
+        }).forEach(function (prop) {
+            var fieldName = fields[prop].fieldName;
+            if (fieldName === Constants.commonFields.author ||
+                fieldName === Constants.commonFields.created ||
+                fieldName === Constants.commonFields.editor ||
+                fieldName === Constants.commonFields.modified) {
+                var result = fields[prop].fieldName;
+                switch (fields[prop].fieldType) {
+                    case FieldType.Lookup:
+                    case FieldType.LookupMulti:
+                    case FieldType.User:
+                    case FieldType.UserMulti:
+                        result += "Id";
+                    default:
+                        break;
+                }
+                fieldNames.push(result);
+            }
+        });
+        return fieldNames;
+    };
+    BaseListItemService.prototype.populateCommonFields = function (item, restItem) {
+        return __awaiter(this, void 0, void 0, function () {
+            var fields;
+            var _this = this;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        if (item.id < 0) {
+                            // update id
+                            item.id = restItem.Id;
+                        }
+                        if (restItem[Constants.commonFields.version]) {
+                            item.version = parseFloat(restItem[Constants.commonFields.version]);
+                        }
+                        fields = this.ItemFields;
+                        return [4 /*yield*/, Promise.all(Object.keys(fields).filter(function (propertyName) {
+                                var result = false;
+                                if (fields.hasOwnProperty(propertyName)) {
+                                    var fieldName = fields[propertyName].fieldName;
+                                    return (fieldName === Constants.commonFields.author ||
+                                        fieldName === Constants.commonFields.created ||
+                                        fieldName === Constants.commonFields.editor ||
+                                        fieldName === Constants.commonFields.modified);
+                                }
+                            }).map(function (prop) { return __awaiter(_this, void 0, void 0, function () {
+                                var fieldName, _a, id_2, user, users, userService;
+                                return __generator(this, function (_b) {
+                                    switch (_b.label) {
+                                        case 0:
+                                            fieldName = fields[prop].fieldName;
+                                            _a = fields[prop].fieldType;
+                                            switch (_a) {
+                                                case FieldType.Date: return [3 /*break*/, 1];
+                                                case FieldType.User: return [3 /*break*/, 2];
+                                            }
+                                            return [3 /*break*/, 6];
+                                        case 1:
+                                            item[prop] = new Date(restItem[fieldName]);
+                                            return [3 /*break*/, 7];
+                                        case 2:
+                                            id_2 = restItem[fieldName + "Id"];
+                                            user = null;
+                                            if (!this.initialized) return [3 /*break*/, 3];
+                                            users = this.getServiceInitValues(User["name"]);
+                                            user = find(users, function (u) { return u.spId === id_2; });
+                                            return [3 /*break*/, 5];
+                                        case 3:
+                                            userService = new UserService();
+                                            return [4 /*yield*/, userService.getBySpId(id_2)];
+                                        case 4:
+                                            user = _b.sent();
+                                            _b.label = 5;
+                                        case 5:
+                                            item[prop] = user;
+                                            return [3 /*break*/, 7];
+                                        case 6:
+                                            item[prop] = restItem[fieldName];
+                                            return [3 /*break*/, 7];
+                                        case 7: return [2 /*return*/];
+                                    }
+                                });
+                            }); }))];
+                    case 1:
+                        _a.sent();
+                        return [2 /*return*/];
+                }
+            });
+        });
+    };
     /**
      * convert full item to db format (with links only)
      * @param item full provisionned item
      */
     BaseListItemService.prototype.convertItemToDbFormat = function (item) {
         var result = new this.itemType();
+        delete result.__internalLinks;
         var _loop_1 = function (propertyName) {
             if (this_1.ItemFields.hasOwnProperty(propertyName)) {
                 var fieldDescriptor = this_1.ItemFields[propertyName];
@@ -894,7 +995,7 @@ var BaseListItemService = /** @class */ (function (_super) {
                             //link defered
                             result.__internalLinks = result.__internalLinks || {};
                             result.__internalLinks[propertyName] = item[propertyName] ? item[propertyName].id : undefined;
-                            result[propertyName] = undefined;
+                            delete result[propertyName];
                         }
                         else {
                             result[propertyName] = item[propertyName];
@@ -916,7 +1017,7 @@ var BaseListItemService = /** @class */ (function (_super) {
                             }
                             result.__internalLinks = result.__internalLinks || {};
                             result.__internalLinks[propertyName] = ids_1.length > 0 ? ids_1 : [];
-                            result[propertyName] = undefined;
+                            delete result[propertyName];
                         }
                         else {
                             result[propertyName] = item[propertyName];
@@ -957,11 +1058,11 @@ var BaseListItemService = /** @class */ (function (_super) {
                                     case FieldType.Taxonomy:
                                         if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                                             // get values from init values
-                                            var id_2 = item.__internalLinks[propertyName] ? item.__internalLinks[propertyName] : null;
-                                            if (id_2 !== null) {
+                                            var id_3 = item.__internalLinks[propertyName] ? item.__internalLinks[propertyName] : null;
+                                            if (id_3 !== null) {
                                                 var destElements = this_2.getServiceInitValues(fieldDescriptor.modelName);
                                                 var existing = find(destElements, function (destElement) {
-                                                    return destElement.id === id_2;
+                                                    return destElement.id === id_3;
                                                 });
                                                 result[propertyName] = existing ? existing : fieldDescriptor.defaultValue;
                                             }
@@ -1094,8 +1195,8 @@ var BaseListItemService = /** @class */ (function (_super) {
                 switch (_c.label) {
                     case 0:
                         allFields = assign({}, this.itemType["Fields"]);
-                        allFields[SPItem["name"]] = undefined;
-                        allFields[this.itemType["name"]] = undefined;
+                        delete allFields[SPItem["name"]];
+                        delete allFields[this.itemType["name"]];
                         _loop_3 = function (modelName) {
                             var modelFields_1, lookupProperties_1, service, allitems, updated_1;
                             return __generator(this, function (_a) {
@@ -1198,7 +1299,7 @@ var BaseListItemService = /** @class */ (function (_super) {
                     case 0:
                         fields = this.ItemFields;
                         _loop_4 = function (propertyName) {
-                            var fieldDescription_1, needUpdate, wssid, id_3, service, term, idx, updated_2, terms, service_1;
+                            var fieldDescription_1, needUpdate, wssid, id_4, service, term, idx, updated_2, terms, service_1;
                             return __generator(this, function (_a) {
                                 switch (_a.label) {
                                     case 0:
@@ -1208,9 +1309,9 @@ var BaseListItemService = /** @class */ (function (_super) {
                                         needUpdate = false;
                                         wssid = spItem[fieldDescription_1.fieldName] ? spItem[fieldDescription_1.fieldName].WssId : -1;
                                         if (!(wssid !== -1)) return [3 /*break*/, 3];
-                                        id_3 = item[propertyName].id;
+                                        id_4 = item[propertyName].id;
                                         service = ServicesConfiguration.configuration.serviceFactory.create(fieldDescription_1.modelName);
-                                        return [4 /*yield*/, service.__getFromCache(id_3)];
+                                        return [4 /*yield*/, service.__getFromCache(id_4)];
                                     case 1:
                                         term = _a.sent();
                                         if (term instanceof TaxonomyTerm) {
@@ -1226,7 +1327,7 @@ var BaseListItemService = /** @class */ (function (_super) {
                                         _a.sent();
                                         // update initValues
                                         if (this_3.initialized) {
-                                            idx = findIndex(this_3.initValues[fieldDescription_1.modelName], function (t) { return t.id === id_3; });
+                                            idx = findIndex(this_3.initValues[fieldDescription_1.modelName], function (t) { return t.id === id_4; });
                                             if (idx !== -1) {
                                                 this_3.initValues[fieldDescription_1.modelName][idx] = term;
                                             }

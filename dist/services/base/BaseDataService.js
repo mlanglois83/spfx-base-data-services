@@ -567,6 +567,7 @@ var BaseDataService = /** @class */ (function (_super) {
         });
     };
     BaseDataService.prototype.convertItemToDbFormat = function (item) {
+        delete item.__internalLinks;
         return item;
     };
     BaseDataService.prototype.mapItem = function (item) {

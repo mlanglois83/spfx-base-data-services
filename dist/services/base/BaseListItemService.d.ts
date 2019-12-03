@@ -30,6 +30,7 @@ export declare class BaseListItemService<T extends IBaseItem> extends BaseDataSe
     private initPromise;
     protected init_internal(): Promise<void>;
     Init(): Promise<void>;
+    /********** init for taxo multi ************/
     private fieldsInitialized;
     private initFieldsPromise;
     private initFields;
@@ -99,6 +100,8 @@ export declare class BaseListItemService<T extends IBaseItem> extends BaseDataSe
      * Retrive all fields to include in odata setect parameter
      */
     private getOdataFieldNames;
+    private getOdataCommonFieldNames;
+    protected populateCommonFields(item: any, restItem: any): Promise<void>;
     /**
      * convert full item to db format (with links only)
      * @param item full provisionned item

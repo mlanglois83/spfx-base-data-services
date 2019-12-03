@@ -400,7 +400,8 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
     }
 
 
-    protected convertItemToDbFormat(item: T): T {
+    protected convertItemToDbFormat(item: T): T {        
+        delete item.__internalLinks;
         return item;
     }
 
