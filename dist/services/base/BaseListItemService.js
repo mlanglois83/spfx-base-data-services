@@ -267,7 +267,7 @@ var BaseListItemService = /** @class */ (function (_super) {
         fieldDescriptor.fieldType = fieldDescriptor.fieldType || FieldType.Simple;
         switch (fieldDescriptor.fieldType) {
             case FieldType.Simple:
-                if (fieldDescriptor.fieldName === "OData__UIVersionString") {
+                if (fieldDescriptor.fieldName === Constants.commonFields.version) {
                     destItem[propertyName] = spitem[fieldDescriptor.fieldName] ? parseFloat(spitem[fieldDescriptor.fieldName]) : fieldDescriptor.defaultValue;
                 }
                 else {
@@ -297,7 +297,7 @@ var BaseListItemService = /** @class */ (function (_super) {
                 }
                 break;
             case FieldType.LookupMulti:
-                var lookupIds = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"].results : [];
+                var lookupIds = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"] : [];
                 if (lookupIds.length > 0) {
                     if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                         // get values from init values
@@ -341,7 +341,7 @@ var BaseListItemService = /** @class */ (function (_super) {
                 }
                 break;
             case FieldType.UserMulti:
-                var ids = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"].results : [];
+                var ids = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"] : [];
                 if (ids.length > 0) {
                     if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                         // get values from init values
@@ -407,12 +407,10 @@ var BaseListItemService = /** @class */ (function (_super) {
                                     switch (_a.label) {
                                         case 0:
                                             fieldDescription = this.ItemFields[propertyName];
-                                            if (!(propertyName != "Version")) return [3 /*break*/, 2];
                                             return [4 /*yield*/, this.setRestFieldValue(item, spitem, propertyName, fieldDescription)];
                                         case 1:
                                             _a.sent();
-                                            _a.label = 2;
-                                        case 2: return [2 /*return*/];
+                                            return [2 /*return*/];
                                     }
                                 });
                             }); }))];
@@ -446,7 +444,13 @@ var BaseListItemService = /** @class */ (function (_super) {
                         }
                         return [3 /*break*/, 19];
                     case 1:
-                        destItem[fieldDescriptor.fieldName] = itemValue;
+                        if (fieldDescriptor.fieldName !== Constants.commonFields.author &&
+                            fieldDescriptor.fieldName !== Constants.commonFields.created &&
+                            fieldDescriptor.fieldName !== Constants.commonFields.editor &&
+                            fieldDescriptor.fieldName !== Constants.commonFields.modified &&
+                            fieldDescriptor.fieldName !== Constants.commonFields.version) {
+                            destItem[fieldDescriptor.fieldName] = itemValue;
+                        }
                         return [3 /*break*/, 19];
                     case 2:
                         if (itemValue) {
@@ -777,9 +781,9 @@ var BaseListItemService = /** @class */ (function (_super) {
                         return [4 /*yield*/, this.list.items.add(converted)];
                     case 3:
                         addResult = _a.sent();
-                        if (addResult.data["OData__UIVersionString"]) {
+                        if (addResult.data[Constants.commonFields.version]) {
                             result.id = addResult.data.Id;
-                            result.version = parseFloat(addResult.data["OData__UIVersionString"]);
+                            result.version = parseFloat(addResult.data[Constants.commonFields.version]);
                         }
                         if (!(item.id < -1)) return [3 /*break*/, 5];
                         return [4 /*yield*/, this.updateLinksInDb(Number(item.id), Number(result.id))];
@@ -789,10 +793,10 @@ var BaseListItemService = /** @class */ (function (_super) {
                     case 5: return [3 /*break*/, 19];
                     case 6:
                         if (!item.version) return [3 /*break*/, 14];
-                        return [4 /*yield*/, this.list.items.getById(item.id).select("OData__UIVersionString").get()];
+                        return [4 /*yield*/, this.list.items.getById(item.id).select(Constants.commonFields.version).get()];
                     case 7:
                         existing = _a.sent();
-                        if (!(parseFloat(existing["OData__UIVersionString"]) > item.version)) return [3 /*break*/, 8];
+                        if (!(parseFloat(existing[Constants.commonFields.version]) > item.version)) return [3 /*break*/, 8];
                         error = new Error(ServicesConfiguration.configuration.translations.versionHigherErrorMessage);
                         error.name = Constants.Errors.ItemVersionConfict;
                         throw error;
@@ -802,11 +806,11 @@ var BaseListItemService = /** @class */ (function (_super) {
                         return [4 /*yield*/, this.list.items.getById(item.id).update(converted)];
                     case 10:
                         updateResult = _a.sent();
-                        return [4 /*yield*/, updateResult.item.select("OData__UIVersionString").get()];
+                        return [4 /*yield*/, updateResult.item.select(Constants.commonFields.version).get()];
                     case 11:
                         version = _a.sent();
-                        if (version["OData__UIVersionString"]) {
-                            result.version = parseFloat(version["OData__UIVersionString"]);
+                        if (version[Constants.commonFields.version]) {
+                            result.version = parseFloat(version[Constants.commonFields.version]);
                         }
                         return [4 /*yield*/, this.updateWssIds(result, version)];
                     case 12:
@@ -819,11 +823,11 @@ var BaseListItemService = /** @class */ (function (_super) {
                         return [4 /*yield*/, this.list.items.getById(item.id).update(converted)];
                     case 16:
                         updateResult = _a.sent();
-                        return [4 /*yield*/, updateResult.item.select("OData__UIVersionString").get()];
+                        return [4 /*yield*/, updateResult.item.select(Constants.commonFields.version).get()];
                     case 17:
                         version = _a.sent();
-                        if (version["OData__UIVersionString"]) {
-                            result.version = parseFloat(version["OData__UIVersionString"]);
+                        if (version[Constants.commonFields.version]) {
+                            result.version = parseFloat(version[Constants.commonFields.version]);
                         }
                         return [4 /*yield*/, this.updateWssIds(result, version)];
                     case 18:
@@ -1006,7 +1010,7 @@ var BaseListItemService = /** @class */ (function (_super) {
                         for (propertyName in this.ItemFields) {
                             _loop_2(propertyName);
                         }
-                        return [2 /*return*/, item];
+                        return [2 /*return*/, result];
                 }
             });
         });

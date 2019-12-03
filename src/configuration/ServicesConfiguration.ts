@@ -78,13 +78,7 @@ export class ServicesConfiguration {
             }
         });
         graph.setup({
-            spfxContext: ServicesConfiguration.context,
-            graph: {
-                headers: {
-                    "Accept": "application/json; odata=verbose",
-                    'Cache-Control': 'no-cache'
-                }
-            }
+            spfxContext: ServicesConfiguration.context
         });
     }
 }

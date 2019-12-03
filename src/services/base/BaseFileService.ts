@@ -8,6 +8,7 @@ import { SPFile } from "../../models";
 import { BaseDataService } from "./BaseDataService";
 import { BaseService } from "./BaseService";
 import { ServicesConfiguration } from "../..";
+import { cloneDeep } from "@microsoft/sp-lodash-subset";
 
 /**
  * Base service for sp files operations
@@ -125,6 +126,7 @@ export class BaseFileService<T extends IBaseItem> extends BaseDataService<T>{
         }
         return item;
     }
+
     public async deleteItem_Internal(item: T): Promise<void> {
         if (item instanceof SPFile) {
             await sp.web.getFileByServerRelativeUrl(item.serverRelativeUrl).recycle();
@@ -135,5 +137,23 @@ export class BaseFileService<T extends IBaseItem> extends BaseDataService<T>{
                 await folder.recycle();
             }
         }
+    }
+    
+    public async changeFolderInDb(oldFolderListRelativeUrl: string, newFolderListRelativeUrl: string): Promise<void> {
+        const oldFolderRelativeUrl = this.listRelativeUrl + oldFolderListRelativeUrl;
+        const newFolderRelativeUrl = this.listRelativeUrl + newFolderListRelativeUrl;
+
+        let allFiles = await this.dbService.getAll();
+        let files = allFiles.filter(f => {
+            return UtilsService.getParentFolderUrl(f.id.toString()).toLowerCase() === oldFolderRelativeUrl.toLowerCase();
+        });
+        let newFiles = cloneDeep(files);
+        await Promise.all(files.map((f) => {
+            return this.dbService.deleteItem(f);
+        }));
+        newFiles.forEach((file) => {
+            file.id = newFolderRelativeUrl + "/" + file.title;            
+        });
+        await this.dbService.addOrUpdateItems(newFiles);
     }
 }

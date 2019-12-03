@@ -47,19 +47,14 @@ export class SynchronizationService extends BaseService {
                         let nextTransactions: Array<OfflineTransaction> = [];
                         // next transactions on this item
                         if (index < transactions.length - 1) {
-                            nextTransactions = await Promise.all(transactions.slice(index + 1).filter((t) => {
-                                return t.itemType === transaction.itemType &&
-                                    (t.itemData as IBaseItem).id === oldId;
-                            }).map(async (updatedTr) => {
-                                (updatedTr.itemData as IBaseItem).id = updatedItem.item.id;
-                                (updatedTr.itemData as IBaseItem).version = updatedItem.item.version;
-                                let result = await this.transactionService.addOrUpdateItem(updatedTr);
-                                if(result.error) {
-                                    throw result.error;
+                            nextTransactions = await Promise.all(transactions.slice(index + 1).map(async (updatedTr) => {
+                                if(updatedTr.itemType === transaction.itemType &&
+                                (updatedTr.itemData as IBaseItem).id === oldId) {
+                                    (updatedTr.itemData as IBaseItem).id = updatedItem.item.id;
+                                    (updatedTr.itemData as IBaseItem).version = updatedItem.item.version;
+                                    await this.transactionService.addOrUpdateItem(updatedTr);
                                 }
-                                else {
-                                    return result.item;
-                                }
+                                return updatedTr;                            
                             }));
                         }
                         if (dataService.updateLinkedTransactions) {

@@ -168,7 +168,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         fieldDescriptor.fieldType = fieldDescriptor.fieldType || FieldType.Simple;
         switch(fieldDescriptor.fieldType) {
             case FieldType.Simple:
-                if(fieldDescriptor.fieldName === "OData__UIVersionString") {
+                if(fieldDescriptor.fieldName === Constants.commonFields.version) {
                     destItem[propertyName] = spitem[fieldDescriptor.fieldName] ? parseFloat(spitem[fieldDescriptor.fieldName]) : fieldDescriptor.defaultValue;
                 }
                 else {
@@ -200,7 +200,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                   
                 break;
             case FieldType.LookupMulti:
-                    let lookupIds: Array<number> = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"].results : [];
+                    let lookupIds: Array<number> = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"] : [];
                     if(lookupIds.length > 0) {
                         if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {    
                             // get values from init values
@@ -244,7 +244,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 }                      
                 break;
             case FieldType.UserMulti:
-                let ids: Array<number> = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"].results : [];                
+                let ids: Array<number> = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"] : [];                
                 if(ids.length > 0) {
                     if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {    
                         // get values from init values
@@ -300,9 +300,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         let spitem = {};
         await Promise.all(Object.keys(this.ItemFields).map(async (propertyName) => {
             const fieldDescription = this.ItemFields[propertyName];
-            if(propertyName != "Version") {
-                 await this.setRestFieldValue(item, spitem, propertyName, fieldDescription);
-            }
+            await this.setRestFieldValue(item, spitem, propertyName, fieldDescription);
         }));
         return spitem;
     }
@@ -312,7 +310,14 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         switch(fieldDescriptor.fieldType) {
             case FieldType.Simple:
             case FieldType.Date:
-                    destItem[fieldDescriptor.fieldName] = itemValue;
+                    if(fieldDescriptor.fieldName !== Constants.commonFields.author && 
+                        fieldDescriptor.fieldName !== Constants.commonFields.created && 
+                        fieldDescriptor.fieldName !== Constants.commonFields.editor &&
+                        fieldDescriptor.fieldName !== Constants.commonFields.modified &&
+                        fieldDescriptor.fieldName !== Constants.commonFields.version) {
+                            
+                        destItem[fieldDescriptor.fieldName] = itemValue;
+                    }
                 break;
             case FieldType.Lookup:                
                 if(itemValue) {
@@ -563,14 +568,15 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
      * @param item SPItem derived object to be converted
      */
     protected async addOrUpdateItem_Internal(item: T): Promise<T> {
+        // TODO: created + modified + users
         let result = cloneDeep(item);
         await this.initFields();
         if (item.id < 0) {
             let converted = await this.getSPRestItem(item);
             let addResult = await this.list.items.add(converted);
-            if(addResult.data["OData__UIVersionString"]) {
+            if(addResult.data[Constants.commonFields.version]) {
                 result.id = addResult.data.Id;
-                result.version = parseFloat(addResult.data["OData__UIVersionString"]);
+                result.version = parseFloat(addResult.data[Constants.commonFields.version]);
             }
             if(item.id < -1) {
                 await this.updateLinksInDb(Number(item.id), Number(result.id));
@@ -579,8 +585,8 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         else {
             // check version (cannot update if newer)
             if (item.version) {
-                let existing = await this.list.items.getById(<number>item.id).select("OData__UIVersionString").get();
-                if (parseFloat(existing["OData__UIVersionString"]) > item.version) {
+                let existing = await this.list.items.getById(<number>item.id).select(Constants.commonFields.version).get();
+                if (parseFloat(existing[Constants.commonFields.version]) > item.version) {
                     let error = new Error(ServicesConfiguration.configuration.translations.versionHigherErrorMessage);
                     error.name = Constants.Errors.ItemVersionConfict;
                     throw error;
@@ -588,9 +594,9 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 else {
                     let converted = await this.getSPRestItem(item);
                     let updateResult = await this.list.items.getById(<number>item.id).update(converted);
-                    let version = await updateResult.item.select("OData__UIVersionString").get();
-                    if(version["OData__UIVersionString"]) {
-                        result.version = parseFloat(version["OData__UIVersionString"]);
+                    let version = await updateResult.item.select(Constants.commonFields.version).get();
+                    if(version[Constants.commonFields.version]) {
+                        result.version = parseFloat(version[Constants.commonFields.version]);
                     }
                     await this.updateWssIds(result, version);
                 }
@@ -598,9 +604,9 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
             else {
                 let converted = await this.getSPRestItem(item);
                 let updateResult = await this.list.items.getById(<number>item.id).update(converted);
-                let version = await updateResult.item.select("OData__UIVersionString").get();
-                if(version["OData__UIVersionString"]) {
-                    result.version = parseFloat(version["OData__UIVersionString"]);
+                let version = await updateResult.item.select(Constants.commonFields.version).get();
+                if(version[Constants.commonFields.version]) {
+                    result.version = parseFloat(version[Constants.commonFields.version]);
                 }
                 await this.updateWssIds(result, version);
             }
@@ -762,7 +768,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 }                
             }
         }
-        return item;
+        return result;
     }
     
     public async updateLinkedTransactions(oldId: number, newId: number, nextTransactions: Array<OfflineTransaction>): Promise<Array<OfflineTransaction>> {

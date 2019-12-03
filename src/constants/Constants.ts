@@ -1,4 +1,15 @@
-export const Constants = {  
+export const Constants = { 
+    /**
+     * Common list item fields
+     */
+    commonFields: {
+        created: "Created",
+        modified: "Modified",
+        author: "Author",
+        editor: "Editor",
+        attachments: "Attachments",
+        version: "OData__UIVersionString"
+    },
     /**
      *  Error codes
      */  
