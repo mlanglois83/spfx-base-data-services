@@ -12,6 +12,7 @@ export declare class UserService extends BaseDataService<User> {
     constructor(cacheDuration?: number);
     protected get_Internal(query: any): Promise<Array<User>>;
     protected addOrUpdateItem_Internal(item: User): Promise<User>;
+    protected addOrUpdateItems_Internal(items: Array<User>): Promise<Array<User>>;
     protected deleteItem_Internal(item: User): Promise<void>;
     /**
      * Retrieve all users (sp)

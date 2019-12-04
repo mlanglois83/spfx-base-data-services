@@ -53,6 +53,7 @@ import { UtilsService } from "../";
 import { SPFile } from "../../models";
 import { BaseDataService } from "./BaseDataService";
 import { ServicesConfiguration } from "../..";
+import { cloneDeep } from "@microsoft/sp-lodash-subset";
 /**
  * Base service for sp files operations
  */
@@ -282,6 +283,38 @@ var BaseFileService = /** @class */ (function (_super) {
                         _a.sent();
                         _a.label = 4;
                     case 4: return [2 /*return*/];
+                }
+            });
+        });
+    };
+    BaseFileService.prototype.changeFolderInDb = function (oldFolderListRelativeUrl, newFolderListRelativeUrl) {
+        return __awaiter(this, void 0, void 0, function () {
+            var oldFolderRelativeUrl, newFolderRelativeUrl, allFiles, files, newFiles;
+            var _this = this;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        oldFolderRelativeUrl = this.listRelativeUrl + oldFolderListRelativeUrl;
+                        newFolderRelativeUrl = this.listRelativeUrl + newFolderListRelativeUrl;
+                        return [4 /*yield*/, this.dbService.getAll()];
+                    case 1:
+                        allFiles = _a.sent();
+                        files = allFiles.filter(function (f) {
+                            return UtilsService.getParentFolderUrl(f.id.toString()).toLowerCase() === oldFolderRelativeUrl.toLowerCase();
+                        });
+                        newFiles = cloneDeep(files);
+                        return [4 /*yield*/, Promise.all(files.map(function (f) {
+                                return _this.dbService.deleteItem(f);
+                            }))];
+                    case 2:
+                        _a.sent();
+                        newFiles.forEach(function (file) {
+                            file.id = newFolderRelativeUrl + "/" + file.title;
+                        });
+                        return [4 /*yield*/, this.dbService.addOrUpdateItems(newFiles)];
+                    case 3:
+                        _a.sent();
+                        return [2 /*return*/];
                 }
             });
         });

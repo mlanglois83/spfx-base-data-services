@@ -8,7 +8,7 @@ export abstract class SPItem implements IBaseItem {
     /**
      * internal field for linked items not stored in db
      */
-    public __internalLinks: any = undefined;
+    public __internalLinks?: any;
     /**
      * Item id
      */

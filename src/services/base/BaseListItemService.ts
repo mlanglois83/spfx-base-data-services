@@ -108,10 +108,9 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         return this.initPromise;
         
     }  
-
+    /********** init for taxo multi ************/
     private fieldsInitialized: boolean = false;
     private initFieldsPromise: Promise<void> = null;
-
     private async initFields(): Promise<void> {
         if(!this.initFieldsPromise) {
             this.initFieldsPromise =  new Promise<void>(async (resolve, reject) => {
@@ -168,7 +167,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         fieldDescriptor.fieldType = fieldDescriptor.fieldType || FieldType.Simple;
         switch(fieldDescriptor.fieldType) {
             case FieldType.Simple:
-                if(fieldDescriptor.fieldName === "OData__UIVersionString") {
+                if(fieldDescriptor.fieldName === Constants.commonFields.version) {
                     destItem[propertyName] = spitem[fieldDescriptor.fieldName] ? parseFloat(spitem[fieldDescriptor.fieldName]) : fieldDescriptor.defaultValue;
                 }
                 else {
@@ -200,7 +199,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                   
                 break;
             case FieldType.LookupMulti:
-                    let lookupIds: Array<number> = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"].results : [];
+                    let lookupIds: Array<number> = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"] : [];
                     if(lookupIds.length > 0) {
                         if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {    
                             // get values from init values
@@ -244,7 +243,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 }                      
                 break;
             case FieldType.UserMulti:
-                let ids: Array<number> = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"].results : [];                
+                let ids: Array<number> = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"] : [];                
                 if(ids.length > 0) {
                     if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {    
                         // get values from init values
@@ -300,9 +299,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         let spitem = {};
         await Promise.all(Object.keys(this.ItemFields).map(async (propertyName) => {
             const fieldDescription = this.ItemFields[propertyName];
-            if(propertyName != "Version") {
-                 await this.setRestFieldValue(item, spitem, propertyName, fieldDescription);
-            }
+            await this.setRestFieldValue(item, spitem, propertyName, fieldDescription);
         }));
         return spitem;
     }
@@ -312,7 +309,14 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         switch(fieldDescriptor.fieldType) {
             case FieldType.Simple:
             case FieldType.Date:
-                    destItem[fieldDescriptor.fieldName] = itemValue;
+                    if(fieldDescriptor.fieldName !== Constants.commonFields.author && 
+                        fieldDescriptor.fieldName !== Constants.commonFields.created && 
+                        fieldDescriptor.fieldName !== Constants.commonFields.editor &&
+                        fieldDescriptor.fieldName !== Constants.commonFields.modified &&
+                        fieldDescriptor.fieldName !== Constants.commonFields.version) {
+                            
+                        destItem[fieldDescriptor.fieldName] = itemValue;
+                    }
                 break;
             case FieldType.Lookup:                
                 if(itemValue) {
@@ -563,50 +567,47 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
      * @param item SPItem derived object to be converted
      */
     protected async addOrUpdateItem_Internal(item: T): Promise<T> {
+        // TODO: created + modified + users
         let result = cloneDeep(item);
         await this.initFields();
+        let selectFields = this.getOdataCommonFieldNames();
         if (item.id < 0) {
             let converted = await this.getSPRestItem(item);
-            let addResult = await this.list.items.add(converted);
-            if(addResult.data["OData__UIVersionString"]) {
-                result.id = addResult.data.Id;
-                result.version = parseFloat(addResult.data["OData__UIVersionString"]);
-            }
+            let addResult = await this.list.items.select(...selectFields).add(converted);                    
+            await this.populateCommonFields(result, addResult.data);                   
+            await this.updateWssIds(result, addResult.data); 
             if(item.id < -1) {
                 await this.updateLinksInDb(Number(item.id), Number(result.id));
             }
         }
-        else {
+        else {            
             // check version (cannot update if newer)
             if (item.version) {
-                let existing = await this.list.items.getById(<number>item.id).select("OData__UIVersionString").get();
-                if (parseFloat(existing["OData__UIVersionString"]) > item.version) {
+                let existing = await this.list.items.getById(<number>item.id).select(Constants.commonFields.version).get();
+                if (parseFloat(existing[Constants.commonFields.version]) > item.version) {
                     let error = new Error(ServicesConfiguration.configuration.translations.versionHigherErrorMessage);
                     error.name = Constants.Errors.ItemVersionConfict;
                     throw error;
                 }
                 else {
                     let converted = await this.getSPRestItem(item);
-                    let updateResult = await this.list.items.getById(<number>item.id).update(converted);
-                    let version = await updateResult.item.select("OData__UIVersionString").get();
-                    if(version["OData__UIVersionString"]) {
-                        result.version = parseFloat(version["OData__UIVersionString"]);
-                    }
+                    let updateResult = await this.list.items.getById(<number>item.id).select(...selectFields).update(converted);
+                    let version = await updateResult.item.select(...selectFields).get();                    
+                    await this.populateCommonFields(result, version);                    
                     await this.updateWssIds(result, version);
                 }
             }
             else {
                 let converted = await this.getSPRestItem(item);
                 let updateResult = await this.list.items.getById(<number>item.id).update(converted);
-                let version = await updateResult.item.select("OData__UIVersionString").get();
-                if(version["OData__UIVersionString"]) {
-                    result.version = parseFloat(version["OData__UIVersionString"]);
-                }
+                let version = await updateResult.item.select(...selectFields).get();
+                await this.populateCommonFields(result, version);                
                 await this.updateWssIds(result, version);
             }
         }
         return result;
     }
+
 
     /**
      * Delete an item
@@ -642,12 +643,87 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         return fieldNames;
     }
 
+    private getOdataCommonFieldNames(): Array<string> {
+        let fields = this.ItemFields;
+        let fieldNames = [Constants.commonFields.version];
+        Object.keys(fields).filter((propertyName) => { 
+            return fields.hasOwnProperty(propertyName); 
+        }).forEach((prop) => {
+            let fieldName = fields[prop].fieldName;
+            if(fieldName  === Constants.commonFields.author ||
+                fieldName  === Constants.commonFields.created ||
+                fieldName  === Constants.commonFields.editor ||
+                fieldName  === Constants.commonFields.modified) {
+                    let result: string = fields[prop].fieldName;
+                    switch(fields[prop].fieldType) {
+                        case FieldType.Lookup:
+                        case FieldType.LookupMulti:
+                        case FieldType.User:
+                        case FieldType.UserMulti:
+                            result += "Id";
+                        default:
+                            break;
+                    }
+                    fieldNames.push(result);
+                }
+        });
+        return fieldNames;
+    }
+
+    protected async populateCommonFields(item, restItem): Promise<void> {
+        if(item.id < 0) {
+            // update id
+            item.id = restItem.Id;
+        }
+        if(restItem[Constants.commonFields.version]) {
+            item.version = parseFloat(restItem[Constants.commonFields.version]);
+        }
+        let fields = this.ItemFields;
+        await Promise.all(Object.keys(fields).filter((propertyName) => {
+            let result = false;
+            if(fields.hasOwnProperty(propertyName)) {                
+                let fieldName = fields[propertyName].fieldName;
+                return (fieldName  === Constants.commonFields.author ||
+                    fieldName  === Constants.commonFields.created ||
+                    fieldName  === Constants.commonFields.editor ||
+                    fieldName  === Constants.commonFields.modified);
+            }
+        }).map(async (prop) => {
+            let fieldName = fields[prop].fieldName;            
+            switch(fields[prop].fieldType) {
+                case FieldType.Date:
+                    item[prop] = new Date(restItem[fieldName]);
+                    break;
+                case FieldType.User:
+                    let id = restItem[fieldName + "Id"];
+                    let user = null;
+                    if(this.initialized) {
+                        let users = this.getServiceInitValues(User["name"]);
+                        user = find(users, (u) => { return u.spId === id; });
+                    }
+                    else {
+                        let userService: UserService = new UserService();
+                        user = await userService.getBySpId(id);
+                    }
+                    item[prop] = user;
+                    break;
+                default:
+                    item[prop] = restItem[fieldName];
+                    break;
+            }
+        }));
+
+    }
+    
+
+
     /**
      * convert full item to db format (with links only)
      * @param item full provisionned item
      */
     protected convertItemToDbFormat(item: T): T {
         let result: T = new this.itemType();
+        delete result.__internalLinks;
         for (const propertyName in this.ItemFields) {
             if (this.ItemFields.hasOwnProperty(propertyName)) {
                 const fieldDescriptor = this.ItemFields[propertyName];
@@ -659,7 +735,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                             //link defered
                             result.__internalLinks = result.__internalLinks || {};
                             result.__internalLinks[propertyName] = item[propertyName] ? item[propertyName].id : undefined;
-                            result[propertyName] = undefined;
+                            delete result[propertyName];
                         }
                         else {
                             result[propertyName] = item[propertyName];
@@ -681,7 +757,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                             }                          
                             result.__internalLinks = result.__internalLinks || {};
                             result.__internalLinks[propertyName] = ids.length > 0 ? ids : [];                            
-                            result[propertyName] = undefined;
+                            delete result[propertyName];
                         }
                         else {
                             result[propertyName] = item[propertyName];
@@ -762,7 +838,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 }                
             }
         }
-        return item;
+        return result;
     }
     
     public async updateLinkedTransactions(oldId: number, newId: number, nextTransactions: Array<OfflineTransaction>): Promise<Array<OfflineTransaction>> {
@@ -836,8 +912,8 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
     
     private async updateLinksInDb(oldId: number, newId: number): Promise<void>{
         let allFields = assign({}, this.itemType["Fields"]);
-        allFields[SPItem["name"]] = undefined;
-        allFields[this.itemType["name"]] = undefined;
+        delete allFields[SPItem["name"]];
+        delete allFields[this.itemType["name"]];
         for (const modelName in allFields) {
             if (allFields.hasOwnProperty(modelName)) {     
                 const modelFields =  allFields[modelName];    

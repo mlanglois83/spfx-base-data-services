@@ -1,5 +1,16 @@
 export declare const Constants: {
     /**
+     * Common list item fields
+     */
+    commonFields: {
+        created: string;
+        modified: string;
+        author: string;
+        editor: string;
+        attachments: string;
+        version: string;
+    };
+    /**
      *  Error codes
      */
     Errors: {

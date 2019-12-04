@@ -401,69 +401,14 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
             await tx.complete;
             return result;
         } catch (error) {
-            console.error(error.message + " - " + error.Name);
-            try {                
-                tx.abort();
-            } catch { 
-                // error allready thrown
-            }
-            throw error;
+            // key not found
+            return null;
         }
     }
     public async getItemsById(ids: Array<number | string>): Promise<Array<T>> {
-        let results: Array<T> = [];
-        if(ids && ids.length > 0)
-        {
-            await this.OpenDb();
-            const tx = this.db.transaction(this.tableName, 'readonly');
-            const store = tx.objectStore(this.tableName);
-            try {
-
-                let allRows = [];
-                let tmp = new this.itemType();
-                if(tmp instanceof SPFile) {
-                    allRows = await store.getAll();
-                }
-                results = await Promise.all(ids.map(async (id) => {
-                    let obj = await store.get(id);
-                    let result: T = null;
-                    if (obj) {
-                        result = assign(new this.itemType(), obj);
-                        if (result instanceof SPFile) {
-                            // item is a part of another file
-                            const chunkparts = (/^.*_chunk_\d+$/g).test(result.serverRelativeUrl);
-                            if (!chunkparts) {
-                                // verify if there are other parts
-                                const chunkRegex = this.getChunksRegexp(result.serverRelativeUrl);                          
-                                let chunks = allRows.filter((chunkedrow) => {
-                                    let match = chunkedrow.id.match(chunkRegex);
-                                    return match && match.length > 0;
-                                });
-                                if (chunks.length > 0) {
-                                    chunks.sort((a, b) => {
-                                        return parseInt(a.id.replace(/^.*_chunk_(\d+)$/g, "$1")) - parseInt(b.id.replace(/^.*_chunk_(\d+)$/g, "$1"));
-                                    });
-                                    result.content = UtilsService.concatArrayBuffers(result.content, ...chunks.map(c => c.content));
-                                }
-                            }
-                            else {
-                                // no chunked parts here
-                                result = null;
-                            }
-                        }
-                    }
-                    return result;
-                }));
-            } catch (error) {
-                console.error(error.message + " - " + error.Name);
-                try {                
-                    tx.abort();
-                } catch { 
-                    // error allready thrown
-                }
-                throw error;
-            }
-        }        
+        let results: Array<T> = await Promise.all(ids.map((id) => {
+            return this.getItemById(id);
+        }))
         return results;
     }
 }

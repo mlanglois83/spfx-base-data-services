@@ -7,10 +7,6 @@ var SPFile = /** @class */ (function () {
      * @param fileItem file item from rest call (can be file or item)
      */
     function SPFile(fileItem) {
-        /**
-         * internal field for linked items not stored in db
-         */
-        this.__internalLinks = undefined;
         if (fileItem) {
             this.serverRelativeUrl = (fileItem.FileRef ? fileItem.FileRef : fileItem.ServerRelativeUrl);
             this.name = (fileItem.FileLeafRef ? fileItem.FileLeafRef : fileItem.Name);

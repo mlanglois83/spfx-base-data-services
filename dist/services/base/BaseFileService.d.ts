@@ -28,4 +28,5 @@ export declare class BaseFileService<T extends IBaseItem> extends BaseDataServic
     folderExists(folderUrl: any): Promise<boolean>;
     addOrUpdateItem_Internal(item: T): Promise<T>;
     deleteItem_Internal(item: T): Promise<void>;
+    changeFolderInDb(oldFolderListRelativeUrl: string, newFolderListRelativeUrl: string): Promise<void>;
 }

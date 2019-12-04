@@ -122,6 +122,13 @@ var UserService = /** @class */ (function (_super) {
             });
         });
     };
+    UserService.prototype.addOrUpdateItems_Internal = function (items) {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                throw new Error("Not implemented");
+            });
+        });
+    };
     UserService.prototype.deleteItem_Internal = function (item) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {

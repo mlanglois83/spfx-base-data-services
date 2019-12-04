@@ -20,6 +20,11 @@ export declare class TransactionService extends BaseDbService<OfflineTransaction
      */
     getAll(): Promise<Array<OfflineTransaction>>;
     /**
+     * Get a transaction given its id
+     * @param id transaction id
+     */
+    getItemById(id: number): Promise<OfflineTransaction>;
+    /**
      * Clear table
      */
     clear(): Promise<void>;

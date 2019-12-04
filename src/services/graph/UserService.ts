@@ -60,6 +60,10 @@ export class UserService extends BaseDataService<User> {
     protected async addOrUpdateItem_Internal(item: User): Promise<User> {
         throw new Error("Not implemented");
     }
+    
+    protected async addOrUpdateItems_Internal(items: Array<User>): Promise<Array<User>> {
+        throw new Error("Not implemented");
+    }
 
     protected async deleteItem_Internal(item: User): Promise<void> {
         throw new Error("Not implemented");
