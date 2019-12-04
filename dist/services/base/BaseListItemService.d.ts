@@ -11,11 +11,11 @@ export declare class BaseListItemService<T extends IBaseItem> extends BaseDataSe
     protected listRelativeUrl: string;
     protected initValues: any;
     protected taxoMultiFieldNames: any;
-    readonly ItemFields: any;
+    get ItemFields(): any;
     /**
      * Associeted list (pnpjs)
      */
-    protected readonly list: List;
+    protected get list(): List;
     /***************************** Constructor **************************************/
     /**
      *
@@ -26,7 +26,7 @@ export declare class BaseListItemService<T extends IBaseItem> extends BaseDataSe
     constructor(type: (new (item?: any) => T), listRelativeUrl: string, tableName: string, cacheDuration?: number);
     /***************************** External sources init and access **************************************/
     private initialized;
-    protected readonly isInitialized: boolean;
+    protected get isInitialized(): boolean;
     private initPromise;
     protected init_internal(): Promise<void>;
     Init(): Promise<void>;

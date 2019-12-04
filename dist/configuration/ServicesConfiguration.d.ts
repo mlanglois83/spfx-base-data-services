@@ -7,11 +7,11 @@ export declare class ServicesConfiguration {
     /**
      * Web Part Context
      */
-    static readonly context: BaseComponentContext;
+    static get context(): BaseComponentContext;
     /**
      * Configuration object
      */
-    static readonly configuration: IConfiguration;
+    static get configuration(): IConfiguration;
     /**
      * Default configuration
      */
