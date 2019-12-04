@@ -1020,9 +1020,9 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 }
                 else if (fieldDescription.fieldType === FieldType.TaxonomyMulti) {
                     let updated = [];
-                    let terms = spItem[fieldDescription.fieldName];
-                    let service = ServicesConfiguration.configuration.serviceFactory.create(fieldDescription.modelName);
-                    if(terms) {
+                    let terms = spItem[fieldDescription.fieldName] ? spItem[fieldDescription.fieldName].results : [];                   
+                    if(terms && terms.length > 0) {
+                        let service = ServicesConfiguration.configuration.serviceFactory.create(fieldDescription.modelName);
                         await Promise.all(terms.map(async (termitem) => {
                             let wssid = termitem.WssId;
                             let id = termitem.Id.replace(/\/Guid\(([^)]+)\)\//g, "$1")
