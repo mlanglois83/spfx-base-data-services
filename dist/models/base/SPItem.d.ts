@@ -30,5 +30,5 @@ export declare abstract class SPItem implements IBaseItem {
     /**
      * Defines if item is valid for sending it to list
      */
-    readonly isValid: boolean;
+    get isValid(): boolean;
 }

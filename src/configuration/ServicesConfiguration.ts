@@ -28,13 +28,13 @@ export class ServicesConfiguration {
     /**
      * Default configuration
      */
-    private static configurationInternal: IConfiguration= {
+    private static configurationInternal: IConfiguration = {
         dbName: "spfx-db",
         dbVersion: 1,
         lastConnectionCheckResult: false,
         checkOnline: false,
         context: null,
-        serviceFactory: null, 
+        serviceFactory: null,
         tableNames: [],
         translations: {
             AddLabel: "Add",
@@ -55,9 +55,9 @@ export class ServicesConfiguration {
     public static Init(configuration: IConfiguration): void {
         ServicesConfiguration.configurationInternal = configuration;
         configuration.tableNames = configuration.tableNames || [];
-        if(!find(configuration.tableNames, (s) => {return s === Constants.taxonomyHiddenList.tableName})) {
+        if (!find(configuration.tableNames, (s) => { return s === Constants.taxonomyHiddenList.tableName })) {
             configuration.tableNames.push(Constants.taxonomyHiddenList.tableName);
-        } 
+        }
         // SP calls init with no cache
         sp.setup({
             spfxContext: ServicesConfiguration.context,

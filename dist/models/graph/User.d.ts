@@ -34,10 +34,11 @@ export declare class User implements IBaseItem {
     /**
      * Get or Set User display name
      */
+    get displayName(): string;
     /**
-    * Get or Set User display name
-    */
-    displayName: string;
+     * Get or Set User display name
+     */
+    set displayName(val: string);
     /**
      * Instancate an user object
      * @param graphUser User object returned by graph api
