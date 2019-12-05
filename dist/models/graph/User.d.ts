@@ -4,10 +4,6 @@ import { IBaseItem } from "../../interfaces/index";
  */
 export declare class User implements IBaseItem {
     /**
-     * internal field for linked items not stored in db
-     */
-    __internalLinks: any;
-    /**
      * O365 id of the user
      */
     id: string;
@@ -34,11 +30,10 @@ export declare class User implements IBaseItem {
     /**
      * Get or Set User display name
      */
-    get displayName(): string;
     /**
-     * Get or Set User display name
-     */
-    set displayName(val: string);
+    * Get or Set User display name
+    */
+    displayName: string;
     /**
      * Instancate an user object
      * @param graphUser User object returned by graph api

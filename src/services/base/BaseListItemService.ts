@@ -488,7 +488,16 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         return result;
     }
     /***************** SP Calls associated to service standard operations ********************/
-
+    /**
+     * Get items by caml query
+     * @param query caml query (<Where></Where>)
+     * @param orderBy array of <FieldRef Name='Field1' Ascending='TRUE'/>
+     * @param limit  number of lines
+     */
+    public getByCamlQuery(query: string, orderBy?: string[], limit?: number): Promise<Array<T>> {
+        let camlQuery = this.getByCamlQuery(query, orderBy,limit);
+        return this.get(camlQuery);
+    }
     /**
      * Get items by query
      * @protected
@@ -500,7 +509,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         let results = new Array<T>();
         let selectFields = this.getOdataFieldNames();
         let items = await this.list.select(...selectFields).getItemsByCAMLQuery({
-            ViewXml: `<View Scope="RecursiveAll"><Query>${query}</Query></View>`
+            ViewXml: query
         } as CamlQuery);
         if(items && items.length > 0) {
             await this.Init();
@@ -1020,9 +1029,9 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 }
                 else if (fieldDescription.fieldType === FieldType.TaxonomyMulti) {
                     let updated = [];
-                    let terms = spItem[fieldDescription.fieldName] ? spItem[fieldDescription.fieldName].results : [];                   
+                    let terms = spItem[fieldDescription.fieldName] ? spItem[fieldDescription.fieldName].results : [];     
+                    let service = ServicesConfiguration.configuration.serviceFactory.create(fieldDescription.modelName);              
                     if(terms && terms.length > 0) {
-                        let service = ServicesConfiguration.configuration.serviceFactory.create(fieldDescription.modelName);
                         await Promise.all(terms.map(async (termitem) => {
                             let wssid = termitem.WssId;
                             let id = termitem.Id.replace(/\/Guid\(([^)]+)\)\//g, "$1")
@@ -1057,6 +1066,20 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 }
             }
         }
-
+    }
+    /**
+     * 
+     * @param query caml query (<Where></Where>)
+     * @param orderBy array of <FieldRef Name='Field1' Ascending='TRUE'/>
+     * @param limit  number of lines
+     */
+    private getQuery(query: string, orderBy?: string[], limit?: number): string {
+        return`<View Scope="RecursiveAll">
+            <Query>
+                ${query}
+                ${orderBy ? `<OrderBy>${orderBy.join('')}</OrderBy>` : ""}
+            </Query>            
+            ${limit !== undefined ? `<RowLimit>${limit}</RowLimit>` : ""}
+        </View>`;
     }
 }

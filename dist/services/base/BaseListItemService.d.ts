@@ -11,11 +11,11 @@ export declare class BaseListItemService<T extends IBaseItem> extends BaseDataSe
     protected listRelativeUrl: string;
     protected initValues: any;
     protected taxoMultiFieldNames: any;
-    get ItemFields(): any;
+    readonly ItemFields: any;
     /**
      * Associeted list (pnpjs)
      */
-    protected get list(): List;
+    protected readonly list: List;
     /***************************** Constructor **************************************/
     /**
      *
@@ -26,7 +26,7 @@ export declare class BaseListItemService<T extends IBaseItem> extends BaseDataSe
     constructor(type: (new (item?: any) => T), listRelativeUrl: string, tableName: string, cacheDuration?: number);
     /***************************** External sources init and access **************************************/
     private initialized;
-    protected get isInitialized(): boolean;
+    protected readonly isInitialized: boolean;
     private initPromise;
     protected init_internal(): Promise<void>;
     Init(): Promise<void>;
@@ -62,6 +62,13 @@ export declare class BaseListItemService<T extends IBaseItem> extends BaseDataSe
      */
     protected needRefreshCache(key?: string): Promise<boolean>;
     /***************** SP Calls associated to service standard operations ********************/
+    /**
+     * Get items by caml query
+     * @param query caml query (<Where></Where>)
+     * @param orderBy array of <FieldRef Name='Field1' Ascending='TRUE'/>
+     * @param limit  number of lines
+     */
+    getByCamlQuery(query: string, orderBy?: string[], limit?: number): Promise<Array<T>>;
     /**
      * Get items by query
      * @protected
@@ -115,4 +122,11 @@ export declare class BaseListItemService<T extends IBaseItem> extends BaseDataSe
     updateLinkedTransactions(oldId: number, newId: number, nextTransactions: Array<OfflineTransaction>): Promise<Array<OfflineTransaction>>;
     private updateLinksInDb;
     private updateWssIds;
+    /**
+     *
+     * @param query caml query (<Where></Where>)
+     * @param orderBy array of <FieldRef Name='Field1' Ascending='TRUE'/>
+     * @param limit  number of lines
+     */
+    private getQuery;
 }

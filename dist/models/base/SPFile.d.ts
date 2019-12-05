@@ -22,19 +22,17 @@ export declare class SPFile implements IBaseItem {
     /**
      * Get or set file server relative url
      */
-    get serverRelativeUrl(): string;
     /**
-     * Get or set file server relative url
-     */
-    set serverRelativeUrl(val: string);
-    /**
-     * Get or set file name
-     */
-    get name(): string;
+    * Get or set file server relative url
+    */
+    serverRelativeUrl: string;
     /**
      * Get or set file name
      */
-    set name(val: string);
+    /**
+    * Get or set file name
+    */
+    name: string;
     /**
      * Instanciate an SPFile object
      * @param fileItem file item from rest call (can be file or item)

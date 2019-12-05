@@ -6,7 +6,7 @@ export declare abstract class SPItem implements IBaseItem {
     /**
      * internal field for linked items not stored in db
      */
-    __internalLinks: any;
+    __internalLinks?: any;
     /**
      * Item id
      */
@@ -30,5 +30,5 @@ export declare abstract class SPItem implements IBaseItem {
     /**
      * Defines if item is valid for sending it to list
      */
-    get isValid(): boolean;
+    readonly isValid: boolean;
 }

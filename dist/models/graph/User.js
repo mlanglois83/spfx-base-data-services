@@ -7,10 +7,6 @@ var User = /** @class */ (function () {
      * @param graphUser User object returned by graph api
      */
     function User(graphUser) {
-        /**
-         * internal field for linked items not stored in db
-         */
-        this.__internalLinks = undefined;
         if (graphUser) {
             this.title = graphUser.displayName ? graphUser.displayName : "";
             this.id = graphUser.id ? graphUser.id : "";

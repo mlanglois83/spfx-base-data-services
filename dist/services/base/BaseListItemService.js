@@ -642,6 +642,16 @@ var BaseListItemService = /** @class */ (function (_super) {
     };
     /***************** SP Calls associated to service standard operations ********************/
     /**
+     * Get items by caml query
+     * @param query caml query (<Where></Where>)
+     * @param orderBy array of <FieldRef Name='Field1' Ascending='TRUE'/>
+     * @param limit  number of lines
+     */
+    BaseListItemService.prototype.getByCamlQuery = function (query, orderBy, limit) {
+        var camlQuery = this.getByCamlQuery(query, orderBy, limit);
+        return this.get(camlQuery);
+    };
+    /**
      * Get items by query
      * @protected
      * @param {*} query
@@ -659,7 +669,7 @@ var BaseListItemService = /** @class */ (function (_super) {
                         results = new Array();
                         selectFields = this.getOdataFieldNames();
                         return [4 /*yield*/, (_a = this.list).select.apply(_a, selectFields).getItemsByCAMLQuery({
-                                ViewXml: "<View Scope=\"RecursiveAll\"><Query>" + query + "</Query></View>"
+                                ViewXml: query
                             })];
                     case 1:
                         items = _b.sent();
@@ -1337,9 +1347,9 @@ var BaseListItemService = /** @class */ (function (_super) {
                                     case 4:
                                         if (!(fieldDescription_1.fieldType === FieldType.TaxonomyMulti)) return [3 /*break*/, 8];
                                         updated_2 = [];
-                                        terms = spItem[fieldDescription_1.fieldName];
+                                        terms = spItem[fieldDescription_1.fieldName] ? spItem[fieldDescription_1.fieldName].results : [];
                                         service_1 = ServicesConfiguration.configuration.serviceFactory.create(fieldDescription_1.modelName);
-                                        if (!terms) return [3 /*break*/, 6];
+                                        if (!(terms && terms.length > 0)) return [3 /*break*/, 6];
                                         return [4 /*yield*/, Promise.all(terms.map(function (termitem) { return __awaiter(_this, void 0, void 0, function () {
                                                 var wssid, id, term;
                                                 return __generator(this, function (_a) {
@@ -1409,6 +1419,15 @@ var BaseListItemService = /** @class */ (function (_super) {
                 }
             });
         });
+    };
+    /**
+     *
+     * @param query caml query (<Where></Where>)
+     * @param orderBy array of <FieldRef Name='Field1' Ascending='TRUE'/>
+     * @param limit  number of lines
+     */
+    BaseListItemService.prototype.getQuery = function (query, orderBy, limit) {
+        return "<View Scope=\"RecursiveAll\">\n            <Query>\n                " + query + "\n                " + (orderBy ? "<OrderBy>" + orderBy.join('') + "</OrderBy>" : "") + "\n            </Query>            \n            " + (limit !== undefined ? "<RowLimit>" + limit + "</RowLimit>" : "") + "\n        </View>";
     };
     return BaseListItemService;
 }(BaseDataService));

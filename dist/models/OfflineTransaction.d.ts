@@ -5,10 +5,6 @@ import { IBaseItem } from "../interfaces/index";
  */
 export declare class OfflineTransaction implements IBaseItem {
     /**
-     * internal field for linked items not stored in db
-     */
-    __internalLinks: any;
-    /**
      * Id of the transaction (auto increment from idb)
      */
     id: number;

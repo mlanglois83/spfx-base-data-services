@@ -11,13 +11,13 @@ export declare abstract class BaseDataService<T extends IBaseItem> extends BaseS
     protected transactionService: TransactionService;
     protected dbService: BaseDbService<T>;
     protected cacheDuration: number;
-    get ItemFields(): {};
+    readonly ItemFields: {};
     /**
      * Stored promises to avoid multiple calls
      */
     protected static promises: {};
-    get serviceName(): string;
-    get itemType(): (new (item?: any) => T);
+    readonly serviceName: string;
+    readonly itemType: (new (item?: any) => T);
     Init(): Promise<void>;
     /**
      *
