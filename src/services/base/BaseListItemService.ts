@@ -487,7 +487,9 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
 
         return result;
     }
-    /***************** SP Calls associated to service standard operations ********************/
+
+    /**********************************Service specific calls  *******************************/
+    
     /**
      * Get items by caml query
      * @param query caml query (<Where></Where>)
@@ -495,9 +497,21 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
      * @param limit  number of lines
      */
     public getByCamlQuery(query: string, orderBy?: string[], limit?: number): Promise<Array<T>> {
-        let camlQuery = this.getByCamlQuery(query, orderBy,limit);
+        let camlQuery = this.getQuery(query, orderBy,limit);
         return this.get(camlQuery);
     }
+/*
+    // TODO : save lookups 
+    public saveLookupValue<TL extends IBaseItem>(type: ()=> TL): IAddOrUpdateResult<TL> {
+
+    }
+
+    public saveLookupMultiValues<TL extends IBaseItem>(type: ()=> TL): Array<IAddOrUpdateResult<TL>> {
+        
+    }
+    */
+    /***************** SP Calls associated to service standard operations ********************/
+    
     /**
      * Get items by query
      * @protected

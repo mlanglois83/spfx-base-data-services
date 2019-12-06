@@ -61,7 +61,7 @@ export declare class BaseListItemService<T extends IBaseItem> extends BaseDataSe
      * @memberof BaseListItemService
      */
     protected needRefreshCache(key?: string): Promise<boolean>;
-    /***************** SP Calls associated to service standard operations ********************/
+    /**********************************Service specific calls  *******************************/
     /**
      * Get items by caml query
      * @param query caml query (<Where></Where>)
@@ -69,6 +69,7 @@ export declare class BaseListItemService<T extends IBaseItem> extends BaseDataSe
      * @param limit  number of lines
      */
     getByCamlQuery(query: string, orderBy?: string[], limit?: number): Promise<Array<T>>;
+    /***************** SP Calls associated to service standard operations ********************/
     /**
      * Get items by query
      * @protected

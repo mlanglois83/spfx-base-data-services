@@ -640,7 +640,7 @@ var BaseListItemService = /** @class */ (function (_super) {
             });
         });
     };
-    /***************** SP Calls associated to service standard operations ********************/
+    /**********************************Service specific calls  *******************************/
     /**
      * Get items by caml query
      * @param query caml query (<Where></Where>)
@@ -648,9 +648,20 @@ var BaseListItemService = /** @class */ (function (_super) {
      * @param limit  number of lines
      */
     BaseListItemService.prototype.getByCamlQuery = function (query, orderBy, limit) {
-        var camlQuery = this.getByCamlQuery(query, orderBy, limit);
+        var camlQuery = this.getQuery(query, orderBy, limit);
         return this.get(camlQuery);
     };
+    /*
+        // TODO : save lookups
+        public saveLookupValue<TL extends IBaseItem>(type: ()=> TL): IAddOrUpdateResult<TL> {
+    
+        }
+    
+        public saveLookupMultiValues<TL extends IBaseItem>(type: ()=> TL): Array<IAddOrUpdateResult<TL>> {
+            
+        }
+        */
+    /***************** SP Calls associated to service standard operations ********************/
     /**
      * Get items by query
      * @protected
