@@ -495,21 +495,21 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
      * @param query caml query (<Where></Where>)
      * @param orderBy array of <FieldRef Name='Field1' Ascending='TRUE'/>
      * @param limit  number of lines
+     * @param lastId last id for paged queries
      */
-    public getByCamlQuery(query: string, orderBy?: string[], limit?: number): Promise<Array<T>> {
-        let camlQuery = this.getQuery(query, orderBy,limit);
+    public getByCamlQuery(query: string, orderBy?: string[], limit?: number, lastId?: number): Promise<Array<T>> {
+        let queryXml = this.getQuery(query, orderBy,limit);
+        let camlQuery = {
+            ViewXml: queryXml
+        } as CamlQuery;
+        if(lastId !== undefined) {
+            camlQuery.ListItemCollectionPosition = {
+                "PagingInfo": "Paged=TRUE&p_ID=" + lastId
+            }
+        }
         return this.get(camlQuery);
     }
-/*
-    // TODO : save lookups 
-    public saveLookupValue<TL extends IBaseItem>(type: ()=> TL): IAddOrUpdateResult<TL> {
 
-    }
-
-    public saveLookupMultiValues<TL extends IBaseItem>(type: ()=> TL): Array<IAddOrUpdateResult<TL>> {
-        
-    }
-    */
     /***************** SP Calls associated to service standard operations ********************/
     
     /**
@@ -522,9 +522,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
     protected async get_Internal(query: any): Promise<Array<T>> {
         let results = new Array<T>();
         let selectFields = this.getOdataFieldNames();
-        let items = await this.list.select(...selectFields).getItemsByCAMLQuery({
-            ViewXml: query
-        } as CamlQuery);
+        let items = await this.list.select(...selectFields).getItemsByCAMLQuery(query as CamlQuery);
         if(items && items.length > 0) {
             await this.Init();
             results = items.map((r) => { 

@@ -3,8 +3,9 @@ import { SPWeb } from "@microsoft/sp-page-context";
 
 export abstract class BaseService {
     
-    protected hashCode(str: String): number {
-        var hash = 0;
+    protected hashCode(obj: any): number {
+        let hash = 0;
+        let str = JSON.stringify(obj);
         if (str.length == 0) return hash;
         for (let i = 0; i < str.length; i++) {
             let char = str.charCodeAt(i);
