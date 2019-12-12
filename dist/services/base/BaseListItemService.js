@@ -1003,7 +1003,7 @@ var BaseListItemService = /** @class */ (function (_super) {
      * @param item full provisionned item
      */
     BaseListItemService.prototype.convertItemToDbFormat = function (item) {
-        var result = new this.itemType();
+        var result = cloneDeep(item);
         delete result.__internalLinks;
         var _loop_1 = function (propertyName) {
             if (this_1.ItemFields.hasOwnProperty(propertyName)) {
@@ -1017,9 +1017,6 @@ var BaseListItemService = /** @class */ (function (_super) {
                             result.__internalLinks = result.__internalLinks || {};
                             result.__internalLinks[propertyName] = item[propertyName] ? item[propertyName].id : undefined;
                             delete result[propertyName];
-                        }
-                        else {
-                            result[propertyName] = item[propertyName];
                         }
                         break;
                     case FieldType.LookupMulti:
@@ -1040,12 +1037,8 @@ var BaseListItemService = /** @class */ (function (_super) {
                             result.__internalLinks[propertyName] = ids_1.length > 0 ? ids_1 : [];
                             delete result[propertyName];
                         }
-                        else {
-                            result[propertyName] = item[propertyName];
-                        }
                         break;
                     default:
-                        result[propertyName] = item[propertyName];
                         break;
                 }
             }
@@ -1066,7 +1059,7 @@ var BaseListItemService = /** @class */ (function (_super) {
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        result = new this.itemType();
+                        result = cloneDeep(item);
                         return [4 /*yield*/, this.Init()];
                     case 1:
                         _a.sent();
@@ -1090,9 +1083,6 @@ var BaseListItemService = /** @class */ (function (_super) {
                                             else {
                                                 result[propertyName] = fieldDescriptor.defaultValue;
                                             }
-                                        }
-                                        else {
-                                            result[propertyName] = item[propertyName];
                                         }
                                         break;
                                     case FieldType.LookupMulti:
@@ -1118,9 +1108,6 @@ var BaseListItemService = /** @class */ (function (_super) {
                                                 result[propertyName] = fieldDescriptor.defaultValue;
                                             }
                                         }
-                                        else {
-                                            result[propertyName] = item[propertyName];
-                                        }
                                         break;
                                     default:
                                         result[propertyName] = item[propertyName];
@@ -1132,6 +1119,7 @@ var BaseListItemService = /** @class */ (function (_super) {
                         for (propertyName in this.ItemFields) {
                             _loop_2(propertyName);
                         }
+                        delete result.__internalLinks;
                         return [2 /*return*/, result];
                 }
             });

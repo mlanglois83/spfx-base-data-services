@@ -745,7 +745,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
      * @param item full provisionned item
      */
     protected convertItemToDbFormat(item: T): T {
-        let result: T = new this.itemType();
+        let result: T = cloneDeep(item);
         delete result.__internalLinks;
         for (const propertyName in this.ItemFields) {
             if (this.ItemFields.hasOwnProperty(propertyName)) {
@@ -760,9 +760,6 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                             result.__internalLinks[propertyName] = item[propertyName] ? item[propertyName].id : undefined;
                             delete result[propertyName];
                         }
-                        else {
-                            result[propertyName] = item[propertyName];
-                        }   
                         break;
                     case FieldType.LookupMulti:
                     case FieldType.UserMulti:            
@@ -782,12 +779,8 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                             result.__internalLinks[propertyName] = ids.length > 0 ? ids : [];                            
                             delete result[propertyName];
                         }
-                        else {
-                            result[propertyName] = item[propertyName];
-                        }   
                         break;
                     default:
-                        result[propertyName] = item[propertyName];
                         break;                    
                 }
                 
@@ -801,7 +794,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
      * @param item db item with links in __internalLinks fields
      */
     public async mapItem(item: T): Promise<T> {
-        let result: T = new this.itemType();
+        let result: T = cloneDeep(item);
         await this.Init();
         for (const propertyName in this.ItemFields) {
             if (this.ItemFields.hasOwnProperty(propertyName)) {
@@ -823,9 +816,6 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                             else {
                                 result[propertyName] = fieldDescriptor.defaultValue;
                             }
-                        }
-                        else {
-                            result[propertyName] = item[propertyName];
                         }                    
                         break;
                     case FieldType.LookupMulti:  
@@ -851,9 +841,6 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                                 result[propertyName] = fieldDescriptor.defaultValue;
                             }
                         }
-                        else {
-                            result[propertyName] = item[propertyName];
-                        }
                         break;                    
                     default:                        
                         result[propertyName] = item[propertyName] ;
@@ -861,6 +848,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 }                
             }
         }
+        delete result.__internalLinks;
         return result;
     }
     
