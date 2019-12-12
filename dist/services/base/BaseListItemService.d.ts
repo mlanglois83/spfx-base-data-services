@@ -67,8 +67,9 @@ export declare class BaseListItemService<T extends IBaseItem> extends BaseDataSe
      * @param query caml query (<Where></Where>)
      * @param orderBy array of <FieldRef Name='Field1' Ascending='TRUE'/>
      * @param limit  number of lines
+     * @param lastId last id for paged queries
      */
-    getByCamlQuery(query: string, orderBy?: string[], limit?: number): Promise<Array<T>>;
+    getByCamlQuery(query: string, orderBy?: string[], limit?: number, lastId?: number): Promise<Array<T>>;
     /***************** SP Calls associated to service standard operations ********************/
     /**
      * Get items by query

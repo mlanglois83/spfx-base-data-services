@@ -1,8 +1,9 @@
 var BaseService = /** @class */ (function () {
     function BaseService() {
     }
-    BaseService.prototype.hashCode = function (str) {
+    BaseService.prototype.hashCode = function (obj) {
         var hash = 0;
+        var str = JSON.stringify(obj);
         if (str.length == 0)
             return hash;
         for (var i = 0; i < str.length; i++) {

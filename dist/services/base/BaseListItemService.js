@@ -646,21 +646,20 @@ var BaseListItemService = /** @class */ (function (_super) {
      * @param query caml query (<Where></Where>)
      * @param orderBy array of <FieldRef Name='Field1' Ascending='TRUE'/>
      * @param limit  number of lines
+     * @param lastId last id for paged queries
      */
-    BaseListItemService.prototype.getByCamlQuery = function (query, orderBy, limit) {
-        var camlQuery = this.getQuery(query, orderBy, limit);
+    BaseListItemService.prototype.getByCamlQuery = function (query, orderBy, limit, lastId) {
+        var queryXml = this.getQuery(query, orderBy, limit);
+        var camlQuery = {
+            ViewXml: queryXml
+        };
+        if (lastId !== undefined) {
+            camlQuery.ListItemCollectionPosition = {
+                "PagingInfo": "Paged=TRUE&p_ID=" + lastId
+            };
+        }
         return this.get(camlQuery);
     };
-    /*
-        // TODO : save lookups
-        public saveLookupValue<TL extends IBaseItem>(type: ()=> TL): IAddOrUpdateResult<TL> {
-    
-        }
-    
-        public saveLookupMultiValues<TL extends IBaseItem>(type: ()=> TL): Array<IAddOrUpdateResult<TL>> {
-            
-        }
-        */
     /***************** SP Calls associated to service standard operations ********************/
     /**
      * Get items by query
@@ -679,9 +678,7 @@ var BaseListItemService = /** @class */ (function (_super) {
                     case 0:
                         results = new Array();
                         selectFields = this.getOdataFieldNames();
-                        return [4 /*yield*/, (_a = this.list).select.apply(_a, selectFields).getItemsByCAMLQuery({
-                                ViewXml: query
-                            })];
+                        return [4 /*yield*/, (_a = this.list).select.apply(_a, selectFields).getItemsByCAMLQuery(query)];
                     case 1:
                         items = _b.sent();
                         if (!(items && items.length > 0)) return [3 /*break*/, 3];
