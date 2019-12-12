@@ -505,7 +505,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         if(lastId !== undefined) {
             camlQuery.ListItemCollectionPosition = {
                 "PagingInfo": "Paged=TRUE&p_ID=" + lastId
-            }
+            };
         }
         return this.get(camlQuery);
     }
