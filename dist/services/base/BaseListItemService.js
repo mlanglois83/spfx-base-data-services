@@ -298,7 +298,7 @@ var BaseListItemService = /** @class */ (function (_super) {
                 }
                 break;
             case FieldType.LookupMulti:
-                var lookupIds = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"] : [];
+                var lookupIds = spitem[fieldDescriptor.fieldName + "Id"] ? (spitem[fieldDescriptor.fieldName + "Id"].results ? spitem[fieldDescriptor.fieldName + "Id"].results : spitem[fieldDescriptor.fieldName + "Id"]) : [];
                 if (lookupIds.length > 0) {
                     if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                         // get values from init values
@@ -342,7 +342,7 @@ var BaseListItemService = /** @class */ (function (_super) {
                 }
                 break;
             case FieldType.UserMulti:
-                var ids = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"] : [];
+                var ids = spitem[fieldDescriptor.fieldName + "Id"] ? (spitem[fieldDescriptor.fieldName + "Id"].results ? spitem[fieldDescriptor.fieldName + "Id"].results : spitem[fieldDescriptor.fieldName + "Id"]) : [];
                 if (ids.length > 0) {
                     if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                         // get values from init values
@@ -377,10 +377,10 @@ var BaseListItemService = /** @class */ (function (_super) {
                 }
                 break;
             case FieldType.TaxonomyMulti:
-                var terms = spitem[fieldDescriptor.fieldName];
-                if (terms && terms.results) {
+                var terms = spitem[fieldDescriptor.fieldName] ? (spitem[fieldDescriptor.fieldName].results ? spitem[fieldDescriptor.fieldName].results : spitem[fieldDescriptor.fieldName]) : [];
+                if (terms.length > 0) {
                     var allterms_1 = this.getServiceInitValues(fieldDescriptor.modelName);
-                    destItem[propertyName] = terms.results.map(function (term) {
+                    destItem[propertyName] = terms.map(function (term) {
                         return _this.getTaxonomyTermByWssId(term.WssId, allterms_1);
                     });
                 }

@@ -199,7 +199,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                   
                 break;
             case FieldType.LookupMulti:
-                    let lookupIds: Array<number> = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"] : [];
+                    let lookupIds: Array<number> = spitem[fieldDescriptor.fieldName + "Id"] ? (spitem[fieldDescriptor.fieldName + "Id"].results ? spitem[fieldDescriptor.fieldName + "Id"].results: spitem[fieldDescriptor.fieldName + "Id"]) : [];
                     if(lookupIds.length > 0) {
                         if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {    
                             // get values from init values
@@ -243,7 +243,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 }                      
                 break;
             case FieldType.UserMulti:
-                let ids: Array<number> = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"] : [];                
+                let ids: Array<number> = spitem[fieldDescriptor.fieldName + "Id"] ? (spitem[fieldDescriptor.fieldName + "Id"].results ? spitem[fieldDescriptor.fieldName + "Id"].results: spitem[fieldDescriptor.fieldName + "Id"]) : [];                
                 if(ids.length > 0) {
                     if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {    
                         // get values from init values
@@ -278,10 +278,10 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 }
                 break;
             case FieldType.TaxonomyMulti:
-                    const terms = spitem[fieldDescriptor.fieldName];
-                    if(terms && terms.results) {
+                    const terms = spitem[fieldDescriptor.fieldName] ? (spitem[fieldDescriptor.fieldName].results ? spitem[fieldDescriptor.fieldName].results: spitem[fieldDescriptor.fieldName]) : [];
+                    if(terms.length > 0) {
                         let allterms = this.getServiceInitValues(fieldDescriptor.modelName);
-                        destItem[propertyName] = terms.results.map((term) => {
+                        destItem[propertyName] = terms.map((term) => {
                             return this.getTaxonomyTermByWssId(term.WssId, allterms);
                         });
                     }
