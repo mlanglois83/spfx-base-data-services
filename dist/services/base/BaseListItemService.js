@@ -1352,7 +1352,7 @@ var BaseListItemService = /** @class */ (function (_super) {
                                                     switch (_a.label) {
                                                         case 0:
                                                             wssid = termitem.WssId;
-                                                            id = termitem.Id.replace(/\/Guid\(([^)]+)\)\//g, "$1");
+                                                            id = termitem.TermGuid;
                                                             term = find(updated_2, function (u) { return u.id === id; });
                                                             if (!!term) return [3 /*break*/, 2];
                                                             return [4 /*yield*/, service_1.__getFromCache(id)];

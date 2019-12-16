@@ -1034,7 +1034,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                     if(terms && terms.length > 0) {
                         await Promise.all(terms.map(async (termitem) => {
                             let wssid = termitem.WssId;
-                            let id = termitem.Id.replace(/\/Guid\(([^)]+)\)\//g, "$1")
+                            let id = termitem.TermGuid;
                             // find corresponding object in allready updated
                             let term = find(updated, (u) => {return u.id === id});
                             if(!term) {
