@@ -33,7 +33,7 @@ export declare class BaseDbService<T extends IBaseItem> extends BaseService impl
      * add items in table (ids updated)
      * @param newItems
      */
-    addOrUpdateItems(newItems: Array<T>, query?: string): Promise<Array<T>>;
+    addOrUpdateItems(newItems: Array<T>, query?: any): Promise<Array<T>>;
     /**
      * Retrieve all items from db table
      */

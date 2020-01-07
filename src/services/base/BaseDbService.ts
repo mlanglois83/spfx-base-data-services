@@ -203,7 +203,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
      * add items in table (ids updated)
      * @param newItems 
      */
-    public async addOrUpdateItems(newItems: Array<T>, query?: string): Promise<Array<T>> {
+    public async addOrUpdateItems(newItems: Array<T>, query?: any): Promise<Array<T>> {
         await this.OpenDb();
         let nextid = await this.getNextAvailableKey();
         const tx = this.db.transaction(this.tableName, 'readwrite');
