@@ -1,4 +1,5 @@
 import { IBaseItem } from "../../interfaces/index";
+import { stringIsNullOrEmpty } from "@pnp/common";
 
 /**
  * Base object for sharepoint taxonomy term abstraction objects
@@ -32,7 +33,7 @@ export class TaxonomyTerm implements IBaseItem {
      * Instanciates a term object
      * @param term term object from rest call
      */
-    constructor(term: any) {
+    constructor(term? : any) {
         if (term != undefined) {
             this.title = term.Name != undefined ? term.Name : "";
             this.id = term.Id != undefined ? term.Id.replace(/\/Guid\(([^)]+)\)\//g, "$1") : "";
@@ -40,5 +41,14 @@ export class TaxonomyTerm implements IBaseItem {
             this.customSortOrder = term.CustomSortOrder;
             this.customProperties = term.CustomProperties;
         }
+    }
+
+    public get fullPathString(): string {
+        let result = "";
+        if(!stringIsNullOrEmpty(this.path)) {
+            let parts = this.path.split(";");
+            result = parts.join(" > ");
+        }
+        return result;
     }
 }
