@@ -1,3 +1,4 @@
+import { stringIsNullOrEmpty } from "@pnp/common";
 /**
  * Base object for sharepoint taxonomy term abstraction objects
  */
@@ -15,6 +16,18 @@ var TaxonomyTerm = /** @class */ (function () {
             this.customProperties = term.CustomProperties;
         }
     }
+    Object.defineProperty(TaxonomyTerm.prototype, "fullPathString", {
+        get: function () {
+            var result = "";
+            if (!stringIsNullOrEmpty(this.path)) {
+                var parts = this.path.split(";");
+                result = parts.join(" > ");
+            }
+            return result;
+        },
+        enumerable: true,
+        configurable: true
+    });
     return TaxonomyTerm;
 }());
 export { TaxonomyTerm };

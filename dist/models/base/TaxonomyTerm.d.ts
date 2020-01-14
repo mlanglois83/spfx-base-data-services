@@ -31,5 +31,6 @@ export declare class TaxonomyTerm implements IBaseItem {
      * Instanciates a term object
      * @param term term object from rest call
      */
-    constructor(term: any);
+    constructor(term?: any);
+    readonly fullPathString: string;
 }
