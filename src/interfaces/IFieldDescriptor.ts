@@ -6,6 +6,10 @@ export interface IFieldDescriptor {
      */
     fieldName: string;
     /**
+     * Internal name of associated hidden field (TaxonomyMulti only)
+     */
+    hiddenFieldName?: string;
+    /**
      * Field type. If not set Simple is used
      */
     fieldType?: FieldType;

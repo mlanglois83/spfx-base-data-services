@@ -126,7 +126,12 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                             if (fields.hasOwnProperty(key)) {
                                 const fieldDescription = fields[key];
                                 if(fieldDescription.fieldType === FieldType.TaxonomyMulti) {
-                                    taxofields.push(fieldDescription.fieldName);
+                                    if(stringIsNullOrEmpty(fieldDescription.hiddenFieldName)) {
+                                        taxofields.push(fieldDescription.fieldName);
+                                    }
+                                    else {
+                                        this.taxoMultiFieldNames[fieldDescription.fieldName] = fieldDescription.hiddenFieldName;
+                                    }
                                 }                                      
                             }
                         }

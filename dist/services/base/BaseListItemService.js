@@ -214,7 +214,12 @@ var BaseListItemService = /** @class */ (function (_super) {
                                         if (fields.hasOwnProperty(key)) {
                                             fieldDescription = fields[key];
                                             if (fieldDescription.fieldType === FieldType.TaxonomyMulti) {
-                                                taxofields.push(fieldDescription.fieldName);
+                                                if (stringIsNullOrEmpty(fieldDescription.hiddenFieldName)) {
+                                                    taxofields.push(fieldDescription.fieldName);
+                                                }
+                                                else {
+                                                    this.taxoMultiFieldNames[fieldDescription.fieldName] = fieldDescription.hiddenFieldName;
+                                                }
                                             }
                                         }
                                     }
