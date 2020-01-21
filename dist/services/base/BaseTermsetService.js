@@ -68,12 +68,14 @@ var BaseTermsetService = /** @class */ (function (_super) {
      * @param context current sp component context
      * @param termsetname termset name
      */
-    function BaseTermsetService(type, termsetnameorid, tableName, cacheDuration) {
+    function BaseTermsetService(type, termsetnameorid, tableName, isGlobal, cacheDuration) {
+        if (isGlobal === void 0) { isGlobal = true; }
         if (cacheDuration === void 0) { cacheDuration = standardTermSetCacheDuration; }
         var _this = _super.call(this, type, tableName, cacheDuration) || this;
         _this.utilsService = new UtilsService();
         _this.taxonomyHiddenListService = new TaxonomyHiddenListService();
         _this.termsetnameorid = termsetnameorid;
+        _this.isGlobal = isGlobal;
         return _this;
     }
     Object.defineProperty(BaseTermsetService.prototype, "termset", {
@@ -82,10 +84,20 @@ var BaseTermsetService = /** @class */ (function (_super) {
          */
         get: function () {
             if (this.termsetnameorid.match(/[A-z0-9]{8}-([A-z0-9]{4}-){3}[A-z0-9]{12}/)) {
-                return taxonomy.getDefaultSiteCollectionTermStore().getTermSetById(this.termsetnameorid);
+                if (this.isGlobal) {
+                    return taxonomy.getDefaultSiteCollectionTermStore().getTermSetById(this.termsetnameorid);
+                }
+                else {
+                    return taxonomy.getDefaultSiteCollectionTermStore().getSiteCollectionGroup().termSets.getById(this.termsetnameorid);
+                }
             }
             else {
-                return taxonomy.getDefaultSiteCollectionTermStore().getTermSetsByName(this.termsetnameorid, 1033).getByName(this.termsetnameorid);
+                if (this.isGlobal) {
+                    return taxonomy.getDefaultSiteCollectionTermStore().getTermSetsByName(this.termsetnameorid, 1033).getByName(this.termsetnameorid);
+                }
+                else {
+                    return taxonomy.getDefaultSiteCollectionTermStore().getSiteCollectionGroup().termSets.getByName(this.termsetnameorid);
+                }
             }
         },
         enumerable: true,

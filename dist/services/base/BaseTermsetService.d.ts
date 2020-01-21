@@ -9,6 +9,7 @@ export declare class BaseTermsetService<T extends TaxonomyTerm> extends BaseData
     protected taxonomyHiddenListService: TaxonomyHiddenListService;
     protected utilsService: UtilsService;
     protected termsetnameorid: string;
+    protected isGlobal: boolean;
     /**
      * Associeted termset (pnpjs)
      */
@@ -20,7 +21,7 @@ export declare class BaseTermsetService<T extends TaxonomyTerm> extends BaseData
      * @param context current sp component context
      * @param termsetname termset name
      */
-    constructor(type: (new (item?: any) => T), termsetnameorid: string, tableName: string, cacheDuration?: number);
+    constructor(type: (new (item?: any) => T), termsetnameorid: string, tableName: string, isGlobal?: boolean, cacheDuration?: number);
     getWssIds(termId: string): Promise<Array<number>>;
     /**
      * Retrieve all terms

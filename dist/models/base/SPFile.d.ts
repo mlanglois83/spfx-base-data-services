@@ -20,10 +20,6 @@ export declare class SPFile implements IBaseItem {
      */
     title: string;
     /**
-     * SP List item id
-     */
-    itemId: number;
-    /**
      * Get or set file server relative url
      */
     /**

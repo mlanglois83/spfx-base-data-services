@@ -20,16 +20,27 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
     protected taxonomyHiddenListService: TaxonomyHiddenListService;
     protected utilsService: UtilsService;
     protected termsetnameorid: string;
+    protected isGlobal: boolean;
 
     /**
      * Associeted termset (pnpjs)
      */
     protected get termset() {
         if (this.termsetnameorid.match(/[A-z0-9]{8}-([A-z0-9]{4}-){3}[A-z0-9]{12}/)) {
-            return taxonomy.getDefaultSiteCollectionTermStore().getTermSetById(this.termsetnameorid);
+            if(this.isGlobal) {
+                return taxonomy.getDefaultSiteCollectionTermStore().getTermSetById(this.termsetnameorid);
+            }
+            else {
+                return taxonomy.getDefaultSiteCollectionTermStore().getSiteCollectionGroup().termSets.getById(this.termsetnameorid);
+            }
         }
         else {
-            return taxonomy.getDefaultSiteCollectionTermStore().getTermSetsByName(this.termsetnameorid, 1033).getByName(this.termsetnameorid);
+            if(this.isGlobal) {
+                return taxonomy.getDefaultSiteCollectionTermStore().getTermSetsByName(this.termsetnameorid, 1033).getByName(this.termsetnameorid);
+            }
+            else {
+                return taxonomy.getDefaultSiteCollectionTermStore().getSiteCollectionGroup().termSets.getByName(this.termsetnameorid);
+            }
         }
     }
 
@@ -47,11 +58,12 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
      * @param context current sp component context 
      * @param termsetname termset name
      */
-    constructor(type: (new (item?: any) => T), termsetnameorid: string, tableName: string, cacheDuration: number = standardTermSetCacheDuration) {
+    constructor(type: (new (item?: any) => T), termsetnameorid: string, tableName: string, isGlobal: boolean = true, cacheDuration: number = standardTermSetCacheDuration) {
         super(type, tableName, cacheDuration);
         this.utilsService = new UtilsService();
         this.taxonomyHiddenListService = new TaxonomyHiddenListService();
         this.termsetnameorid = termsetnameorid;
+        this.isGlobal = isGlobal;
     }
 
     public async getWssIds(termId: string): Promise<Array<number>> {

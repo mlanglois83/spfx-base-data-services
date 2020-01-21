@@ -7,7 +7,7 @@ export var Constants = {
         modified: "Modified",
         author: "Author",
         editor: "Editor",
-        attachments: "Attachments",
+        attachments: "AttachmentFiles",
         version: "OData__UIVersionString"
     },
     /**
