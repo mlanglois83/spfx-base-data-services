@@ -160,9 +160,10 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
 
                     if (reloadData) {
                         result = await this.getAll_Internal();
-                        await this.dbService.replaceAll(result.map((res) => {
-                            return this.convertItemToDbFormat(res)
+                        let convresult = await Promise.all(result.map((res) => {
+                            return this.convertItemToDbFormat(res);
                         }));
+                        await this.dbService.replaceAll(convresult);
                         this.UpdateCacheData();
                     }
                     else {
@@ -209,9 +210,10 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
 
                     if (reloadData) {
                         result = await this.get_Internal(query);
-                        await this.dbService.addOrUpdateItems(result.map((res) => {
-                            return this.convertItemToDbFormat(res)
-                        }), query);
+                        let convresult = await Promise.all(result.map((res) => {
+                            return this.convertItemToDbFormat(res);
+                        }));
+                        await this.dbService.addOrUpdateItems(convresult, query);
                         this.UpdateCacheData(keyCached);
                     }
                     else {
@@ -255,7 +257,8 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
 
                     if (reloadData) {
                         result = await this.getItemById_Internal(id);
-                        await this.dbService.addOrUpdateItem(this.convertItemToDbFormat(result));
+                        let converted = await this.convertItemToDbFormat(result);
+                        await this.dbService.addOrUpdateItem(converted);
                         this.UpdateCacheData(super.hashCode(keyCached).toString());
                     }
                     else {
@@ -299,9 +302,10 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
 
                     if (reloadData) {
                         results = await this.getItemsById_Internal(ids);
-                        await this.dbService.addOrUpdateItems(results.map((res) => {
+                        let convresults = await Promise.all(results.map(async (res) => {
                             return this.convertItemToDbFormat(res)
                         }));
+                        await this.dbService.addOrUpdateItems(convresults);
                         this.UpdateCacheData(super.hashCode(keyCached).toString());
                     }
                     else {
@@ -336,7 +340,8 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         if (isconnected) {
             try {
                 itemResult = await this.addOrUpdateItem_Internal(item);
-                await this.dbService.addOrUpdateItem(this.convertItemToDbFormat(itemResult));
+                let converted = await this.convertItemToDbFormat(itemResult);
+                await this.dbService.addOrUpdateItem(converted);
                 result = {
                     item: itemResult
                 };
@@ -344,7 +349,8 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                 console.error(error);
                 if (error.name === Constants.Errors.ItemVersionConfict) {
                     itemResult = await this.getItemById_Internal(item.id);
-                    await this.dbService.addOrUpdateItem(this.convertItemToDbFormat(itemResult));
+                    let converted = await this.convertItemToDbFormat(itemResult);
+                    await this.dbService.addOrUpdateItem(converted);
                     result = {
                         item: itemResult,
                         error: error
@@ -360,7 +366,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
             }
         }
         else {
-            let dbItem = this.convertItemToDbFormat(item);
+            let dbItem = await this.convertItemToDbFormat(item);
             result = await this.dbService.addOrUpdateItem(dbItem);
             result.item = item;
             // create a new transaction
@@ -390,7 +396,8 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
 
             // create a new transaction
             let ot: OfflineTransaction = new OfflineTransaction();
-            ot.itemData = assign({}, this.convertItemToDbFormat(item));
+            let converted = await this.convertItemToDbFormat(item);
+            ot.itemData = assign({}, converted);
             ot.itemType = item.constructor["name"];
             ot.title = TransactionType.Delete;
             await this.transactionService.addOrUpdateItem(ot);
@@ -400,7 +407,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
     }
 
 
-    protected convertItemToDbFormat(item: T): T {        
+    protected async convertItemToDbFormat(item: T): Promise<T> {        
         delete item.__internalLinks;
         return item;
     }

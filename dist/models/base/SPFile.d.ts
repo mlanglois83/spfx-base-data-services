@@ -35,7 +35,7 @@ export declare class SPFile implements IBaseItem {
     name: string;
     /**
      * Instanciate an SPFile object
-     * @param fileItem file item from rest call (can be file or item)
+     * @param fileItem file item from rest call (can be file or item or attachment)
      */
     constructor(fileItem?: any);
 }

@@ -56,7 +56,7 @@ export declare abstract class BaseDataService<T extends IBaseItem> extends BaseS
     addOrUpdateItem(item: T): Promise<IAddOrUpdateResult<T>>;
     protected abstract deleteItem_Internal(item: T): Promise<void>;
     deleteItem(item: T): Promise<void>;
-    protected convertItemToDbFormat(item: T): T;
+    protected convertItemToDbFormat(item: T): Promise<T>;
     mapItem(item: T): Promise<T>;
     updateLinkedTransactions(oldId: number | string, newId: number | string, nextTransactions: Array<OfflineTransaction>): Promise<Array<OfflineTransaction>>;
     __getFromCache(id: string): Promise<T>;

@@ -206,12 +206,12 @@ var BaseDataService = /** @class */ (function (_super) {
                 }
                 else {
                     promise = new Promise(function (resolve, reject) { return __awaiter(_this, void 0, void 0, function () {
-                        var result, reloadData, tmp, error_1;
+                        var result, reloadData, convresult, tmp, error_1;
                         var _this = this;
                         return __generator(this, function (_a) {
                             switch (_a.label) {
                                 case 0:
-                                    _a.trys.push([0, 10, , 11]);
+                                    _a.trys.push([0, 11, , 12]);
                                     result = new Array();
                                     return [4 /*yield*/, this.needRefreshCache()];
                                 case 1:
@@ -222,36 +222,39 @@ var BaseDataService = /** @class */ (function (_super) {
                                     reloadData = _a.sent();
                                     _a.label = 3;
                                 case 3:
-                                    if (!reloadData) return [3 /*break*/, 6];
+                                    if (!reloadData) return [3 /*break*/, 7];
                                     return [4 /*yield*/, this.getAll_Internal()];
                                 case 4:
                                     result = _a.sent();
-                                    return [4 /*yield*/, this.dbService.replaceAll(result.map(function (res) {
+                                    return [4 /*yield*/, Promise.all(result.map(function (res) {
                                             return _this.convertItemToDbFormat(res);
                                         }))];
                                 case 5:
+                                    convresult = _a.sent();
+                                    return [4 /*yield*/, this.dbService.replaceAll(convresult)];
+                                case 6:
                                     _a.sent();
                                     this.UpdateCacheData();
-                                    return [3 /*break*/, 9];
-                                case 6: return [4 /*yield*/, this.dbService.getAll()];
-                                case 7:
+                                    return [3 /*break*/, 10];
+                                case 7: return [4 /*yield*/, this.dbService.getAll()];
+                                case 8:
                                     tmp = _a.sent();
                                     return [4 /*yield*/, Promise.all(tmp.map(function (res) {
                                             return _this.mapItem(res);
                                         }))];
-                                case 8:
-                                    result = _a.sent();
-                                    _a.label = 9;
                                 case 9:
+                                    result = _a.sent();
+                                    _a.label = 10;
+                                case 10:
                                     this.removePromise();
                                     resolve(result);
-                                    return [3 /*break*/, 11];
-                                case 10:
+                                    return [3 /*break*/, 12];
+                                case 11:
                                     error_1 = _a.sent();
                                     this.removePromise();
                                     reject(error_1);
-                                    return [3 /*break*/, 11];
-                                case 11: return [2 /*return*/];
+                                    return [3 /*break*/, 12];
+                                case 12: return [2 /*return*/];
                             }
                         });
                     }); });
@@ -273,12 +276,12 @@ var BaseDataService = /** @class */ (function (_super) {
                 }
                 else {
                     promise = new Promise(function (resolve, reject) { return __awaiter(_this, void 0, void 0, function () {
-                        var result, reloadData, tmp, error_2;
+                        var result, reloadData, convresult, tmp, error_2;
                         var _this = this;
                         return __generator(this, function (_a) {
                             switch (_a.label) {
                                 case 0:
-                                    _a.trys.push([0, 10, , 11]);
+                                    _a.trys.push([0, 11, , 12]);
                                     result = new Array();
                                     return [4 /*yield*/, this.needRefreshCache(keyCached)];
                                 case 1:
@@ -289,36 +292,39 @@ var BaseDataService = /** @class */ (function (_super) {
                                     reloadData = _a.sent();
                                     _a.label = 3;
                                 case 3:
-                                    if (!reloadData) return [3 /*break*/, 6];
+                                    if (!reloadData) return [3 /*break*/, 7];
                                     return [4 /*yield*/, this.get_Internal(query)];
                                 case 4:
                                     result = _a.sent();
-                                    return [4 /*yield*/, this.dbService.addOrUpdateItems(result.map(function (res) {
+                                    return [4 /*yield*/, Promise.all(result.map(function (res) {
                                             return _this.convertItemToDbFormat(res);
-                                        }), query)];
+                                        }))];
                                 case 5:
+                                    convresult = _a.sent();
+                                    return [4 /*yield*/, this.dbService.addOrUpdateItems(convresult, query)];
+                                case 6:
                                     _a.sent();
                                     this.UpdateCacheData(keyCached);
-                                    return [3 /*break*/, 9];
-                                case 6: return [4 /*yield*/, this.dbService.get(query)];
-                                case 7:
+                                    return [3 /*break*/, 10];
+                                case 7: return [4 /*yield*/, this.dbService.get(query)];
+                                case 8:
                                     tmp = _a.sent();
                                     return [4 /*yield*/, Promise.all(tmp.map(function (res) {
                                             return _this.mapItem(res);
                                         }))];
-                                case 8:
-                                    result = _a.sent();
-                                    _a.label = 9;
                                 case 9:
+                                    result = _a.sent();
+                                    _a.label = 10;
+                                case 10:
                                     this.removePromise(keyCached);
                                     resolve(result);
-                                    return [3 /*break*/, 11];
-                                case 10:
+                                    return [3 /*break*/, 12];
+                                case 11:
                                     error_2 = _a.sent();
                                     this.removePromise(keyCached);
                                     reject(error_2);
-                                    return [3 /*break*/, 11];
-                                case 11: return [2 /*return*/];
+                                    return [3 /*break*/, 12];
+                                case 12: return [2 /*return*/];
                             }
                         });
                     }); });
@@ -340,11 +346,11 @@ var BaseDataService = /** @class */ (function (_super) {
                 }
                 else {
                     promise = new Promise(function (resolve, reject) { return __awaiter(_this, void 0, void 0, function () {
-                        var result, reloadData, temp, error_3;
+                        var result, reloadData, converted, temp, error_3;
                         return __generator(this, function (_a) {
                             switch (_a.label) {
                                 case 0:
-                                    _a.trys.push([0, 10, , 11]);
+                                    _a.trys.push([0, 11, , 12]);
                                     result = void 0;
                                     return [4 /*yield*/, this.needRefreshCache(keyCached)];
                                 case 1:
@@ -355,33 +361,36 @@ var BaseDataService = /** @class */ (function (_super) {
                                     reloadData = _a.sent();
                                     _a.label = 3;
                                 case 3:
-                                    if (!reloadData) return [3 /*break*/, 6];
+                                    if (!reloadData) return [3 /*break*/, 7];
                                     return [4 /*yield*/, this.getItemById_Internal(id)];
                                 case 4:
                                     result = _a.sent();
-                                    return [4 /*yield*/, this.dbService.addOrUpdateItem(this.convertItemToDbFormat(result))];
+                                    return [4 /*yield*/, this.convertItemToDbFormat(result)];
                                 case 5:
+                                    converted = _a.sent();
+                                    return [4 /*yield*/, this.dbService.addOrUpdateItem(converted)];
+                                case 6:
                                     _a.sent();
                                     this.UpdateCacheData(_super.prototype.hashCode.call(this, keyCached).toString());
-                                    return [3 /*break*/, 9];
-                                case 6: return [4 /*yield*/, this.dbService.getItemById(id)];
-                                case 7:
-                                    temp = _a.sent();
-                                    if (!temp) return [3 /*break*/, 9];
-                                    return [4 /*yield*/, this.mapItem(temp)];
+                                    return [3 /*break*/, 10];
+                                case 7: return [4 /*yield*/, this.dbService.getItemById(id)];
                                 case 8:
-                                    result = _a.sent();
-                                    _a.label = 9;
+                                    temp = _a.sent();
+                                    if (!temp) return [3 /*break*/, 10];
+                                    return [4 /*yield*/, this.mapItem(temp)];
                                 case 9:
+                                    result = _a.sent();
+                                    _a.label = 10;
+                                case 10:
                                     this.removePromise(keyCached);
                                     resolve(result);
-                                    return [3 /*break*/, 11];
-                                case 10:
+                                    return [3 /*break*/, 12];
+                                case 11:
                                     error_3 = _a.sent();
                                     this.removePromise(keyCached);
                                     reject(error_3);
-                                    return [3 /*break*/, 11];
-                                case 11: return [2 /*return*/];
+                                    return [3 /*break*/, 12];
+                                case 12: return [2 /*return*/];
                             }
                         });
                     }); });
@@ -403,12 +412,12 @@ var BaseDataService = /** @class */ (function (_super) {
                 }
                 else {
                     promise = new Promise(function (resolve, reject) { return __awaiter(_this, void 0, void 0, function () {
-                        var results, reloadData, tmp, error_4;
+                        var results, reloadData, convresults, tmp, error_4;
                         var _this = this;
                         return __generator(this, function (_a) {
                             switch (_a.label) {
                                 case 0:
-                                    _a.trys.push([0, 10, , 11]);
+                                    _a.trys.push([0, 11, , 12]);
                                     results = void 0;
                                     return [4 /*yield*/, this.needRefreshCache(keyCached)];
                                 case 1:
@@ -419,36 +428,41 @@ var BaseDataService = /** @class */ (function (_super) {
                                     reloadData = _a.sent();
                                     _a.label = 3;
                                 case 3:
-                                    if (!reloadData) return [3 /*break*/, 6];
+                                    if (!reloadData) return [3 /*break*/, 7];
                                     return [4 /*yield*/, this.getItemsById_Internal(ids)];
                                 case 4:
                                     results = _a.sent();
-                                    return [4 /*yield*/, this.dbService.addOrUpdateItems(results.map(function (res) {
-                                            return _this.convertItemToDbFormat(res);
-                                        }))];
+                                    return [4 /*yield*/, Promise.all(results.map(function (res) { return __awaiter(_this, void 0, void 0, function () {
+                                            return __generator(this, function (_a) {
+                                                return [2 /*return*/, this.convertItemToDbFormat(res)];
+                                            });
+                                        }); }))];
                                 case 5:
+                                    convresults = _a.sent();
+                                    return [4 /*yield*/, this.dbService.addOrUpdateItems(convresults)];
+                                case 6:
                                     _a.sent();
                                     this.UpdateCacheData(_super.prototype.hashCode.call(this, keyCached).toString());
-                                    return [3 /*break*/, 9];
-                                case 6: return [4 /*yield*/, this.dbService.getItemsById(ids)];
-                                case 7:
+                                    return [3 /*break*/, 10];
+                                case 7: return [4 /*yield*/, this.dbService.getItemsById(ids)];
+                                case 8:
                                     tmp = _a.sent();
                                     return [4 /*yield*/, Promise.all(tmp.map(function (res) {
                                             return _this.mapItem(res);
                                         }))];
-                                case 8:
-                                    results = _a.sent();
-                                    _a.label = 9;
                                 case 9:
+                                    results = _a.sent();
+                                    _a.label = 10;
+                                case 10:
                                     this.removePromise(keyCached);
                                     resolve(results);
-                                    return [3 /*break*/, 11];
-                                case 10:
+                                    return [3 /*break*/, 12];
+                                case 11:
                                     error_4 = _a.sent();
                                     this.removePromise(keyCached);
                                     reject(error_4);
-                                    return [3 /*break*/, 11];
-                                case 11: return [2 /*return*/];
+                                    return [3 /*break*/, 12];
+                                case 12: return [2 /*return*/];
                             }
                         });
                     }); });
@@ -460,7 +474,7 @@ var BaseDataService = /** @class */ (function (_super) {
     };
     BaseDataService.prototype.addOrUpdateItem = function (item) {
         return __awaiter(this, void 0, void 0, function () {
-            var result, itemResult, isconnected, error_5, dbItem, ot;
+            var result, itemResult, isconnected, converted, error_5, converted, dbItem, ot;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -473,47 +487,54 @@ var BaseDataService = /** @class */ (function (_super) {
                         isconnected = _a.sent();
                         _a.label = 2;
                     case 2:
-                        if (!isconnected) return [3 /*break*/, 12];
+                        if (!isconnected) return [3 /*break*/, 14];
                         _a.label = 3;
                     case 3:
-                        _a.trys.push([3, 6, , 11]);
+                        _a.trys.push([3, 7, , 13]);
                         return [4 /*yield*/, this.addOrUpdateItem_Internal(item)];
                     case 4:
                         itemResult = _a.sent();
-                        return [4 /*yield*/, this.dbService.addOrUpdateItem(this.convertItemToDbFormat(itemResult))];
+                        return [4 /*yield*/, this.convertItemToDbFormat(itemResult)];
                     case 5:
+                        converted = _a.sent();
+                        return [4 /*yield*/, this.dbService.addOrUpdateItem(converted)];
+                    case 6:
                         _a.sent();
                         result = {
                             item: itemResult
                         };
-                        return [3 /*break*/, 11];
-                    case 6:
+                        return [3 /*break*/, 13];
+                    case 7:
                         error_5 = _a.sent();
                         console.error(error_5);
-                        if (!(error_5.name === Constants.Errors.ItemVersionConfict)) return [3 /*break*/, 9];
+                        if (!(error_5.name === Constants.Errors.ItemVersionConfict)) return [3 /*break*/, 11];
                         return [4 /*yield*/, this.getItemById_Internal(item.id)];
-                    case 7:
-                        itemResult = _a.sent();
-                        return [4 /*yield*/, this.dbService.addOrUpdateItem(this.convertItemToDbFormat(itemResult))];
                     case 8:
+                        itemResult = _a.sent();
+                        return [4 /*yield*/, this.convertItemToDbFormat(itemResult)];
+                    case 9:
+                        converted = _a.sent();
+                        return [4 /*yield*/, this.dbService.addOrUpdateItem(converted)];
+                    case 10:
                         _a.sent();
                         result = {
                             item: itemResult,
                             error: error_5
                         };
-                        return [3 /*break*/, 10];
-                    case 9:
+                        return [3 /*break*/, 12];
+                    case 11:
                         result = {
                             item: item,
                             error: error_5
                         };
-                        _a.label = 10;
-                    case 10: return [3 /*break*/, 11];
-                    case 11: return [3 /*break*/, 15];
-                    case 12:
-                        dbItem = this.convertItemToDbFormat(item);
+                        _a.label = 12;
+                    case 12: return [3 /*break*/, 13];
+                    case 13: return [3 /*break*/, 18];
+                    case 14: return [4 /*yield*/, this.convertItemToDbFormat(item)];
+                    case 15:
+                        dbItem = _a.sent();
                         return [4 /*yield*/, this.dbService.addOrUpdateItem(dbItem)];
-                    case 13:
+                    case 16:
                         result = _a.sent();
                         result.item = item;
                         ot = new OfflineTransaction();
@@ -521,17 +542,17 @@ var BaseDataService = /** @class */ (function (_super) {
                         ot.itemType = result.item.constructor["name"];
                         ot.title = TransactionType.AddOrUpdate;
                         return [4 /*yield*/, this.transactionService.addOrUpdateItem(ot)];
-                    case 14:
+                    case 17:
                         _a.sent();
-                        _a.label = 15;
-                    case 15: return [2 /*return*/, result];
+                        _a.label = 18;
+                    case 18: return [2 /*return*/, result];
                 }
             });
         });
     };
     BaseDataService.prototype.deleteItem = function (item) {
         return __awaiter(this, void 0, void 0, function () {
-            var isconnected, ot;
+            var isconnected, ot, converted;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -549,26 +570,33 @@ var BaseDataService = /** @class */ (function (_super) {
                         return [4 /*yield*/, this.dbService.deleteItem(item)];
                     case 4:
                         _a.sent();
-                        return [3 /*break*/, 8];
+                        return [3 /*break*/, 9];
                     case 5: return [4 /*yield*/, this.dbService.deleteItem(item)];
                     case 6:
                         _a.sent();
                         ot = new OfflineTransaction();
-                        ot.itemData = assign({}, this.convertItemToDbFormat(item));
+                        return [4 /*yield*/, this.convertItemToDbFormat(item)];
+                    case 7:
+                        converted = _a.sent();
+                        ot.itemData = assign({}, converted);
                         ot.itemType = item.constructor["name"];
                         ot.title = TransactionType.Delete;
                         return [4 /*yield*/, this.transactionService.addOrUpdateItem(ot)];
-                    case 7:
+                    case 8:
                         _a.sent();
-                        _a.label = 8;
-                    case 8: return [2 /*return*/, null];
+                        _a.label = 9;
+                    case 9: return [2 /*return*/, null];
                 }
             });
         });
     };
     BaseDataService.prototype.convertItemToDbFormat = function (item) {
-        delete item.__internalLinks;
-        return item;
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                delete item.__internalLinks;
+                return [2 /*return*/, item];
+            });
+        });
     };
     BaseDataService.prototype.mapItem = function (item) {
         return Promise.resolve(item);

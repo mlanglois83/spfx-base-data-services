@@ -54,9 +54,10 @@ import { sp } from "@pnp/sp";
 import { Constants, FieldType } from "../../constants/index";
 import { BaseDataService } from "./BaseDataService";
 import { UtilsService } from "..";
-import { SPItem, User, TaxonomyTerm } from "../../models";
+import { SPItem, User, TaxonomyTerm, SPFile } from "../../models";
 import { UserService } from "../graph/UserService";
 import { isArray, stringIsNullOrEmpty } from "@pnp/common";
+import { BaseDbService } from "./BaseDbService";
 /**
  *
  * Base service for sp list items operations
@@ -81,9 +82,11 @@ var BaseListItemService = /** @class */ (function (_super) {
         _this.fieldsInitialized = false;
         _this.initFieldsPromise = null;
         _this.listRelativeUrl = ServicesConfiguration.context.pageContext.web.serverRelativeUrl + listRelativeUrl;
+        _this.attachmentsService = new BaseDbService(SPFile, tableName + "_Attachments");
         return _this;
     }
     Object.defineProperty(BaseListItemService.prototype, "ItemFields", {
+        /* AttachmentService */
         get: function () {
             var result = {};
             assign(result, this.itemType["Fields"][SPItem["name"]]);
@@ -275,6 +278,9 @@ var BaseListItemService = /** @class */ (function (_super) {
             case FieldType.Simple:
                 if (fieldDescriptor.fieldName === Constants.commonFields.version) {
                     destItem[propertyName] = spitem[fieldDescriptor.fieldName] ? parseFloat(spitem[fieldDescriptor.fieldName]) : fieldDescriptor.defaultValue;
+                }
+                else if (fieldDescriptor.fieldName === Constants.commonFields.attachments) {
+                    destItem[propertyName] = spitem[fieldDescriptor.fieldName] ? spitem[fieldDescriptor.fieldName].map(function (fileobj) { return new SPFile(fileobj); }) : fieldDescriptor.defaultValue;
                 }
                 else {
                     destItem[propertyName] = spitem[fieldDescriptor.fieldName] ? spitem[fieldDescriptor.fieldName] : fieldDescriptor.defaultValue;
@@ -675,7 +681,7 @@ var BaseListItemService = /** @class */ (function (_super) {
      */
     BaseListItemService.prototype.get_Internal = function (query) {
         return __awaiter(this, void 0, void 0, function () {
-            var results, selectFields, items;
+            var results, selectFields, itemsQuery, items;
             var _a;
             var _this = this;
             return __generator(this, function (_b) {
@@ -683,7 +689,11 @@ var BaseListItemService = /** @class */ (function (_super) {
                     case 0:
                         results = new Array();
                         selectFields = this.getOdataFieldNames();
-                        return [4 /*yield*/, (_a = this.list).select.apply(_a, selectFields).getItemsByCAMLQuery(query)];
+                        itemsQuery = (_a = this.list).select.apply(_a, selectFields);
+                        if (this.hasAttachments) {
+                            itemsQuery = itemsQuery.expand(Constants.commonFields.attachments);
+                        }
+                        return [4 /*yield*/, itemsQuery.getItemsByCAMLQuery(query)];
                     case 1:
                         items = _b.sent();
                         if (!(items && items.length > 0)) return [3 /*break*/, 3];
@@ -705,14 +715,18 @@ var BaseListItemService = /** @class */ (function (_super) {
      */
     BaseListItemService.prototype.getItemById_Internal = function (id) {
         return __awaiter(this, void 0, void 0, function () {
-            var result, selectFields, temp;
+            var result, selectFields, itemsQuery, temp;
             var _a;
             return __generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
                         result = null;
                         selectFields = this.getOdataFieldNames();
-                        return [4 /*yield*/, (_a = this.list.items.getById(id)).select.apply(_a, selectFields).get()];
+                        itemsQuery = (_a = this.list.items.getById(id)).select.apply(_a, selectFields);
+                        if (this.hasAttachments) {
+                            itemsQuery = itemsQuery.expand(Constants.commonFields.attachments);
+                        }
+                        return [4 /*yield*/, itemsQuery.get()];
                     case 1:
                         temp = _b.sent();
                         if (!temp) return [3 /*break*/, 3];
@@ -742,7 +756,11 @@ var BaseListItemService = /** @class */ (function (_super) {
                         batch = sp.createBatch();
                         ids.forEach(function (id) {
                             var _a;
-                            (_a = _this.list.items.getById(id)).select.apply(_a, selectFields).inBatch(batch).get().then(function (item) {
+                            var itemsQuery = (_a = _this.list.items.getById(id)).select.apply(_a, selectFields);
+                            if (_this.hasAttachments) {
+                                itemsQuery = itemsQuery.expand(Constants.commonFields.attachments);
+                            }
+                            itemsQuery.inBatch(batch).get().then(function (item) {
                                 results.push(_this.getItemFromRest(item));
                             });
                         });
@@ -760,7 +778,7 @@ var BaseListItemService = /** @class */ (function (_super) {
      */
     BaseListItemService.prototype.getAll_Internal = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var results, selectFields, items;
+            var results, selectFields, itemsQuery, items;
             var _a;
             var _this = this;
             return __generator(this, function (_b) {
@@ -768,7 +786,11 @@ var BaseListItemService = /** @class */ (function (_super) {
                     case 0:
                         results = [];
                         selectFields = this.getOdataFieldNames();
-                        return [4 /*yield*/, (_a = this.list.items).select.apply(_a, selectFields).getAll()];
+                        itemsQuery = (_a = this.list.items).select.apply(_a, selectFields);
+                        if (this.hasAttachments) {
+                            itemsQuery = itemsQuery.expand(Constants.commonFields.attachments);
+                        }
+                        return [4 /*yield*/, itemsQuery.getAll()];
                     case 1:
                         items = _b.sent();
                         if (!(items && items.length > 0)) return [3 /*break*/, 3];
@@ -882,7 +904,120 @@ var BaseListItemService = /** @class */ (function (_super) {
             });
         });
     };
-    /************************** Query filters ***************************/
+    BaseListItemService.prototype.getAttachmentContent = function (attachment) {
+        return __awaiter(this, void 0, void 0, function () {
+            var content;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, sp.web.getFileByServerRelativeUrl(attachment.serverRelativeUrl).getBuffer()];
+                    case 1:
+                        content = _a.sent();
+                        attachment.content = content;
+                        return [2 /*return*/];
+                }
+            });
+        });
+    };
+    BaseListItemService.prototype.cacheAttachmentsContent = function () {
+        return __awaiter(this, void 0, void 0, function () {
+            var prop, load, updatedItems_1, operations_1, items, _i, items_1, item, converted;
+            var _this = this;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        prop = this.attachmentProperty;
+                        if (!(prop !== null)) return [3 /*break*/, 8];
+                        load = true;
+                        if (!ServicesConfiguration.configuration.checkOnline) return [3 /*break*/, 2];
+                        return [4 /*yield*/, UtilsService.CheckOnline()];
+                    case 1:
+                        load = _a.sent();
+                        _a.label = 2;
+                    case 2:
+                        if (!load) return [3 /*break*/, 8];
+                        updatedItems_1 = [];
+                        operations_1 = [];
+                        return [4 /*yield*/, this.dbService.getAll()];
+                    case 3:
+                        items = _a.sent();
+                        _i = 0, items_1 = items;
+                        _a.label = 4;
+                    case 4:
+                        if (!(_i < items_1.length)) return [3 /*break*/, 7];
+                        item = items_1[_i];
+                        return [4 /*yield*/, this.mapItem(item)];
+                    case 5:
+                        converted = _a.sent();
+                        if (converted[prop] && converted[prop].length > 0) {
+                            updatedItems_1.push(converted);
+                            converted[prop].forEach(function (attachment) {
+                                operations_1.push(_this.getAttachmentContent(attachment));
+                            });
+                        }
+                        _a.label = 6;
+                    case 6:
+                        _i++;
+                        return [3 /*break*/, 4];
+                    case 7:
+                        operations_1.map(function (operation) {
+                            return operation;
+                        }).reduce(function (chain, operation) {
+                            return chain.then(function (_) { return operation; });
+                        }, Promise.resolve()).then(function (_) { return __awaiter(_this, void 0, void 0, function () {
+                            var dbitems;
+                            var _this = this;
+                            return __generator(this, function (_a) {
+                                switch (_a.label) {
+                                    case 0:
+                                        if (!(updatedItems_1.length > 0)) return [3 /*break*/, 3];
+                                        return [4 /*yield*/, Promise.all(updatedItems_1.map(function (u) {
+                                                return _this.convertItemToDbFormat(u);
+                                            }))];
+                                    case 1:
+                                        dbitems = _a.sent();
+                                        return [4 /*yield*/, this.dbService.addOrUpdateItems(dbitems)];
+                                    case 2:
+                                        _a.sent();
+                                        _a.label = 3;
+                                    case 3: return [2 /*return*/];
+                                }
+                            });
+                        }); });
+                        _a.label = 8;
+                    case 8: return [2 /*return*/];
+                }
+            });
+        });
+    };
+    Object.defineProperty(BaseListItemService.prototype, "hasAttachments", {
+        /************************** Query filters ***************************/
+        /**
+         * Retrive all fields to include in odata setect parameter
+         */
+        get: function () {
+            return this.attachmentProperty !== null;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(BaseListItemService.prototype, "attachmentProperty", {
+        get: function () {
+            var result = null;
+            var fields = this.ItemFields;
+            for (var key in fields) {
+                if (fields.hasOwnProperty(key)) {
+                    var fieldDesc = fields[key];
+                    if (fieldDesc.fieldName === Constants.commonFields.attachments) {
+                        result = key;
+                        break;
+                    }
+                }
+            }
+            return result;
+        },
+        enumerable: true,
+        configurable: true
+    });
     /**
      * Retrive all fields to include in odata setect parameter
      */
@@ -1005,51 +1140,96 @@ var BaseListItemService = /** @class */ (function (_super) {
      * @param item full provisionned item
      */
     BaseListItemService.prototype.convertItemToDbFormat = function (item) {
-        var result = cloneDeep(item);
-        delete result.__internalLinks;
-        var _loop_1 = function (propertyName) {
-            if (this_1.ItemFields.hasOwnProperty(propertyName)) {
-                var fieldDescriptor = this_1.ItemFields[propertyName];
-                switch (fieldDescriptor.fieldType) {
-                    case FieldType.Lookup:
-                    case FieldType.User:
-                    case FieldType.Taxonomy:
-                        if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                            //link defered
-                            result.__internalLinks = result.__internalLinks || {};
-                            result.__internalLinks[propertyName] = item[propertyName] ? item[propertyName].id : undefined;
-                            delete result[propertyName];
-                        }
-                        break;
-                    case FieldType.LookupMulti:
-                    case FieldType.UserMulti:
-                    case FieldType.TaxonomyMulti:
-                        if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                            var ids_1 = [];
-                            if (item[propertyName]) {
-                                item[propertyName].forEach(function (element) {
-                                    if (element.id) {
-                                        if ((typeof (element.id) === "number" && element.id > 0) || (typeof (element.id) === "string" && !stringIsNullOrEmpty(element.id))) {
-                                            ids_1.push(element.id);
+        return __awaiter(this, void 0, void 0, function () {
+            var result, _loop_1, this_1, _a, _b, _i, propertyName;
+            return __generator(this, function (_c) {
+                switch (_c.label) {
+                    case 0:
+                        result = cloneDeep(item);
+                        delete result.__internalLinks;
+                        _loop_1 = function (propertyName) {
+                            var fieldDescriptor, _a, ids_1, ids, files;
+                            return __generator(this, function (_b) {
+                                switch (_b.label) {
+                                    case 0:
+                                        if (!this_1.ItemFields.hasOwnProperty(propertyName)) return [3 /*break*/, 7];
+                                        fieldDescriptor = this_1.ItemFields[propertyName];
+                                        _a = fieldDescriptor.fieldType;
+                                        switch (_a) {
+                                            case FieldType.Lookup: return [3 /*break*/, 1];
+                                            case FieldType.User: return [3 /*break*/, 1];
+                                            case FieldType.Taxonomy: return [3 /*break*/, 1];
+                                            case FieldType.LookupMulti: return [3 /*break*/, 2];
+                                            case FieldType.UserMulti: return [3 /*break*/, 2];
+                                            case FieldType.TaxonomyMulti: return [3 /*break*/, 2];
                                         }
-                                    }
-                                });
-                            }
-                            result.__internalLinks = result.__internalLinks || {};
-                            result.__internalLinks[propertyName] = ids_1.length > 0 ? ids_1 : [];
-                            delete result[propertyName];
-                        }
-                        break;
-                    default:
-                        break;
+                                        return [3 /*break*/, 3];
+                                    case 1:
+                                        if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                                            //link defered
+                                            result.__internalLinks = result.__internalLinks || {};
+                                            result.__internalLinks[propertyName] = item[propertyName] ? item[propertyName].id : undefined;
+                                            delete result[propertyName];
+                                        }
+                                        return [3 /*break*/, 7];
+                                    case 2:
+                                        if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                                            ids_1 = [];
+                                            if (item[propertyName]) {
+                                                item[propertyName].forEach(function (element) {
+                                                    if (element.id) {
+                                                        if ((typeof (element.id) === "number" && element.id > 0) || (typeof (element.id) === "string" && !stringIsNullOrEmpty(element.id))) {
+                                                            ids_1.push(element.id);
+                                                        }
+                                                    }
+                                                });
+                                            }
+                                            result.__internalLinks = result.__internalLinks || {};
+                                            result.__internalLinks[propertyName] = ids_1.length > 0 ? ids_1 : [];
+                                            delete result[propertyName];
+                                        }
+                                        return [3 /*break*/, 7];
+                                    case 3:
+                                        if (!(fieldDescriptor.fieldName === Constants.commonFields.attachments)) return [3 /*break*/, 6];
+                                        ids = [];
+                                        if (!(item[propertyName] && item[propertyName].length > 0)) return [3 /*break*/, 5];
+                                        return [4 /*yield*/, this_1.attachmentsService.addOrUpdateItems(item[propertyName])];
+                                    case 4:
+                                        files = _b.sent();
+                                        ids = files.map(function (f) {
+                                            return f.id;
+                                        });
+                                        _b.label = 5;
+                                    case 5:
+                                        result.__internalLinks = result.__internalLinks || {};
+                                        result.__internalLinks[propertyName] = ids.length > 0 ? ids : [];
+                                        delete result[propertyName];
+                                        _b.label = 6;
+                                    case 6: return [3 /*break*/, 7];
+                                    case 7: return [2 /*return*/];
+                                }
+                            });
+                        };
+                        this_1 = this;
+                        _a = [];
+                        for (_b in this.ItemFields)
+                            _a.push(_b);
+                        _i = 0;
+                        _c.label = 1;
+                    case 1:
+                        if (!(_i < _a.length)) return [3 /*break*/, 4];
+                        propertyName = _a[_i];
+                        return [5 /*yield**/, _loop_1(propertyName)];
+                    case 2:
+                        _c.sent();
+                        _c.label = 3;
+                    case 3:
+                        _i++;
+                        return [3 /*break*/, 1];
+                    case 4: return [2 /*return*/, result];
                 }
-            }
-        };
-        var this_1 = this;
-        for (var propertyName in this.ItemFields) {
-            _loop_1(propertyName);
-        }
-        return result;
+            });
+        });
     };
     /**
      * populate item from db storage
@@ -1057,27 +1237,29 @@ var BaseListItemService = /** @class */ (function (_super) {
      */
     BaseListItemService.prototype.mapItem = function (item) {
         return __awaiter(this, void 0, void 0, function () {
-            var result, _loop_2, this_2, propertyName;
-            return __generator(this, function (_a) {
-                switch (_a.label) {
+            var result, _loop_2, this_2, _a, _b, _i, propertyName;
+            return __generator(this, function (_c) {
+                switch (_c.label) {
                     case 0:
                         result = cloneDeep(item);
                         return [4 /*yield*/, this.Init()];
                     case 1:
-                        _a.sent();
+                        _c.sent();
                         _loop_2 = function (propertyName) {
-                            if (this_2.ItemFields.hasOwnProperty(propertyName)) {
-                                var fieldDescriptor = this_2.ItemFields[propertyName];
-                                switch (fieldDescriptor.fieldType) {
-                                    case FieldType.Lookup:
-                                    case FieldType.User:
-                                    case FieldType.Taxonomy:
+                            var fieldDescriptor, id_3, destElements, existing, ids, val_3, targetItems_2, urls, files;
+                            return __generator(this, function (_a) {
+                                switch (_a.label) {
+                                    case 0:
+                                        if (!this_2.ItemFields.hasOwnProperty(propertyName)) return [3 /*break*/, 7];
+                                        fieldDescriptor = this_2.ItemFields[propertyName];
+                                        if (!(fieldDescriptor.fieldType === FieldType.Lookup ||
+                                            fieldDescriptor.fieldType === FieldType.User ||
+                                            fieldDescriptor.fieldType === FieldType.Taxonomy)) return [3 /*break*/, 1];
                                         if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                                            // get values from init values
-                                            var id_3 = item.__internalLinks[propertyName] ? item.__internalLinks[propertyName] : null;
+                                            id_3 = item.__internalLinks[propertyName] ? item.__internalLinks[propertyName] : null;
                                             if (id_3 !== null) {
-                                                var destElements = this_2.getServiceInitValues(fieldDescriptor.modelName);
-                                                var existing = find(destElements, function (destElement) {
+                                                destElements = this_2.getServiceInitValues(fieldDescriptor.modelName);
+                                                existing = find(destElements, function (destElement) {
                                                     return destElement.id === id_3;
                                                 });
                                                 result[propertyName] = existing ? existing : fieldDescriptor.defaultValue;
@@ -1086,16 +1268,16 @@ var BaseListItemService = /** @class */ (function (_super) {
                                                 result[propertyName] = fieldDescriptor.defaultValue;
                                             }
                                         }
-                                        break;
-                                    case FieldType.LookupMulti:
-                                    case FieldType.UserMulti:
-                                    case FieldType.TaxonomyMulti:
+                                        return [3 /*break*/, 7];
+                                    case 1:
+                                        if (!(fieldDescriptor.fieldType === FieldType.LookupMulti ||
+                                            fieldDescriptor.fieldType === FieldType.UserMulti ||
+                                            fieldDescriptor.fieldType === FieldType.TaxonomyMulti)) return [3 /*break*/, 2];
                                         if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                                            // get values from init values
-                                            var ids = item.__internalLinks[propertyName] ? item.__internalLinks[propertyName] : [];
+                                            ids = item.__internalLinks[propertyName] ? item.__internalLinks[propertyName] : [];
                                             if (ids.length > 0) {
-                                                var val_3 = [];
-                                                var targetItems_2 = this_2.getServiceInitValues(fieldDescriptor.modelName);
+                                                val_3 = [];
+                                                targetItems_2 = this_2.getServiceInitValues(fieldDescriptor.modelName);
                                                 ids.forEach(function (id) {
                                                     var existing = find(targetItems_2, function (item) {
                                                         return item.id === id;
@@ -1110,17 +1292,44 @@ var BaseListItemService = /** @class */ (function (_super) {
                                                 result[propertyName] = fieldDescriptor.defaultValue;
                                             }
                                         }
-                                        break;
-                                    default:
+                                        return [3 /*break*/, 7];
+                                    case 2:
+                                        if (!(fieldDescriptor.fieldName === Constants.commonFields.attachments)) return [3 /*break*/, 6];
+                                        urls = item.__internalLinks[propertyName] ? item.__internalLinks[propertyName] : [];
+                                        if (!(urls.length > 0)) return [3 /*break*/, 4];
+                                        return [4 /*yield*/, this_2.attachmentsService.getItemsById(urls)];
+                                    case 3:
+                                        files = _a.sent();
+                                        result[propertyName] = files;
+                                        return [3 /*break*/, 5];
+                                    case 4:
+                                        result[propertyName] = fieldDescriptor.defaultValue;
+                                        _a.label = 5;
+                                    case 5: return [3 /*break*/, 7];
+                                    case 6:
                                         result[propertyName] = item[propertyName];
-                                        break;
+                                        _a.label = 7;
+                                    case 7: return [2 /*return*/];
                                 }
-                            }
+                            });
                         };
                         this_2 = this;
-                        for (propertyName in this.ItemFields) {
-                            _loop_2(propertyName);
-                        }
+                        _a = [];
+                        for (_b in this.ItemFields)
+                            _a.push(_b);
+                        _i = 0;
+                        _c.label = 2;
+                    case 2:
+                        if (!(_i < _a.length)) return [3 /*break*/, 5];
+                        propertyName = _a[_i];
+                        return [5 /*yield**/, _loop_2(propertyName)];
+                    case 3:
+                        _c.sent();
+                        _c.label = 4;
+                    case 4:
+                        _i++;
+                        return [3 /*break*/, 2];
+                    case 5:
                         delete result.__internalLinks;
                         return [2 /*return*/, result];
                 }
@@ -1141,7 +1350,7 @@ var BaseListItemService = /** @class */ (function (_super) {
                     for (var propertyName in fields) {
                         if (fields.hasOwnProperty(propertyName)) {
                             var fieldDescription = fields[propertyName];
-                            if (fieldDescription.refItemName === _this.itemType["name"]) {
+                            if (fieldDescription.refItemName === _this.itemType["name"] || fieldDescription.modelName === _this.itemType["name"]) {
                                 // get object if not done yet
                                 if (!currentObject) {
                                     var destType = ServicesConfiguration.configuration.serviceFactory.getItemTypeByName(transaction.itemType);
@@ -1216,8 +1425,8 @@ var BaseListItemService = /** @class */ (function (_super) {
                                         if (!allFields.hasOwnProperty(modelName)) return [3 /*break*/, 3];
                                         modelFields_1 = allFields[modelName];
                                         lookupProperties_1 = Object.keys(modelFields_1).filter(function (prop) {
-                                            return modelFields_1[prop].refItemName &&
-                                                modelFields_1[prop].refItemName === _this.itemType["name"];
+                                            return (modelFields_1[prop].refItemName &&
+                                                modelFields_1[prop].refItemName === _this.itemType["name"] || modelFields_1[prop].modelName === _this.itemType["name"]);
                                         });
                                         if (!(lookupProperties_1.length > 0)) return [3 /*break*/, 3];
                                         service = ServicesConfiguration.configuration.serviceFactory.create(modelName);

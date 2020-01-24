@@ -4,12 +4,12 @@
 var SPFile = /** @class */ (function () {
     /**
      * Instanciate an SPFile object
-     * @param fileItem file item from rest call (can be file or item)
+     * @param fileItem file item from rest call (can be file or item or attachment)
      */
     function SPFile(fileItem) {
         if (fileItem) {
             this.serverRelativeUrl = (fileItem.FileRef ? fileItem.FileRef : fileItem.ServerRelativeUrl);
-            this.name = (fileItem.FileLeafRef ? fileItem.FileLeafRef : fileItem.Name);
+            this.name = (fileItem.FileLeafRef ? fileItem.FileLeafRef : (fileItem.Name ? fileItem.Name : fileItem.FileName));
         }
     }
     Object.defineProperty(SPFile.prototype, "serverRelativeUrl", {

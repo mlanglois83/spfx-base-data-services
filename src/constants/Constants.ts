@@ -55,5 +55,6 @@ export const Constants = {
         "Transaction",
         "TransactionFiles",
         "TaxonomyHiddenList", 
-        "Users"]
+        "Users"
+    ]
 };

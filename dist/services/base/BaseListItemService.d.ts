@@ -1,7 +1,8 @@
 import { List } from "@pnp/sp";
 import { IBaseItem } from "../../interfaces/index";
 import { BaseDataService } from "./BaseDataService";
-import { TaxonomyTerm, OfflineTransaction } from "../../models";
+import { TaxonomyTerm, OfflineTransaction, SPFile } from "../../models";
+import { BaseDbService } from "./BaseDbService";
 /**
  *
  * Base service for sp list items operations
@@ -11,6 +12,7 @@ export declare class BaseListItemService<T extends IBaseItem> extends BaseDataSe
     protected listRelativeUrl: string;
     protected initValues: any;
     protected taxoMultiFieldNames: any;
+    protected attachmentsService: BaseDbService<SPFile>;
     readonly ItemFields: any;
     /**
      * Associeted list (pnpjs)
@@ -104,7 +106,14 @@ export declare class BaseListItemService<T extends IBaseItem> extends BaseDataSe
      * @param item SPItem derived class to be deleted
      */
     protected deleteItem_Internal(item: T): Promise<void>;
+    private getAttachmentContent;
+    cacheAttachmentsContent(): Promise<void>;
     /************************** Query filters ***************************/
+    /**
+     * Retrive all fields to include in odata setect parameter
+     */
+    private readonly hasAttachments;
+    private readonly attachmentProperty;
     /**
      * Retrive all fields to include in odata setect parameter
      */
@@ -115,7 +124,7 @@ export declare class BaseListItemService<T extends IBaseItem> extends BaseDataSe
      * convert full item to db format (with links only)
      * @param item full provisionned item
      */
-    protected convertItemToDbFormat(item: T): T;
+    protected convertItemToDbFormat(item: T): Promise<T>;
     /**
      * populate item from db storage
      * @param item db item with links in __internalLinks fields
