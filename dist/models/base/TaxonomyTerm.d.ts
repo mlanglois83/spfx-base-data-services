@@ -16,6 +16,10 @@ export declare class TaxonomyTerm implements IBaseItem {
      */
     title: string;
     /**
+     * Deprecated
+     */
+    isDeprecated: boolean;
+    /**
      * Full path of term
      */
     path: string;

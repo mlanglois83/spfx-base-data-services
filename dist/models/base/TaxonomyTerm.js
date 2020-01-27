@@ -14,6 +14,7 @@ var TaxonomyTerm = /** @class */ (function () {
             this.path = term.PathOfTerm != undefined ? term.PathOfTerm : "";
             this.customSortOrder = term.CustomSortOrder;
             this.customProperties = term.CustomProperties;
+            this.isDeprecated = term.IsDeprecated;
         }
     }
     Object.defineProperty(TaxonomyTerm.prototype, "fullPathString", {
