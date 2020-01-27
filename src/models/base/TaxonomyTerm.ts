@@ -18,6 +18,10 @@ export class TaxonomyTerm implements IBaseItem {
      */
     public title: string;
     /**
+     * Deprecated
+     */
+    public isDeprecated: boolean;
+    /**
      * Full path of term
      */
     public path: string;
@@ -40,6 +44,7 @@ export class TaxonomyTerm implements IBaseItem {
             this.path = term.PathOfTerm != undefined ? term.PathOfTerm : "";
             this.customSortOrder = term.CustomSortOrder;
             this.customProperties = term.CustomProperties;
+            this.isDeprecated = term.IsDeprecated
         }
     }
 
