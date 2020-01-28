@@ -474,7 +474,7 @@ var BaseDataService = /** @class */ (function (_super) {
     };
     BaseDataService.prototype.addOrUpdateItem = function (item) {
         return __awaiter(this, void 0, void 0, function () {
-            var result, itemResult, isconnected, converted, error_5, converted, dbItem, ot;
+            var result, itemResult, isconnected, converted, error_5, converted, dbItem, resultitem, ot;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -535,8 +535,13 @@ var BaseDataService = /** @class */ (function (_super) {
                         dbItem = _a.sent();
                         return [4 /*yield*/, this.dbService.addOrUpdateItem(dbItem)];
                     case 16:
-                        result = _a.sent();
-                        result.item = item;
+                        resultitem = _a.sent();
+                        result = {
+                            item: item,
+                            error: resultitem.error
+                        };
+                        // update id (only field modified in db)
+                        result.item.id = resultitem.item.id;
                         ot = new OfflineTransaction();
                         ot.itemData = assign({}, dbItem);
                         ot.itemType = result.item.constructor["name"];
@@ -628,4 +633,3 @@ var BaseDataService = /** @class */ (function (_super) {
     return BaseDataService;
 }(BaseService));
 export { BaseDataService };
-//# sourceMappingURL=BaseDataService.js.map

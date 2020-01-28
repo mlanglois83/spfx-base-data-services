@@ -7,4 +7,3 @@ export var PictureSize;
     PictureSize["Medium"] = "M";
     PictureSize["Large"] = "L";
 })(PictureSize || (PictureSize = {}));
-//# sourceMappingURL=PictureSize.js.map

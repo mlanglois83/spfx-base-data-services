@@ -4,4 +4,3 @@ export { SPFile } from "./base/SPFile";
 export { OfflineTransaction } from "./OfflineTransaction";
 export { TaxonomyHidden } from "./sp/TaxonomyHidden";
 export { User } from "./graph/User";
-//# sourceMappingURL=index.js.map

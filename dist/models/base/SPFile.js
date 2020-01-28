@@ -47,4 +47,3 @@ var SPFile = /** @class */ (function () {
     return SPFile;
 }());
 export { SPFile };
-//# sourceMappingURL=SPFile.js.map

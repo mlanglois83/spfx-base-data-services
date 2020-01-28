@@ -19,4 +19,3 @@ var BaseService = /** @class */ (function () {
     return BaseService;
 }());
 export { BaseService };
-//# sourceMappingURL=BaseService.js.map

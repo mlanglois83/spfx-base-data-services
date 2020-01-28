@@ -367,8 +367,13 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         }
         else {
             let dbItem = await this.convertItemToDbFormat(item);
-            result = await this.dbService.addOrUpdateItem(dbItem);
-            result.item = item;
+            let resultitem = await this.dbService.addOrUpdateItem(dbItem);
+            result = {
+                item: item,
+                error: resultitem.error
+            };
+            // update id (only field modified in db)
+            result.item.id = resultitem.item.id;
             // create a new transaction
             let ot: OfflineTransaction = new OfflineTransaction();
             ot.itemData = assign({}, dbItem);
