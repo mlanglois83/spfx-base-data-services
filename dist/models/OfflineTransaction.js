@@ -7,3 +7,4 @@ var OfflineTransaction = /** @class */ (function () {
     return OfflineTransaction;
 }());
 export { OfflineTransaction };
+//# sourceMappingURL=OfflineTransaction.js.map

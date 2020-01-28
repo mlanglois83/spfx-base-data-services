@@ -40,3 +40,4 @@ var SPItem = /** @class */ (function () {
     return SPItem;
 }());
 export { SPItem };
+//# sourceMappingURL=SPItem.js.map

@@ -48,3 +48,4 @@ export var FieldType;
      */
     FieldType[FieldType["Json"] = 8] = "Json";
 })(FieldType || (FieldType = {}));
+//# sourceMappingURL=FieldType.js.map

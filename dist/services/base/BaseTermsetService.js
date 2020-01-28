@@ -289,3 +289,4 @@ var BaseTermsetService = /** @class */ (function (_super) {
     return BaseTermsetService;
 }(BaseDataService));
 export { BaseTermsetService };
+//# sourceMappingURL=BaseTermsetService.js.map

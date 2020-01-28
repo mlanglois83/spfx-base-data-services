@@ -16,3 +16,4 @@ export function spField(declaration) {
         target.constructor.Fields[target.constructor["name"]][propertyKey] = declaration;
     };
 }
+//# sourceMappingURL=spField.js.map

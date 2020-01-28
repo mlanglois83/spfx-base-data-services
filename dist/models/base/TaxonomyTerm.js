@@ -32,3 +32,4 @@ var TaxonomyTerm = /** @class */ (function () {
     return TaxonomyTerm;
 }());
 export { TaxonomyTerm };
+//# sourceMappingURL=TaxonomyTerm.js.map
