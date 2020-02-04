@@ -49,6 +49,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 };
 import { BaseService } from "./base/BaseService";
 import { ServicesConfiguration } from "../";
+import { Text } from '@microsoft/sp-core-library';
 /**
  * Utility class
  */
@@ -165,9 +166,45 @@ var UtilsService = /** @class */ (function (_super) {
      * transform an array to the corresponding caml in clause values (surrounded with <Values></Values> tag)
      * @param values array of value to transform to in values
      * @param fieldType sp field type
+     * @deprecated Use getCamlInQuery (for limit management)
      */
     UtilsService.getCamlInValues = function (values, fieldType) {
         return values && values.length > 0 ? "<Values>" + values.map(function (value) { return "<Value Type=\"" + fieldType + "\">" + value + "</Value>"; }).join('') + "</Values>" : "<Values><Value Type=\"" + fieldType + "\">-1</Value></Values>";
+    };
+    /**
+     * Construction récursive d'une requête CAML
+     * @param operandenom de l'operateur (Or ou And)</param>
+     * @param listClauses liste des clause du Where</param>
+     */
+    UtilsService.buildCAMLQueryRecursive = function (operande, listClauses) {
+        if (!listClauses || listClauses.length === 0)
+            return "";
+        if (listClauses.length === 1)
+            return listClauses[0];
+        var clause = listClauses[0];
+        var result = Text.format("<{0}>{1}{2}</{0}>", operande, clause, UtilsService.buildCAMLQueryRecursive(operande, listClauses.slice(1)));
+        return result;
+    };
+    /**
+     * transform an array to the corresponding caml in clause (surrounded with <Values></Values> tag)
+     * @param fieldName internal name of field
+     * @param fieldType sp field type
+     * @param values array of value to transform to in values
+     * @param isLookup true if query is based on lookup id (default false)
+     */
+    UtilsService.getCamlInQuery = function (fieldName, fieldType, values, isLookup) {
+        if (isLookup === void 0) { isLookup = false; }
+        if (values && values.length > 0) {
+            var orClauses = [];
+            while (values.length) {
+                var subValues = values.splice(0, 500);
+                orClauses.push("<In><FieldRef LookupId=\"" + (isLookup ? "TRUE" : "FALSE") + "\" Name=\"" + fieldName + "\"></FieldRef><Values>" + values.map(function (value) { return "<Value Type=\"" + fieldType + "\">" + value + "</Value>"; }).join('') + "</Values></In>");
+            }
+            return UtilsService.buildCAMLQueryRecursive("Or", orClauses);
+        }
+        else {
+            return "<Values><Value Type=\"" + fieldType + "\">-1</Value></Values>";
+        }
     };
     return UtilsService;
 }(BaseService));

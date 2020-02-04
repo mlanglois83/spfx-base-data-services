@@ -1,6 +1,6 @@
 import { BaseService } from "./base/BaseService";
 import { ServicesConfiguration } from "../";
-
+import { Text } from '@microsoft/sp-core-library';
 /**
  * Utility class
  */
@@ -113,8 +113,50 @@ export class UtilsService extends BaseService {
      * transform an array to the corresponding caml in clause values (surrounded with <Values></Values> tag)
      * @param values array of value to transform to in values
      * @param fieldType sp field type
+     * @deprecated Use getCamlInQuery (for limit management)
      */
     public static getCamlInValues(values: Array<number | string>, fieldType: string): string {
         return values && values.length > 0 ? "<Values>" + values.map((value) => { return `<Value Type="${fieldType}">${value}</Value>`; }).join('') + "</Values>" : `<Values><Value Type="${fieldType}">-1</Value></Values>`;
+    }
+
+    /**  
+     * Construction récursive d'une requête CAML
+     * @param operandenom de l'operateur (Or ou And)</param>
+     * @param listClauses liste des clause du Where</param>
+     */
+    public static buildCAMLQueryRecursive(operande: string, listClauses: Array<string>): string {
+        if (!listClauses || listClauses.length === 0)
+            return "";
+        if (listClauses.length === 1)
+            return listClauses[0];
+        let clause = listClauses[0];
+        let result: string = Text.format("<{0}>{1}{2}</{0}>",
+            operande,
+            clause,
+            UtilsService.buildCAMLQueryRecursive(operande, listClauses.slice(1))
+        );
+        return result;
+
+    }
+
+    /**
+     * transform an array to the corresponding caml in clause (surrounded with <Values></Values> tag)
+     * @param fieldName internal name of field
+     * @param fieldType sp field type
+     * @param values array of value to transform to in values
+     * @param isLookup true if query is based on lookup id (default false)
+     */
+    public static getCamlInQuery(fieldName: string, fieldType: string, values: Array<number | string>, isLookup: boolean=false): string {
+        if(values &&  values.length > 0) {
+            let orClauses = [];
+            while(values.length) {
+                let subValues = values.splice(0,500);
+                orClauses.push(`<In><FieldRef LookupId="${isLookup ? "TRUE": "FALSE"}" Name="${fieldName}"></FieldRef><Values>${values.map((value) => { return `<Value Type="${fieldType}">${value}</Value>`; }).join('')}</Values></In>`);
+            }
+            return UtilsService.buildCAMLQueryRecursive("Or", orClauses);
+        }
+        else {
+            return `<Values><Value Type="${fieldType}">-1</Value></Values>`;
+        }
     }
 }

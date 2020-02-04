@@ -80,7 +80,7 @@ var SynchronizationService = /** @class */ (function (_super) {
                     case 1:
                         transactions = _a.sent();
                         _loop_1 = function (index) {
-                            var transaction, itemType, dataService, item, _a, oldId_1, isAdd, dbItem, updatedItem_1, nextTransactions, error_1;
+                            var transaction, itemType, dataService, item, _a, oldId_1, isAdd, dbItem, updatedItem_1, nextTransactions, nextTransactions, error_1;
                             return __generator(this, function (_b) {
                                 switch (_b.label) {
                                     case 0:
@@ -96,9 +96,9 @@ var SynchronizationService = /** @class */ (function (_super) {
                                         _a = transaction.title;
                                         switch (_a) {
                                             case TransactionType.AddOrUpdate: return [3 /*break*/, 2];
-                                            case TransactionType.Delete: return [3 /*break*/, 15];
+                                            case TransactionType.Delete: return [3 /*break*/, 20];
                                         }
-                                        return [3 /*break*/, 20];
+                                        return [3 /*break*/, 25];
                                     case 2:
                                         oldId_1 = item.id;
                                         isAdd = typeof (oldId_1) === "number" && oldId_1 < 0;
@@ -140,36 +140,69 @@ var SynchronizationService = /** @class */ (function (_super) {
                                         if (index < transactions.length - 1) {
                                             transactions.splice.apply(transactions, __spreadArrays([index + 1, transactions.length - index - 1], nextTransactions));
                                         }
-                                        _b.label = 9;
+                                        return [3 /*break*/, 14];
                                     case 9:
-                                        if (!updatedItem_1.error) return [3 /*break*/, 12];
-                                        errors.push(this_1.formatError(transaction, updatedItem_1.error.message));
-                                        if (!(updatedItem_1.error.name === Constants.Errors.ItemVersionConfict)) return [3 /*break*/, 11];
-                                        return [4 /*yield*/, this_1.transactionService.deleteItem(transaction)];
+                                        if (!!updatedItem_1.error) return [3 /*break*/, 14];
+                                        nextTransactions = [];
+                                        if (!(index < transactions.length - 1)) return [3 /*break*/, 11];
+                                        return [4 /*yield*/, Promise.all(transactions.slice(index + 1).map(function (updatedTr) { return __awaiter(_this, void 0, void 0, function () {
+                                                return __generator(this, function (_a) {
+                                                    switch (_a.label) {
+                                                        case 0:
+                                                            if (!(updatedTr.itemType === transaction.itemType &&
+                                                                updatedTr.itemData.id === item.id)) return [3 /*break*/, 2];
+                                                            updatedTr.itemData.version = updatedItem_1.item.version;
+                                                            return [4 /*yield*/, this.transactionService.addOrUpdateItem(updatedTr)];
+                                                        case 1:
+                                                            _a.sent();
+                                                            _a.label = 2;
+                                                        case 2: return [2 /*return*/, updatedTr];
+                                                    }
+                                                });
+                                            }); }))];
                                     case 10:
-                                        _b.sent();
+                                        nextTransactions = _b.sent();
                                         _b.label = 11;
-                                    case 11: return [3 /*break*/, 14];
-                                    case 12: return [4 /*yield*/, this_1.transactionService.deleteItem(transaction)];
+                                    case 11:
+                                        if (!dataService.updateLinkedTransactions) return [3 /*break*/, 13];
+                                        return [4 /*yield*/, dataService.updateLinkedTransactions(oldId_1, updatedItem_1.item.id, nextTransactions)];
+                                    case 12:
+                                        nextTransactions = _b.sent();
+                                        _b.label = 13;
                                     case 13:
-                                        _b.sent();
+                                        if (index < transactions.length - 1) {
+                                            transactions.splice.apply(transactions, __spreadArrays([index + 1, transactions.length - index - 1], nextTransactions));
+                                        }
                                         _b.label = 14;
-                                    case 14: return [3 /*break*/, 20];
+                                    case 14:
+                                        if (!updatedItem_1.error) return [3 /*break*/, 17];
+                                        errors.push(this_1.formatError(transaction, updatedItem_1.error.message));
+                                        if (!(updatedItem_1.error.name === Constants.Errors.ItemVersionConfict)) return [3 /*break*/, 16];
+                                        return [4 /*yield*/, this_1.transactionService.deleteItem(transaction)];
                                     case 15:
-                                        _b.trys.push([15, 18, , 19]);
+                                        _b.sent();
+                                        _b.label = 16;
+                                    case 16: return [3 /*break*/, 19];
+                                    case 17: return [4 /*yield*/, this_1.transactionService.deleteItem(transaction)];
+                                    case 18:
+                                        _b.sent();
+                                        _b.label = 19;
+                                    case 19: return [3 /*break*/, 25];
+                                    case 20:
+                                        _b.trys.push([20, 23, , 24]);
                                         return [4 /*yield*/, dataService.deleteItem(item)];
-                                    case 16:
+                                    case 21:
                                         _b.sent();
                                         return [4 /*yield*/, this_1.transactionService.deleteItem(transaction)];
-                                    case 17:
+                                    case 22:
                                         _b.sent();
-                                        return [3 /*break*/, 19];
-                                    case 18:
+                                        return [3 /*break*/, 24];
+                                    case 23:
                                         error_1 = _b.sent();
                                         errors.push(this_1.formatError(transaction, error_1.message));
-                                        return [3 /*break*/, 19];
-                                    case 19: return [3 /*break*/, 20];
-                                    case 20: return [2 /*return*/];
+                                        return [3 /*break*/, 24];
+                                    case 24: return [3 /*break*/, 25];
+                                    case 25: return [2 /*return*/];
                                 }
                             });
                         };

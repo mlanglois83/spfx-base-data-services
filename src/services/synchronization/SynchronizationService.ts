@@ -41,6 +41,7 @@ export class SynchronizationService extends BaseService {
                     const isAdd = typeof (oldId) === "number" && oldId < 0;       
                     let dbItem = await dataService.mapItem(item);
                     const updatedItem = await dataService.addOrUpdateItem(dbItem);
+
                     // handle id and version changed
                     if (isAdd && !updatedItem.error) {
                         
@@ -65,20 +66,45 @@ export class SynchronizationService extends BaseService {
                         }
 
                     }
+                    // update version on next transactions (avoid errors)
+                    else if(!updatedItem.error) {
+                        let nextTransactions: Array<OfflineTransaction> = [];
+                        // next transactions on this item
+                        if (index < transactions.length - 1) {
+                            nextTransactions = await Promise.all(transactions.slice(index + 1).map(async (updatedTr) => {
+                                if(updatedTr.itemType === transaction.itemType &&
+                                (updatedTr.itemData as IBaseItem).id === item.id) {
+                                    (updatedTr.itemData as IBaseItem).version = updatedItem.item.version;
+                                    await this.transactionService.addOrUpdateItem(updatedTr);
+                                }
+                                return updatedTr;                            
+                            }));
+                        }
+                        if (dataService.updateLinkedTransactions) {
+                            nextTransactions = await dataService.updateLinkedTransactions(oldId, updatedItem.item.id, nextTransactions);
+                        }
+                        if(index < transactions.length - 1) {
+                            transactions.splice(index + 1, transactions.length - index - 1, ...nextTransactions);
+                        }
+                    }
                     if(updatedItem.error) {
                         errors.push(this.formatError(transaction, updatedItem.error.message));
                         if(updatedItem.error.name === Constants.Errors.ItemVersionConfict){
                             await this.transactionService.deleteItem(transaction);
                         }
+                        // TODO
                     }
                     else {
                         await this.transactionService.deleteItem(transaction);
+                        
+                        // TODO: on item updated (item)
                     }
                     break;
                 case TransactionType.Delete:
                     try {
                         await dataService.deleteItem(item);
                         await this.transactionService.deleteItem(transaction);
+                        // TODO: OnItemDeleted (type + id)
                     } catch (error) {
                         errors.push(this.formatError(transaction, error.message));
                     }
