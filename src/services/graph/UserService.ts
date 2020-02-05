@@ -98,7 +98,7 @@ export class UserService extends BaseDataService<User> {
             let spuser = find(spUsers, (spu: any)=> {
                 return spu.UserPrincipalName === graphUser.userPrincipalName;
             });
-             let result= new User(graphUser);
+             result= new User(graphUser);
              if(spuser) {
                  result.spId = spuser.Id;
              }

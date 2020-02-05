@@ -55,7 +55,7 @@ export class ServicesConfiguration {
     public static Init(configuration: IConfiguration): void {
         ServicesConfiguration.configurationInternal = configuration;
         configuration.tableNames = configuration.tableNames || [];
-        if (!find(configuration.tableNames, (s) => { return s === Constants.taxonomyHiddenList.tableName })) {
+        if (!find(configuration.tableNames, (s) => { return s === Constants.taxonomyHiddenList.tableName; })) {
             configuration.tableNames.push(Constants.taxonomyHiddenList.tableName);
         }
         // SP calls init with no cache

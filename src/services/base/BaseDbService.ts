@@ -408,7 +408,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
     public async getItemsById(ids: Array<number | string>): Promise<Array<T>> {
         let results: Array<T> = await Promise.all(ids.map((id) => {
             return this.getItemById(id);
-        }))
+        }));
         return results;
     }
 }

@@ -108,7 +108,7 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
         ids.forEach((id) => {
             this.termset.terms.getById(id).inBatch(batch).get().then((term)=> {
                 results.push(new this.itemType(term));
-            })
+            });
         });
         await batch.execute();
         return results;
