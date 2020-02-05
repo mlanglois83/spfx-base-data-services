@@ -80,9 +80,6 @@ export class SynchronizationService extends BaseService {
                                 return updatedTr;                            
                             }));
                         }
-                        if (dataService.updateLinkedTransactions) {
-                            nextTransactions = await dataService.updateLinkedTransactions(oldId, updatedItem.item.id, nextTransactions);
-                        }
                         if(index < transactions.length - 1) {
                             transactions.splice(index + 1, transactions.length - index - 1, ...nextTransactions);
                         }
