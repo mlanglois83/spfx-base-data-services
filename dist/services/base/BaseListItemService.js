@@ -120,7 +120,6 @@ var BaseListItemService = /** @class */ (function (_super) {
             return [2 /*return*/];
         }); });
     };
-    ;
     BaseListItemService.prototype.Init = function () {
         return __awaiter(this, void 0, void 0, function () {
             var _this = this;
@@ -315,9 +314,9 @@ var BaseListItemService = /** @class */ (function (_super) {
                         // get values from init values
                         var val_1 = [];
                         var targetItems_1 = this.getServiceInitValues(fieldDescriptor.modelName);
-                        lookupIds.forEach(function (id) {
+                        lookupIds.forEach(function (lmid) {
                             var existing = find(targetItems_1, function (item) {
-                                return item.id === id;
+                                return item.id === lmid;
                             });
                             if (existing) {
                                 val_1.push(existing);
@@ -359,9 +358,9 @@ var BaseListItemService = /** @class */ (function (_super) {
                         // get values from init values
                         var val_2 = [];
                         var users_1 = this.getServiceInitValues(fieldDescriptor.modelName);
-                        ids.forEach(function (id) {
+                        ids.forEach(function (umid) {
                             var existing = find(users_1, function (user) {
-                                return user.spId === id;
+                                return user.spId === umid;
                             });
                             if (existing) {
                                 val_2.push(existing);
@@ -380,18 +379,18 @@ var BaseListItemService = /** @class */ (function (_super) {
             case FieldType.Taxonomy:
                 var wssid = spitem[fieldDescriptor.fieldName] ? spitem[fieldDescriptor.fieldName].WssId : -1;
                 if (id_1 !== -1) {
-                    var terms_1 = this.getServiceInitValues(fieldDescriptor.modelName);
-                    destItem[propertyName] = this.getTaxonomyTermByWssId(wssid, terms_1);
+                    var tterms = this.getServiceInitValues(fieldDescriptor.modelName);
+                    destItem[propertyName] = this.getTaxonomyTermByWssId(wssid, tterms);
                 }
                 else {
                     destItem[propertyName] = fieldDescriptor.defaultValue;
                 }
                 break;
             case FieldType.TaxonomyMulti:
-                var terms = spitem[fieldDescriptor.fieldName] ? (spitem[fieldDescriptor.fieldName].results ? spitem[fieldDescriptor.fieldName].results : spitem[fieldDescriptor.fieldName]) : [];
-                if (terms.length > 0) {
+                var tmterms = spitem[fieldDescriptor.fieldName] ? (spitem[fieldDescriptor.fieldName].results ? spitem[fieldDescriptor.fieldName].results : spitem[fieldDescriptor.fieldName]) : [];
+                if (tmterms.length > 0) {
                     var allterms_1 = this.getServiceInitValues(fieldDescriptor.modelName);
-                    destItem[propertyName] = terms.map(function (term) {
+                    destItem[propertyName] = tmterms.map(function (term) {
                         return _this.getTaxonomyTermByWssId(term.WssId, allterms_1);
                     });
                 }
@@ -1033,6 +1032,7 @@ var BaseListItemService = /** @class */ (function (_super) {
                 case FieldType.User:
                 case FieldType.UserMulti:
                     result += "Id";
+                    break;
                 default:
                     break;
             }
@@ -1058,6 +1058,7 @@ var BaseListItemService = /** @class */ (function (_super) {
                     case FieldType.User:
                     case FieldType.UserMulti:
                         result += "Id";
+                        break;
                     default:
                         break;
                 }
@@ -1279,8 +1280,8 @@ var BaseListItemService = /** @class */ (function (_super) {
                                                 val_3 = [];
                                                 targetItems_2 = this_2.getServiceInitValues(fieldDescriptor.modelName);
                                                 ids.forEach(function (id) {
-                                                    var existing = find(targetItems_2, function (item) {
-                                                        return item.id === id;
+                                                    var existing = find(targetItems_2, function (tmpitem) {
+                                                        return tmpitem.id === id;
                                                     });
                                                     if (existing) {
                                                         val_3.push(existing);
@@ -1354,8 +1355,8 @@ var BaseListItemService = /** @class */ (function (_super) {
                                 // get object if not done yet
                                 if (!currentObject) {
                                     var destType = ServicesConfiguration.configuration.serviceFactory.getItemTypeByName(transaction.itemType);
-                                    var currentObject_1 = new destType();
-                                    assign(currentObject_1, transaction.itemData);
+                                    currentObject = new destType();
+                                    assign(currentObject, transaction.itemData);
                                 }
                                 if (fieldDescription.fieldType === FieldType.Lookup) {
                                     if (fieldDescription.modelName) {

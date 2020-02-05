@@ -171,7 +171,7 @@ var UserService = /** @class */ (function (_super) {
     };
     UserService.prototype.getItemById_Internal = function (id) {
         return __awaiter(this, void 0, void 0, function () {
-            var result, _a, graphUser, spUsers, spuser, result_1;
+            var result, _a, graphUser, spUsers, spuser;
             return __generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
@@ -183,9 +183,9 @@ var UserService = /** @class */ (function (_super) {
                             spuser = find(spUsers, function (spu) {
                                 return spu.UserPrincipalName === graphUser.userPrincipalName;
                             });
-                            result_1 = new User(graphUser);
+                            result = new User(graphUser);
                             if (spuser) {
-                                result_1.spId = spuser.Id;
+                                result.spId = spuser.Id;
                             }
                         }
                         return [2 /*return*/, result];
