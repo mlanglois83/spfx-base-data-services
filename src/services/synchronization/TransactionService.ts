@@ -111,7 +111,7 @@ export class TransactionService extends BaseDbService<OfflineTransaction> {
     private isFile(itemTypeName: string): boolean {
         let itemType = ServicesConfiguration.configuration.serviceFactory.getItemTypeByName(itemTypeName);
         let instance = new itemType();
-        return (instance instanceof SPFile)
+        return (instance instanceof SPFile);
     }
 
 }

@@ -44,7 +44,7 @@ export class TaxonomyTerm implements IBaseItem {
             this.path = term.PathOfTerm != undefined ? term.PathOfTerm : "";
             this.customSortOrder = term.CustomSortOrder;
             this.customProperties = term.CustomProperties;
-            this.isDeprecated = term.IsDeprecated
+            this.isDeprecated = term.IsDeprecated;
         }
     }
 

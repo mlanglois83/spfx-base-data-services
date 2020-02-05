@@ -303,7 +303,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                     if (reloadData) {
                         results = await this.getItemsById_Internal(ids);
                         let convresults = await Promise.all(results.map(async (res) => {
-                            return this.convertItemToDbFormat(res)
+                            return this.convertItemToDbFormat(res);
                         }));
                         await this.dbService.addOrUpdateItems(convresults);
                         this.UpdateCacheData(super.hashCode(keyCached).toString());
@@ -333,7 +333,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         let result: IAddOrUpdateResult<T> = null;
         let itemResult: T = null;
 
-        let isconnected = true
+        let isconnected = true;
         if (ServicesConfiguration.configuration.checkOnline) {
             isconnected = await UtilsService.CheckOnline();
         }
@@ -388,7 +388,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
     protected abstract deleteItem_Internal(item: T): Promise<void>;
 
     public async deleteItem(item: T): Promise<void> {
-        let isconnected = true
+        let isconnected = true;
         if (ServicesConfiguration.configuration.checkOnline) {
             isconnected = await UtilsService.CheckOnline();
         }

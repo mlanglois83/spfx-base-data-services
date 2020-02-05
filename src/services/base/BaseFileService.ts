@@ -54,7 +54,7 @@ export class BaseFileService<T extends IBaseItem> extends BaseDataService<T>{
         if(file) {
             result = this.createFileObject(file);
         }
-        return result
+        return result;
     }
     public async getItemsById_Internal(ids: Array<string>): Promise<Array<T>> {
         let results: Array<T> = [];
@@ -63,7 +63,7 @@ export class BaseFileService<T extends IBaseItem> extends BaseDataService<T>{
             sp.web.getFileByServerRelativeUrl(id).select('FileRef', 'FileLeafRef').get().then(async (item)=> {
                 let fo = await this.createFileObject(item);
                 results.push(fo);
-            })
+            });
         });
         await batch.execute();
         return results;

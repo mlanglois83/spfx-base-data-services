@@ -1,5 +1,7 @@
 import { SPItem } from "../";
-import { spField } from "../..";
+import { Decorators } from "../../decorators";
+
+const spField = Decorators.spField;
 
 /**
  * Taxonomy hidden list data model

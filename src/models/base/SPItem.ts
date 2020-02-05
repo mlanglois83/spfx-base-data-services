@@ -1,6 +1,9 @@
 
 import { IBaseItem } from "../../interfaces/index";
-import { spField } from "../../decorators";
+import { Decorators } from "../../decorators";
+
+const spField = Decorators.spField;
+
 /**
  * Base object for sharepoint item abstraction objects
  */

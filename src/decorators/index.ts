@@ -1,1 +1,1 @@
-export { spField } from "./spField";
+export { Decorators } from "./Decorators";
