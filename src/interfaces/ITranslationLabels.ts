@@ -40,5 +40,5 @@ export interface ITranslationLabels {
      * key: Model type name
      * Value : model label
      */
-    typeTranslations : any;
+    typeTranslations: any;
 }

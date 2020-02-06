@@ -1,5 +1,4 @@
 import { IBaseItem, IAddOrUpdateResult } from ".";
-import { OfflineTransaction } from "..";
 /**
  * Contract interface for all dataservices
  */

@@ -5,8 +5,8 @@ import { IFieldDescriptor } from "..";
  * @param declaration field declaration for binding
  */
 export namespace Decorators {
-    export function spField(declaration: IFieldDescriptor) {
-        return (target: any, propertyKey: string) => {
+    export function spField(declaration: IFieldDescriptor): (target: any, propertyKey: string) => void {
+        return (target: any, propertyKey: string): void => {
             // constructs a static dictionnary on SPItem class
             if(!target.constructor.Fields) {
                 target.constructor.Fields = {};

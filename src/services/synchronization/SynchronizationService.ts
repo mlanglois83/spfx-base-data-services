@@ -3,7 +3,6 @@ import { BaseService } from "../base/BaseService";
 import { BaseDbService } from "../base/BaseDbService";
 import { OfflineTransaction, SPFile } from "../../models/index";
 import { TransactionType, Constants } from "../../constants/index";
-import { BaseServiceFactory } from "../base/BaseServiceFactory";
 import { assign } from "@microsoft/sp-lodash-subset";
 import { IBaseItem } from "../../interfaces/index";
 import { TransactionService } from "./TransactionService";
@@ -23,23 +22,23 @@ export class SynchronizationService extends BaseService {
 
 
     public async run(): Promise<Array<string>> {
-        let errors = [];
+        const errors = [];
         //read transaction table
-        let transactions = await this.transactionService.getAll();
+        const transactions = await this.transactionService.getAll();
         for (let index = 0; index < transactions.length; index++) {
             const transaction = transactions[index];
             // get associated type & service
-            let itemType = ServicesConfiguration.configuration.serviceFactory.getItemTypeByName(transaction.itemType);
-            let dataService = ServicesConfiguration.configuration.serviceFactory.create(transaction.itemType);
+            const itemType = ServicesConfiguration.configuration.serviceFactory.getItemTypeByName(transaction.itemType);
+            const dataService = ServicesConfiguration.configuration.serviceFactory.create(transaction.itemType);
             // init service for tardive links
             await dataService.Init();
             // transform item to destination type
-            let item = assign(new itemType(), transaction.itemData);
+            const item = assign(new itemType(), transaction.itemData);
             switch (transaction.title) {
                 case TransactionType.AddOrUpdate:
                     const oldId = item.id;
                     const isAdd = typeof (oldId) === "number" && oldId < 0;       
-                    let dbItem = await dataService.mapItem(item);
+                    const dbItem = await dataService.mapItem(item);
                     const updatedItem = await dataService.addOrUpdateItem(dbItem);
 
                     // handle id and version changed
@@ -112,11 +111,10 @@ export class SynchronizationService extends BaseService {
         return errors;
     }
 
-    private formatError(transaction: OfflineTransaction, message: string) {
+    private formatError(transaction: OfflineTransaction, message: string): string {
         let operationLabel: string;
-        let itemTypeLabel :string;
-        let itemType = ServicesConfiguration.configuration.serviceFactory.getItemTypeByName(transaction.itemType);
-        let item = assign(new itemType(), transaction.itemData);
+        const itemType = ServicesConfiguration.configuration.serviceFactory.getItemTypeByName(transaction.itemType);
+        const item = assign(new itemType(), transaction.itemData);
         switch (transaction.title) {
             case TransactionType.AddOrUpdate:
                 if(item instanceof SPFile) {
@@ -134,7 +132,7 @@ export class SynchronizationService extends BaseService {
                 break;
             default: break;
         }
-        itemTypeLabel = ServicesConfiguration.configuration.translations.typeTranslations[transaction.itemType] ? ServicesConfiguration.configuration.translations.typeTranslations[transaction.itemType]: transaction.itemType;
+        const itemTypeLabel = ServicesConfiguration.configuration.translations.typeTranslations[transaction.itemType] ? ServicesConfiguration.configuration.translations.typeTranslations[transaction.itemType]: transaction.itemType;
         return Text.format(ServicesConfiguration.configuration.translations.SynchronisationErrorFormat, itemTypeLabel, operationLabel, item.title, item.id, message);
     }
 

@@ -17,7 +17,7 @@ export interface IConfiguration {
     /**
      * Result of the last connection test call
      */
-    lastConnectionCheckResult:boolean;
+    lastConnectionCheckResult: boolean;
     /**
      * true : services can retrieve data when offline, false : every time a network call is performed
      */

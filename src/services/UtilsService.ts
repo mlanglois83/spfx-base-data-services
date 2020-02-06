@@ -38,8 +38,8 @@ export class UtilsService extends BaseService {
     public static blobToArrayBuffer(blob): Promise<ArrayBuffer> {
         return new Promise<ArrayBuffer>((resolve, reject) => {
             const reader = new FileReader();
-            reader.addEventListener('loadend', (e) => {
-                resolve(<ArrayBuffer>reader.result);
+            reader.addEventListener('loadend', () => {
+                resolve(reader.result as ArrayBuffer);
             });
             reader.addEventListener('error', reject);
             reader.readAsArrayBuffer(blob);
@@ -51,7 +51,7 @@ export class UtilsService extends BaseService {
      * @param buffer source array buffer
      * @param type file mime type
      */
-    public static arrayBufferToBlob(buffer: ArrayBuffer, type: string) {
+    public static arrayBufferToBlob(buffer: ArrayBuffer, type: string): Blob {
         return new Blob([buffer], { type: type });
     }
 
@@ -63,8 +63,8 @@ export class UtilsService extends BaseService {
         return new Promise<string>((resolve, reject) => {
             const reader = new FileReader;
             reader.onerror = reject;
-            reader.onload = () => {
-                let val = reader.result.toString();
+            reader.onload = (): void => {
+                const val = reader.result.toString();
                 resolve(val);
             };
             reader.readAsDataURL(fileData);
@@ -75,7 +75,7 @@ export class UtilsService extends BaseService {
      * @param url child url 
      */
     public static getParentFolderUrl(url: string): string {
-        let urlParts = url.split('/');
+        const urlParts = url.split('/');
         urlParts.pop();
         return urlParts.join("/");
     }
@@ -86,11 +86,10 @@ export class UtilsService extends BaseService {
      */
     public static concatArrayBuffers(...arrays: ArrayBuffer[]): ArrayBuffer {
         let length = 0;
-        let buffer = null;
         arrays.forEach((a) => {
             length += a.byteLength;
         });
-        let joined = new Uint8Array(length);
+        const joined = new Uint8Array(length);
         let offset = 0;
         arrays.forEach((a) => {
             joined.set(new Uint8Array(a), offset);
@@ -105,7 +104,7 @@ export class UtilsService extends BaseService {
      * Escapes a string for use in a regex
      * @param value string to escape
      */
-    public static escapeRegExp(value: string) {
+    public static escapeRegExp(value: string): string {
         return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
     }
 
@@ -129,14 +128,12 @@ export class UtilsService extends BaseService {
             return "";
         if (listClauses.length === 1)
             return listClauses[0];
-        let clause = listClauses[0];
-        let result: string = Text.format("<{0}>{1}{2}</{0}>",
+        const clause = listClauses[0];
+        return Text.format("<{0}>{1}{2}</{0}>",
             operande,
             clause,
             UtilsService.buildCAMLQueryRecursive(operande, listClauses.slice(1))
         );
-        return result;
-
     }
 
     /**
@@ -146,12 +143,12 @@ export class UtilsService extends BaseService {
      * @param values array of value to transform to in values
      * @param isLookup true if query is based on lookup id (default false)
      */
-    public static getCamlInQuery(fieldName: string, fieldType: string, values: Array<number | string>, isLookup: boolean=false): string {
+    public static getCamlInQuery(fieldName: string, fieldType: string, values: Array<number | string>, isLookup = false): string {
         if(values &&  values.length > 0) {
-            let orClauses = [];
+            const orClauses = [];
             while(values.length) {
-                let subValues = values.splice(0,500);
-                orClauses.push(`<In><FieldRef LookupId="${isLookup ? "TRUE": "FALSE"}" Name="${fieldName}"></FieldRef><Values>${values.map((value) => { return `<Value Type="${fieldType}">${value}</Value>`; }).join('')}</Values></In>`);
+                const subValues = values.splice(0,500);
+                orClauses.push(`<In><FieldRef LookupId="${isLookup ? "TRUE": "FALSE"}" Name="${fieldName}"></FieldRef><Values>${subValues.map((value) => { return `<Value Type="${fieldType}">${value}</Value>`; }).join('')}</Values></In>`);
             }
             return UtilsService.buildCAMLQueryRecursive("Or", orClauses);
         }

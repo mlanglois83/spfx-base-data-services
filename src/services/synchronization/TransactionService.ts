@@ -19,16 +19,16 @@ export class TransactionService extends BaseDbService<OfflineTransaction> {
      * @param item Item to add or update
      */
     public async addOrUpdateItem(item: OfflineTransaction): Promise<IAddOrUpdateResult<OfflineTransaction>> {
-        let result : IAddOrUpdateResult<OfflineTransaction> = null;
+        let result: IAddOrUpdateResult<OfflineTransaction> = null;
         if (this.isFile(item.itemType)) {
             // if existing transaction, remove with associated files
-            let existing = await this.getItemById(item.id);
+            const existing = await this.getItemById(item.id);
             if(existing) {
                 await this.deleteItem(existing);
             }
             //create a file stored in a separate table
-            let file: SPFile = assign(new SPFile(), item.itemData);
-            let baseUrl = file.serverRelativeUrl;
+            const file: SPFile = assign(new SPFile(), item.itemData);
+            const baseUrl = file.serverRelativeUrl;
             item.itemData = new Date().getTime() + "_" + file.serverRelativeUrl;
             file.serverRelativeUrl = item.itemData;
             await this.transactionFileService.addOrUpdateItem(file);            
@@ -45,8 +45,8 @@ export class TransactionService extends BaseDbService<OfflineTransaction> {
 
     public async deleteItem(item: OfflineTransaction): Promise<void> {
         if (this.isFile(item.itemType)) {
-            let transaction = await super.getItemById(item.id);
-            let file: SPFile = new SPFile();
+            const transaction = await super.getItemById(item.id);
+            const file: SPFile = new SPFile();
             file.serverRelativeUrl = transaction.itemData;
             await this.transactionFileService.deleteItem(file);
         }
@@ -58,8 +58,8 @@ export class TransactionService extends BaseDbService<OfflineTransaction> {
      * @param newItems 
      */
     public async addOrUpdateItems(newItems: Array<OfflineTransaction>): Promise<Array<OfflineTransaction>> {
-        let updateResults = Promise.all(newItems.map(async (item) => {
-            let result = await this.addOrUpdateItem(item);
+        const updateResults = Promise.all(newItems.map(async (item) => {
+            const result = await this.addOrUpdateItem(item);
             return result.item;
         }));
         return updateResults;
@@ -72,7 +72,7 @@ export class TransactionService extends BaseDbService<OfflineTransaction> {
         let result = await super.getAll();
         result = await Promise.all(result.map(async (item) => {            
             if (this.isFile(item.itemType)) {
-                let file = await this.transactionFileService.getItemById(item.itemData);
+                const file = await this.transactionFileService.getItemById(item.itemData);
                 if (file) {
                     file.serverRelativeUrl = file.serverRelativeUrl.replace(/^\d+_(.*)$/g, "$1");
                     item.itemData = assign({}, file);
@@ -88,9 +88,9 @@ export class TransactionService extends BaseDbService<OfflineTransaction> {
      * @param id transaction id
      */
     public async getItemById(id: number): Promise<OfflineTransaction> {
-        let result = await super.getItemById(id);
+        const result = await super.getItemById(id);
         if (result && result.itemType === SPFile["name"]) {
-            let file = await this.transactionFileService.getItemById(result.itemData);
+            const file = await this.transactionFileService.getItemById(result.itemData);
             if (file) {
                 file.serverRelativeUrl = file.serverRelativeUrl.replace(/^\d+_(.*)$/g, "$1");
                 result.itemData = assign({}, file);
@@ -109,8 +109,8 @@ export class TransactionService extends BaseDbService<OfflineTransaction> {
     }
 
     private isFile(itemTypeName: string): boolean {
-        let itemType = ServicesConfiguration.configuration.serviceFactory.getItemTypeByName(itemTypeName);
-        let instance = new itemType();
+        const itemType = ServicesConfiguration.configuration.serviceFactory.getItemTypeByName(itemTypeName);
+        const instance = new itemType();
         return (instance instanceof SPFile);
     }
 

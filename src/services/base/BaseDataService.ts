@@ -17,9 +17,9 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
     private itemModelType: (new (item?: any) => T);
     protected transactionService: TransactionService;
     protected dbService: BaseDbService<T>;
-    protected cacheDuration: number = -1;
+    protected cacheDuration = -1;
 
-    public get ItemFields() {
+    public get ItemFields(): any {
         return {};
     }
     /**
@@ -36,6 +36,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
     }
 
     public async Init(): Promise<void> {
+        return;
     }
 
     /**
@@ -44,7 +45,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
      * @param context context of the current wp
      * @param tableName name of indexedDb table 
      */
-    constructor(type: (new (item?: any) => T), tableName: string, cacheDuration: number = -1) {
+    constructor(type: (new (item?: any) => T), tableName: string, cacheDuration = -1) {
         super();
         this.itemModelType = type;
         this.cacheDuration = cacheDuration;
@@ -52,25 +53,25 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         this.transactionService = new TransactionService();
     }
 
-    protected getCacheKey(key: string = "all"): string {
+    protected getCacheKey(key = "all"): string {
         return Text.format(Constants.cacheKeys.latestDataLoadFormat, ServicesConfiguration.context.pageContext.web.serverRelativeUrl, this.serviceName, key);
     }
 
-    protected getExistingPromise(key: string = "all"): Promise<any> {
-        let pkey = this.serviceName + "-" + key;
+    protected getExistingPromise(key = "all"): Promise<any> {
+        const pkey = this.serviceName + "-" + key;
         if (BaseDataService.promises[pkey]) {
             return BaseDataService.promises[pkey];
         }
         else return null;
     }
 
-    protected storePromise(promise: Promise<any>, key: string = "all"): void {
-        let pkey = this.serviceName + "-" + key;
+    protected storePromise(promise: Promise<any>, key = "all"): void {
+        const pkey = this.serviceName + "-" + key;
         BaseDataService.promises[pkey] = promise;
     }
 
-    protected removePromise(key: string = "all"): void {
-        let pkey = this.serviceName + "-" + key;
+    protected removePromise(key = "all"): void {
+        const pkey = this.serviceName + "-" + key;
         BaseDataService.promises[pkey] = undefined;
     }
 
@@ -78,11 +79,11 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
     /***
      * 
      */
-    protected async getCachedData(key: string = "all"): Promise<Date> {
+    protected async getCachedData(key = "all"): Promise<Date> {
 
-        let cacheKey = this.getCacheKey(key);
+        const cacheKey = this.getCacheKey(key);
 
-        let lastDataLoadString = window.sessionStorage.getItem(cacheKey);
+        const lastDataLoadString = window.sessionStorage.getItem(cacheKey);
         let lastDataLoad: Date = null;
 
         if (lastDataLoadString) {
@@ -101,18 +102,18 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
      * @type {boolean}
      * @memberof BaseDataService
      */
-    protected async needRefreshCache(key: string = "all"): Promise<boolean> {
+    protected async needRefreshCache(key = "all"): Promise<boolean> {
 
         let result: boolean = this.cacheDuration == -1;
         //if cache defined
         if (!result) {
 
-            let cachedDataDate = await this.getCachedData(key);
+            const cachedDataDate = await this.getCachedData(key);
             if (cachedDataDate) {
                 //add cache duration
                 cachedDataDate.setMinutes(cachedDataDate.getMinutes() + this.cacheDuration);
 
-                let now = new Date();
+                const now = new Date();
 
                 //cache has expired
                 result = cachedDataDate < now;
@@ -125,11 +126,11 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         return result;
     }
 
-    protected UpdateCacheData(key: string = "all") {
-        let result: boolean = this.cacheDuration == -1;
+    protected UpdateCacheData(key = "all"): void {
+        const result: boolean = this.cacheDuration == -1;
         //if cache defined
         if (!result) {
-            let cacheKey = this.getCacheKey(key);
+            const cacheKey = this.getCacheKey(key);
             window.sessionStorage.setItem(cacheKey, JSON.stringify(new Date()));
         }
 
@@ -160,14 +161,14 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
 
                     if (reloadData) {
                         result = await this.getAll_Internal();
-                        let convresult = await Promise.all(result.map((res) => {
+                        const convresult = await Promise.all(result.map((res) => {
                             return this.convertItemToDbFormat(res);
                         }));
                         await this.dbService.replaceAll(convresult);
                         this.UpdateCacheData();
                     }
                     else {
-                        let tmp = await this.dbService.getAll();
+                        const tmp = await this.dbService.getAll();
                         result = await Promise.all(tmp.map((res) => {
                             return this.mapItem(res);
                         }));
@@ -192,7 +193,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
 
 
     public async get(query: any): Promise<Array<T>> {
-        let keyCached = super.hashCode(query).toString();
+        const keyCached = super.hashCode(query).toString();
         let promise = this.getExistingPromise(keyCached);
         if (promise) {
             console.log(this.serviceName + " " + keyCached + " : load allready called before, sharing promise");
@@ -210,14 +211,14 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
 
                     if (reloadData) {
                         result = await this.get_Internal(query);
-                        let convresult = await Promise.all(result.map((res) => {
+                        const convresult = await Promise.all(result.map((res) => {
                             return this.convertItemToDbFormat(res);
                         }));
                         await this.dbService.addOrUpdateItems(convresult, query);
                         this.UpdateCacheData(keyCached);
                     }
                     else {
-                        let tmp = await this.dbService.get(query);
+                        const tmp = await this.dbService.get(query);
                         result = await Promise.all(tmp.map((res) => {
                             return this.mapItem(res);
                         }));
@@ -239,7 +240,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
     protected abstract getItemById_Internal(id: number | string): Promise<T>;
 
     public async getItemById(id: number): Promise<T> {
-        let keyCached = "getById_" + id.toString();
+        const keyCached = "getById_" + id.toString();
         let promise = this.getExistingPromise(keyCached);
         if (promise) {
             console.log(this.serviceName + " " + keyCached + " : load allready called before, sharing promise");
@@ -257,12 +258,12 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
 
                     if (reloadData) {
                         result = await this.getItemById_Internal(id);
-                        let converted = await this.convertItemToDbFormat(result);
+                        const converted = await this.convertItemToDbFormat(result);
                         await this.dbService.addOrUpdateItem(converted);
                         this.UpdateCacheData(super.hashCode(keyCached).toString());
                     }
                     else {
-                        let temp = await this.dbService.getItemById(id);
+                        const temp = await this.dbService.getItemById(id);
                         if (temp) { 
                             result = await this.mapItem(temp); 
                         }
@@ -284,7 +285,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
     protected abstract getItemsById_Internal(ids: Array<number | string>): Promise<Array<T>>;
 
     public async getItemsById(ids: Array<number | string>): Promise<Array<T>> {
-        let keyCached = "getByIds_" + ids.join();
+        const keyCached = "getByIds_" + ids.join();
         let promise = this.getExistingPromise(keyCached);
         if (promise) {
             console.log(this.serviceName + " " + keyCached + " : load allready called before, sharing promise");
@@ -302,14 +303,14 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
 
                     if (reloadData) {
                         results = await this.getItemsById_Internal(ids);
-                        let convresults = await Promise.all(results.map(async (res) => {
+                        const convresults = await Promise.all(results.map(async (res) => {
                             return this.convertItemToDbFormat(res);
                         }));
                         await this.dbService.addOrUpdateItems(convresults);
                         this.UpdateCacheData(super.hashCode(keyCached).toString());
                     }
                     else {
-                        let tmp = await this.dbService.getItemsById(ids);
+                        const tmp = await this.dbService.getItemsById(ids);
                         results = await Promise.all(tmp.map((res) => {
                             return this.mapItem(res);
                         }));
@@ -340,7 +341,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         if (isconnected) {
             try {
                 itemResult = await this.addOrUpdateItem_Internal(item);
-                let converted = await this.convertItemToDbFormat(itemResult);
+                const converted = await this.convertItemToDbFormat(itemResult);
                 await this.dbService.addOrUpdateItem(converted);
                 result = {
                     item: itemResult
@@ -349,7 +350,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                 console.error(error);
                 if (error.name === Constants.Errors.ItemVersionConfict) {
                     itemResult = await this.getItemById_Internal(item.id);
-                    let converted = await this.convertItemToDbFormat(itemResult);
+                    const converted = await this.convertItemToDbFormat(itemResult);
                     await this.dbService.addOrUpdateItem(converted);
                     result = {
                         item: itemResult,
@@ -366,8 +367,8 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
             }
         }
         else {
-            let dbItem = await this.convertItemToDbFormat(item);
-            let resultitem = await this.dbService.addOrUpdateItem(dbItem);
+            const dbItem = await this.convertItemToDbFormat(item);
+            const resultitem = await this.dbService.addOrUpdateItem(dbItem);
             result = {
                 item: item,
                 error: resultitem.error
@@ -375,7 +376,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
             // update id (only field modified in db)
             result.item.id = resultitem.item.id;
             // create a new transaction
-            let ot: OfflineTransaction = new OfflineTransaction();
+            const ot: OfflineTransaction = new OfflineTransaction();
             ot.itemData = assign({}, dbItem);
             ot.itemType = result.item.constructor["name"];
             ot.title = TransactionType.AddOrUpdate;
@@ -400,8 +401,8 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
             await this.dbService.deleteItem(item);
 
             // create a new transaction
-            let ot: OfflineTransaction = new OfflineTransaction();
-            let converted = await this.convertItemToDbFormat(item);
+            const ot: OfflineTransaction = new OfflineTransaction();
+            const converted = await this.convertItemToDbFormat(item);
             ot.itemData = assign({}, converted);
             ot.itemType = item.constructor["name"];
             ot.title = TransactionType.Delete;
