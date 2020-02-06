@@ -1,1 +1,4 @@
 tsconfig.json
+.eslintrc
+gulpfile.js
+tslint.json

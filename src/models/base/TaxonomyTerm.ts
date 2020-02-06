@@ -51,7 +51,7 @@ export class TaxonomyTerm implements IBaseItem {
     public get fullPathString(): string {
         let result = "";
         if(!stringIsNullOrEmpty(this.path)) {
-            let parts = this.path.split(";");
+            const parts = this.path.split(";");
             result = parts.join(" > ");
         }
         return result;

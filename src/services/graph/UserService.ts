@@ -6,7 +6,7 @@ import { Text } from "@microsoft/sp-core-library";
 import { ServicesConfiguration } from "../../configuration/ServicesConfiguration";
 import { find } from "@microsoft/sp-lodash-subset";
 
-const standardUserCacheDuration: number = 10;
+const standardUserCacheDuration = 10;
 export class UserService extends BaseDataService<User> {
 
     private _spUsers: Array<any> = null;
@@ -31,11 +31,11 @@ export class UserService extends BaseDataService<User> {
     protected async get_Internal(query: any): Promise<Array<User>> {
         query = query.trim();
         let reverseFilter = query;
-        let parts = query.split(" ");
+        const parts = query.split(" ");
         if (parts.length > 1) {
         reverseFilter = parts[1].trim() + " " + parts[0].trim();
         }
-        let [users, spUsers] = await Promise.all([graph.users
+        const [users, spUsers] = await Promise.all([graph.users
         .filter(
             `startswith(displayName,'${query}') or 
             startswith(displayName,'${reverseFilter}') or 
@@ -47,8 +47,8 @@ export class UserService extends BaseDataService<User> {
         .get(), this.spUsers]);
         
         return users.map((u) => {
-            let spuser = find(spUsers, (spu: any) => {return spu.UserPrincipalName === u.userPrincipalName;});
-            let result =  new User(u);
+            const spuser = find(spUsers, (spu: any) => {return spu.UserPrincipalName === u.userPrincipalName;});
+            const result =  new User(u);
             if(spuser) {
                 result.spId = spuser.Id;
             }
@@ -58,14 +58,17 @@ export class UserService extends BaseDataService<User> {
 
 
     protected async addOrUpdateItem_Internal(item: User): Promise<User> {
+        console.log("[" + this.serviceName + ".addOrUpdateItem_Internal] - " + JSON.stringify(item));
         throw new Error("Not implemented");
     }
     
     protected async addOrUpdateItems_Internal(items: Array<User>): Promise<Array<User>> {
+        console.log("[" + this.serviceName + ".addOrUpdateItems_Internal] - " + JSON.stringify(items));
         throw new Error("Not implemented");
     }
 
     protected async deleteItem_Internal(item: User): Promise<void> {
+        console.log("[" + this.serviceName + ".deleteItem_Internal] - " + JSON.stringify(item));
         throw new Error("Not implemented");
     }
 
@@ -73,14 +76,14 @@ export class UserService extends BaseDataService<User> {
      * Retrieve all users (sp)
      */
     protected async getAll_Internal(): Promise<Array<User>> {
-        let results = [];
-        let spUsers  = await this.spUsers();
-        let batch = graph.createBatch();
+        const results = [];
+        const spUsers  = await this.spUsers();
+        const batch = graph.createBatch();
         spUsers.forEach((spu) => {
             if(spu.UserPrincipalName) {
                 graph.users.select("id","userPrincipalName","mail","displayName").filter(`userPrincipalName eq '${encodeURIComponent(spu.UserPrincipalName)}'`).inBatch(batch).get().then((graphUser) => {
                     if(graphUser && graphUser.length > 0) {
-                        let result = new User(graphUser[0]);
+                        const result = new User(graphUser[0]);
                         result.spId = spu.Id;
                         results.push(result);
                     }
@@ -93,9 +96,9 @@ export class UserService extends BaseDataService<User> {
 
     public async getItemById_Internal(id: string): Promise<User> {
         let result = null;
-        let [graphUser, spUsers] = await Promise.all([graph.users.getById(id).select("id","userPrincipalName","mail","displayName").get(), this.spUsers]);
+        const [graphUser, spUsers] = await Promise.all([graph.users.getById(id).select("id","userPrincipalName","mail","displayName").get(), this.spUsers]);
         if(graphUser) {
-            let spuser = find(spUsers, (spu: any)=> {
+            const spuser = find(spUsers, (spu: any)=> {
                 return spu.UserPrincipalName === graphUser.userPrincipalName;
             });
              result= new User(graphUser);
@@ -107,15 +110,15 @@ export class UserService extends BaseDataService<User> {
     }
 
     public async getItemsById_Internal(ids: Array<string>): Promise<Array<User>> {
-        let results: Array<User> = [];
-        let spUsers = await this.spUsers();
-        let batch = graph.createBatch();
+        const results: Array<User> = [];
+        const spUsers = await this.spUsers();
+        const batch = graph.createBatch();
         ids.forEach(id => {
             graph.users.getById(id).select("id","userPrincipalName","mail","displayName").inBatch(batch).get().then((graphUser) => {
-                let spuser = find(spUsers, (spu: any)=> {
+                const spuser = find(spUsers, (spu: any)=> {
                     return spu.UserPrincipalName === graphUser.userPrincipalName;
                 });
-                let result= new User(graphUser);
+                const result= new User(graphUser);
                 if(spuser) {
                     result.spId = spuser.Id;
                 }
@@ -128,7 +131,7 @@ export class UserService extends BaseDataService<User> {
 
     public async linkToSpUser(user: User): Promise<User> {
         if(user.spId === undefined) {
-            let result = await sp.web.ensureUser(user.userPrincipalName);
+            const result = await sp.web.ensureUser(user.userPrincipalName);
             user.spId = result.data.Id;
             this.dbService.addOrUpdateItem(user);
         }
@@ -143,7 +146,7 @@ export class UserService extends BaseDataService<User> {
 
             displayName = displayName.trim();
             let reverseFilter = displayName;
-            let parts = displayName.split(" ");
+            const parts = displayName.split(" ");
             if (parts.length > 1) {
                 reverseFilter = parts[1].trim() + " " + parts[0].trim();
             }
@@ -158,7 +161,7 @@ export class UserService extends BaseDataService<User> {
     }
 
     public async getBySpId(spId: number): Promise<User> {
-        let allUsers = await this.getAll();
+        const allUsers = await this.getAll();
         return find(allUsers, (user) => {return user.spId === spId;});
     }
 

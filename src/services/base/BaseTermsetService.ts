@@ -1,4 +1,4 @@
-import { taxonomy } from "@pnp/sp-taxonomy";
+import { taxonomy, ITermSet } from "@pnp/sp-taxonomy";
 import { UtilsService } from "../";
 import { Constants } from "../../constants/index";
 import { TaxonomyTerm } from "../../models";
@@ -10,7 +10,7 @@ import { stringIsNullOrEmpty } from "@pnp/common";
 import { ServicesConfiguration } from "../..";
 
 
-const standardTermSetCacheDuration: number = 10;
+const standardTermSetCacheDuration = 10;
 
 /**
  * Base service for sp termset operations
@@ -25,7 +25,7 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
     /**
      * Associeted termset (pnpjs)
      */
-    protected get termset() {
+    protected get termset(): ITermSet {
         if (this.termsetnameorid.match(/[A-z0-9]{8}-([A-z0-9]{4}-){3}[A-z0-9]{12}/)) {
             if(this.isGlobal) {
                 return taxonomy.getDefaultSiteCollectionTermStore().getTermSetById(this.termsetnameorid);
@@ -58,7 +58,7 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
      * @param context current sp component context 
      * @param termsetname termset name
      */
-    constructor(type: (new (item?: any) => T), termsetnameorid: string, tableName: string, isGlobal: boolean = true, cacheDuration: number = standardTermSetCacheDuration) {
+    constructor(type: (new (item?: any) => T), termsetnameorid: string, tableName: string, isGlobal = true, cacheDuration: number = standardTermSetCacheDuration) {
         super(type, tableName, cacheDuration);
         this.utilsService = new UtilsService();
         this.taxonomyHiddenListService = new TaxonomyHiddenListService();
@@ -67,7 +67,7 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
     }
 
     public async getWssIds(termId: string): Promise<Array<number>> {
-        let taxonomyHiddenItems = await this.taxonomyHiddenListService.getAll();
+        const taxonomyHiddenItems = await this.taxonomyHiddenListService.getAll();
         return taxonomyHiddenItems.filter((taxItem) => {
             return taxItem.termId === termId;
         }).map((filteredItem) => {
@@ -79,14 +79,14 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
      * Retrieve all terms
      */
     protected async getAll_Internal(): Promise<Array<T>> {
-        let spterms = await this.termset.terms.get();
-        let ts = await this.termset.get();
+        const spterms = await this.termset.terms.get();
+        const ts = await this.termset.get();
         this.customSortOrder = ts.CustomSortOrder;
-        let taxonomyHiddenItems = await this.taxonomyHiddenListService.getAll();
+        const taxonomyHiddenItems = await this.taxonomyHiddenListService.getAll();
         return spterms.map((term) => {
-            let result = new this.itemType(term);
+            const result = new this.itemType(term);
             result.wssids = [];
-            for (let taxonomyHiddenItem of taxonomyHiddenItems) {
+            for (const taxonomyHiddenItem of taxonomyHiddenItems) {
                 if (taxonomyHiddenItem.termId == result.id) { result.wssids.push(taxonomyHiddenItem.id); }
             }
 
@@ -96,15 +96,15 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
 
     public async getItemById_Internal(id: string): Promise<T> {
         let result = null;
-        let spterm = await this.termset.terms.getById(id);
+        const spterm = await this.termset.terms.getById(id);
         if(spterm) {
             result = new this.itemType(spterm);
         }
         return result;
     }
     public async getItemsById_Internal(ids: Array<string>): Promise<Array<T>> {
-        let results: Array<T> = [];
-        let batch = taxonomy.createBatch();
+        const results: Array<T> = [];
+        const batch = taxonomy.createBatch();
         ids.forEach((id) => {
             this.termset.terms.getById(id).inBatch(batch).get().then((term)=> {
                 results.push(new this.itemType(term));
@@ -114,31 +114,34 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
         return results;
     }
 
-    protected async get_Internal(query: any): Promise<Array<T>> {
+    protected async get_Internal(query: any): Promise<Array<T>> {        
+        console.log("[" + this.serviceName + ".get_Internal] - " + query.toString());
         throw new Error('Not Implemented');
     }
 
 
-    protected async addOrUpdateItem_Internal(item: T): Promise<T> {
+    protected async addOrUpdateItem_Internal(item: T): Promise<T> {        
+        console.log("[" + this.serviceName + ".addOrUpdateItem_Internal] - " + JSON.stringify(item));
         throw new Error("Not implemented");
     }
 
     protected async deleteItem_Internal(item: T): Promise<void> {
+        console.log("[" + this.serviceName + ".deleteItem_Internal] - " + JSON.stringify(item));
         throw new Error("Not implemented");
     }
 
 
     private getOrderedChildTerms(term: T, allTerms: Array<T>): Array<T> {
         //items.sort((a: T,b: T) => {return a.path.localeCompare(b.path);});
-        let result = [];
-        let childterms = allTerms.filter((t) => { return t.path.indexOf(term.path) == 0; });
-        let level = term.path.split(";").length;
+        const result = [];
+        const childterms = allTerms.filter((t) => { return t.path.indexOf(term.path) == 0; });
+        const level = term.path.split(";").length;
         let directChilds = childterms.filter((ct) => { return ct.path.split(";").length === level + 1; });
         if (!stringIsNullOrEmpty(term.customSortOrder)) {
-            let terms = new Array();
-            let orderIds = term.customSortOrder.split(":");
+            const terms = [];
+            const orderIds = term.customSortOrder.split(":");
             orderIds.forEach(id => {
-                let t = find(directChilds, (spterm) => {
+                const t = find(directChilds, (spterm) => {
                     return spterm.id === id;
                 });
                 terms.push(t);
@@ -147,7 +150,7 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
         }
         directChilds.forEach((dc) => {
             result.push(dc);
-            let dcchildren = this.getOrderedChildTerms(dc, childterms);
+            const dcchildren = this.getOrderedChildTerms(dc, childterms);
             if (dcchildren.length > 0) {
                 result.push(...dcchildren);
             }
@@ -156,14 +159,14 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
     }
 
     public async getAll(): Promise<Array<T>> {
-        let items = await super.getAll();
-        let result = [];
+        const items = await super.getAll();
+        const result = [];
         let rootTerms = items.filter((item: T) => { return item.path.indexOf(";") === -1; });
         if (!stringIsNullOrEmpty(this.customSortOrder)) {
-            let terms = new Array();
-            let orderIds = this.customSortOrder.split(":");
+            const terms = [];
+            const orderIds = this.customSortOrder.split(":");
             orderIds.forEach(id => {
-                let term = find(rootTerms, (spterm) => {
+                const term = find(rootTerms, (spterm) => {
                     return spterm.id === id;
                 });
                 terms.push(term);
@@ -172,7 +175,7 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
         }
         rootTerms.forEach((rt) => {
             result.push(rt);
-            let rtchildren = this.getOrderedChildTerms(rt, items);
+            const rtchildren = this.getOrderedChildTerms(rt, items);
             if (rtchildren.length > 0) {
                 result.push(...rtchildren);
             }
