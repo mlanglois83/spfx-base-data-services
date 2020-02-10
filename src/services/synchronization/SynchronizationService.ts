@@ -4,7 +4,7 @@ import { BaseDbService } from "../base/BaseDbService";
 import { OfflineTransaction, SPFile } from "../../models/index";
 import { TransactionType, Constants } from "../../constants/index";
 import { assign } from "@microsoft/sp-lodash-subset";
-import { IBaseItem } from "../../interfaces/index";
+import { IBaseItem, IItemSynchronized, ISynchronizationEnded } from "../../interfaces/index";
 import { TransactionService } from "./TransactionService";
 import { Text } from "@microsoft/sp-core-library";
 import { ServicesConfiguration } from "../../configuration/ServicesConfiguration";
@@ -13,11 +13,64 @@ import { ServicesConfiguration } from "../../configuration/ServicesConfiguration
 export class SynchronizationService extends BaseService {
     private transactionService: BaseDbService<OfflineTransaction>;
 
+    private static itemSynchroCallbacks = {};
+    private static synchroCallbacks = {};
+
+    /**
+     * Registers a function called when an item was synchronized
+     * @param key Unique key for callback
+     * @param callback Callbackfunction called when an item was synchronized
+     */
+    public static registerItemSynchronizedCallback(key: string, callback: (synchro: IItemSynchronized) => void): void {
+        SynchronizationService.itemSynchroCallbacks[key] = callback;
+    }
+    /**
+     * Unregisters a function associated with item synchronisation
+     * @param key Unique callback key
+     */
+    public static unregisterItemSynchronizedCallback(key: string): void {
+        if(SynchronizationService.itemSynchroCallbacks[key]) {
+            delete(SynchronizationService.itemSynchroCallbacks[key]);
+        }
+    }
+    /**
+     * Registers a function called when synchronization has ended
+     * @param key Unique key for callback
+     * @param callback Callbackfunction called when  synchronization has ended
+     */
+    public static registerSynchronizationCallback(key: string, callback: (synchroResult: ISynchronizationEnded) => void): void {
+        SynchronizationService.synchroCallbacks[key] = callback;
+    }
+    /**
+     * Unregister a function registered for synchronisation end
+     * @param key Unique callback key
+     */
+    public static unregisterSynchronizationCallback(key: string): void {
+        if(SynchronizationService.synchroCallbacks[key]) {
+            delete(SynchronizationService.synchroCallbacks[key]);
+        }
+    }
+
+    private static emitItemSynchronized(synchro: IItemSynchronized): void {
+        for (const key in SynchronizationService.itemSynchroCallbacks) {
+            if (SynchronizationService.itemSynchroCallbacks.hasOwnProperty(key)) {
+                const callback = SynchronizationService.itemSynchroCallbacks[key];
+                callback(synchro);
+            }
+        }
+    }
+    private static emitSynchronizationEnded(synchro: ISynchronizationEnded): void {
+        for (const key in SynchronizationService.synchroCallbacks) {
+            if (SynchronizationService.synchroCallbacks.hasOwnProperty(key)) {
+                const callback = SynchronizationService.synchroCallbacks[key];
+                callback(synchro);
+            }
+        }
+    }
 
     constructor() {
         super();
         this.transactionService = new TransactionService();
-
     }
 
 
@@ -88,25 +141,25 @@ export class SynchronizationService extends BaseService {
                         if(updatedItem.error.name === Constants.Errors.ItemVersionConfict){
                             await this.transactionService.deleteItem(transaction);
                         }
-                        // TODO
                     }
                     else {
                         await this.transactionService.deleteItem(transaction);
-                        
-                        // TODO: on item updated (item)
                     }
+                    SynchronizationService.emitItemSynchronized({item: updatedItem.item, oldId: (isAdd ? oldId: undefined), operation: TransactionType.AddOrUpdate});
                     break;
                 case TransactionType.Delete:
                     try {
                         await dataService.deleteItem(item);
                         await this.transactionService.deleteItem(transaction);
-                        // TODO: OnItemDeleted (type + id)
+                        SynchronizationService.emitItemSynchronized({item: item,operation: TransactionType.Delete});
                     } catch (error) {
                         errors.push(this.formatError(transaction, error.message));
                     }
                     break;
             }
         }        
+        
+        SynchronizationService.emitSynchronizationEnded({errors: errors});
         //return errors list
         return errors;
     }
