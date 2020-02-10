@@ -4,3 +4,5 @@ export {IDataService} from "./IDataService";
 export {IConfiguration} from "./IConfiguration";
 export {ITranslationLabels} from "./ITranslationLabels";
 export { IFieldDescriptor } from "./IFieldDescriptor";
+export { IItemSynchronized } from "./IItemSynchronized";
+export { ISynchronizationEnded } from "./ISynchronizationEnded";
