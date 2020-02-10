@@ -45,11 +45,6 @@ gulp.task('build', function() {
         .pipe(sourcemaps.write('.'))
         .pipe(gulp.dest('dist'));
 });
-// gulp.task('build', gulp.series(['clean'], function () {
-//     return tsProject.src()
-//         .pipe(tsProject())
-//         .js.pipe(gulp.dest('dist'));
-// }));
 
 gulp.task('default', gulp.series(['clean', "tslint", "eslint", 'build']));
 
