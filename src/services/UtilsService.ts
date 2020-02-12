@@ -153,7 +153,7 @@ export class UtilsService extends BaseService {
             return UtilsService.buildCAMLQueryRecursive("Or", orClauses);
         }
         else {
-            return `<Values><Value Type="${fieldType}">-1</Value></Values>`;
+            return `<In><FieldRef LookupId="${isLookup ? "TRUE": "FALSE"}" Name="${fieldName}"></FieldRef><Values><Value Type="${fieldType}">-1</Value></Values></In>`;
         }
     }
 }
