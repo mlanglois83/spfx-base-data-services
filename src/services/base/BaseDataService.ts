@@ -413,8 +413,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
     }
 
 
-    protected async convertItemToDbFormat(item: T): Promise<T> {        
-        delete item.__internalLinks;
+    protected async convertItemToDbFormat(item: T): Promise<T> {     
         return item;
     }
 
