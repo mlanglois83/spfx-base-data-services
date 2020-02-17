@@ -8,6 +8,7 @@ import { BaseService } from "./BaseService";
 import { Text } from "@microsoft/sp-core-library";
 import { TransactionType, Constants } from "../../constants";
 import { ServicesConfiguration } from "../..";
+import { stringIsNullOrEmpty } from "@pnp/common";
 
 
 /**
@@ -79,7 +80,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
     /***
      * 
      */
-    protected async getCachedData(key = "all"): Promise<Date> {
+    protected getCachedData(key = "all"): Date {
 
         const cacheKey = this.getCacheKey(key);
 
@@ -90,6 +91,18 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
             lastDataLoad = new Date(JSON.parse(window.sessionStorage.getItem(cacheKey)));
         }
 
+        return lastDataLoad;
+    }
+    protected getIdLastLoad(id: number | string): Date {
+        const cacheKey = this.getCacheKey("ids");
+        const idTableString = window.sessionStorage.getItem(cacheKey);
+        let lastDataLoad: Date = null;
+        if(!stringIsNullOrEmpty(idTableString)) {
+            const converted = JSON.parse(idTableString);
+            if(converted[id]) {
+                lastDataLoad = new Date(converted[id]);
+            }
+        }
         return lastDataLoad;
     }
 
@@ -104,11 +117,11 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
      */
     protected async needRefreshCache(key = "all"): Promise<boolean> {
 
-        let result: boolean = this.cacheDuration == -1;
+        let result: boolean = this.cacheDuration === -1;
         //if cache defined
         if (!result) {
 
-            const cachedDataDate = await this.getCachedData(key);
+            const cachedDataDate = this.getCachedData(key);
             if (cachedDataDate) {
                 //add cache duration
                 cachedDataDate.setMinutes(cachedDataDate.getMinutes() + this.cacheDuration);
@@ -126,8 +139,41 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         return result;
     }
 
+    protected async getExpiredIds(...ids: Array<number | string>): Promise<Array<number | string>> {
+        const expired = ids.filter((id) => {
+            let result = true;
+            const lastLoad = this.getIdLastLoad(id);
+            if(lastLoad) {
+                lastLoad.setMinutes(lastLoad.getMinutes() + this.cacheDuration);
+                const now = new Date();
+                //cache has expired
+                result = lastLoad < now;
+            }
+            return result;
+        });
+        return expired;
+    }
+
+    protected UpdateIdsLastLoad(...ids: Array<number | string>): void {
+        if(this.cacheDuration !== -1) {            
+            const cacheKey = this.getCacheKey("ids");
+            const initTableString = sessionStorage.getItem(cacheKey);
+            let idTable;
+            if(!stringIsNullOrEmpty(initTableString)) {
+                idTable = JSON.parse(initTableString) || {};
+            }
+            else {
+                idTable = {};
+            }
+            const now = new Date();
+            ids.forEach((id) => {
+                idTable[id] = now;
+            });
+            window.sessionStorage.setItem(cacheKey, JSON.stringify(idTable));
+        }
+    }
     protected UpdateCacheData(key = "all"): void {
-        const result: boolean = this.cacheDuration == -1;
+        const result: boolean = this.cacheDuration === -1;
         //if cache defined
         if (!result) {
             const cacheKey = this.getCacheKey(key);
@@ -165,6 +211,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                             return this.convertItemToDbFormat(res);
                         }));
                         await this.dbService.replaceAll(convresult);
+                        this.UpdateIdsLastLoad(...convresult.map(e => e.id));
                         this.UpdateCacheData();
                     }
                     else {
@@ -215,6 +262,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                             return this.convertItemToDbFormat(res);
                         }));
                         await this.dbService.addOrUpdateItems(convresult, query);
+                        this.UpdateIdsLastLoad(...convresult.map(e => e.id));
                         this.UpdateCacheData(keyCached);
                     }
                     else {
@@ -240,17 +288,17 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
     protected abstract getItemById_Internal(id: number | string): Promise<T>;
 
     public async getItemById(id: number): Promise<T> {
-        const keyCached = "getById_" + id.toString();
-        let promise = this.getExistingPromise(keyCached);
+        const promiseKey = "getById_" + id.toString();
+        let promise = this.getExistingPromise(promiseKey);
         if (promise) {
-            console.log(this.serviceName + " " + keyCached + " : load allready called before, sharing promise");
+            console.log(this.serviceName + " " + promiseKey + " : load allready called before, sharing promise");
         }
         else {
             promise = new Promise<T>(async (resolve, reject) => {
                 try {
-                    let result: T;
-
-                    let reloadData = await this.needRefreshCache(keyCached);
+                    let result: T;                    
+                    const deprecatedIds = await this.getExpiredIds(id);
+                    let reloadData = deprecatedIds.length > 0;
                     //if refresh is needed, test offline/online
                     if (reloadData && ServicesConfiguration.configuration.checkOnline) {
                         reloadData = await UtilsService.CheckOnline();
@@ -260,7 +308,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                         result = await this.getItemById_Internal(id);
                         const converted = await this.convertItemToDbFormat(result);
                         await this.dbService.addOrUpdateItem(converted);
-                        this.UpdateCacheData(super.hashCode(keyCached).toString());
+                        this.UpdateIdsLastLoad(id);
                     }
                     else {
                         const temp = await this.dbService.getItemById(id);
@@ -269,15 +317,15 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                         }
                     }
 
-                    this.removePromise(keyCached);
+                    this.removePromise(promiseKey);
                     resolve(result);
                 }
                 catch (error) {
-                    this.removePromise(keyCached);
+                    this.removePromise(promiseKey);
                     reject(error);
                 }
             });
-            this.storePromise(promise, keyCached);
+            this.storePromise(promise, promiseKey);
         }
         return promise;
     }
@@ -285,45 +333,53 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
     protected abstract getItemsById_Internal(ids: Array<number | string>): Promise<Array<T>>;
 
     public async getItemsById(ids: Array<number | string>): Promise<Array<T>> {
-        const keyCached = "getByIds_" + ids.join();
-        let promise = this.getExistingPromise(keyCached);
+        const promiseKey = "getByIds_" + ids.join();
+        let promise = this.getExistingPromise(promiseKey);
         if (promise) {
-            console.log(this.serviceName + " " + keyCached + " : load allready called before, sharing promise");
+            console.log(this.serviceName + " " + promiseKey + " : load allready called before, sharing promise");
         }
         else {
             promise = new Promise<Array<T>>(async (resolve, reject) => {
-                try {
-                    let results: Array<T>;
+                if(ids.length > 0) {
+                    try {
+                        let results: Array<T>;
+                        const deprecatedIds = await this.getExpiredIds(...ids);
+                        let reloadData = deprecatedIds.length > 0;
+                        //if refresh is needed, test offline/online
+                        if (reloadData && ServicesConfiguration.configuration.checkOnline) {
+                            reloadData = await UtilsService.CheckOnline();
+                        }
 
-                    let reloadData = await this.needRefreshCache(keyCached);
-                    //if refresh is needed, test offline/online
-                    if (reloadData && ServicesConfiguration.configuration.checkOnline) {
-                        reloadData = await UtilsService.CheckOnline();
+                        if (reloadData) {
+                            const expired = await this.getItemsById_Internal(deprecatedIds);
+                            const cached = await this.dbService.getItemsById(ids.filter((i) => {return deprecatedIds.indexOf(i) === -1;}));
+                            results = expired.concat(cached);
+                            const convresults = await Promise.all(results.map(async (res) => {
+                                return this.convertItemToDbFormat(res);
+                            }));
+                            await this.dbService.addOrUpdateItems(convresults);
+                            this.UpdateIdsLastLoad(...ids);
+                        }
+                        else {
+                            const tmp = await this.dbService.getItemsById(ids);
+                            results = await Promise.all(tmp.map((res) => {
+                                return this.mapItem(res);
+                            }));
+                        }
+                        this.removePromise(promiseKey);
+                        resolve(results);
                     }
-
-                    if (reloadData) {
-                        results = await this.getItemsById_Internal(ids);
-                        const convresults = await Promise.all(results.map(async (res) => {
-                            return this.convertItemToDbFormat(res);
-                        }));
-                        await this.dbService.addOrUpdateItems(convresults);
-                        this.UpdateCacheData(super.hashCode(keyCached).toString());
+                    catch (error) {
+                        this.removePromise(promiseKey);
+                        reject(error);
                     }
-                    else {
-                        const tmp = await this.dbService.getItemsById(ids);
-                        results = await Promise.all(tmp.map((res) => {
-                            return this.mapItem(res);
-                        }));
-                    }
-                    this.removePromise(keyCached);
-                    resolve(results);
                 }
-                catch (error) {
-                    this.removePromise(keyCached);
-                    reject(error);
+                else {
+                    this.removePromise(promiseKey);
+                        resolve([]);
                 }
             });
-            this.storePromise(promise, keyCached);
+            this.storePromise(promise, promiseKey);
         }
         return promise;
     }
@@ -343,6 +399,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                 itemResult = await this.addOrUpdateItem_Internal(item);
                 const converted = await this.convertItemToDbFormat(itemResult);
                 await this.dbService.addOrUpdateItem(converted);
+                this.UpdateIdsLastLoad(converted.id);
                 result = {
                     item: itemResult
                 };
@@ -356,6 +413,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                         item: itemResult,
                         error: error
                     };
+                    this.UpdateIdsLastLoad(converted.id);
                 }
                 else {
                     result = {

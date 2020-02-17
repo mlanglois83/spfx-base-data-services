@@ -22,7 +22,7 @@ export interface IFieldDescriptor {
      */
     modelName?: string;
     /**
-     * Referenced item model type name for taxonomy types only
+     * Referenced item model type name for Lookup types only
      */
     refItemName?: string;
 }

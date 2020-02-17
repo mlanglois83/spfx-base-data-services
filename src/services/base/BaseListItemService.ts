@@ -202,13 +202,6 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                         // LOOKUPS --> links
                         converted.__setInternalLinks(propertyName, lookupId);
                         converted[propertyName] = fieldDescriptor.defaultValue;
-                        /*
-                        // get values from init values
-                        const destElements = this.getServiceInitValues(fieldDescriptor.modelName);                        
-                        const existing = find(destElements, (destElement) => {
-                            return destElement.id === lookupId;
-                        });
-                        converted[propertyName] = existing ? existing : fieldDescriptor.defaultValue;*/
                         
                     }
                     else {
@@ -228,19 +221,6 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                             // LOOKUPS --> links
                             converted.__setInternalLinks(propertyName, lookupIds);
                             converted[propertyName] = fieldDescriptor.defaultValue;
-                            /* 
-                            // get values from init values
-                            const val = [];
-                            const targetItems = this.getServiceInitValues(fieldDescriptor.modelName);
-                            lookupIds.forEach(lmid => {
-                                const existing = find(targetItems, (item) => {
-                                    return item.id === lmid;
-                                });
-                                if(existing) {
-                                    val.push(existing);
-                                } 
-                            });
-                            converted[propertyName] = val;*/
                         }
                         else {
                             converted[propertyName] = lookupIds;
@@ -523,13 +503,56 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
 
         return result;
     }
+    /**
+     * Retrieve id of items to be reloaded
+     * @param ids Id if items to check
+     */
+    protected async getExpiredIds(...ids: Array<number | string>): Promise<Array<number | string>> {
+        let result: Array<number | string> = await super.getExpiredIds(...ids);
+
+        if (result.length < ids.length) {
+
+            const isconnected = await UtilsService.CheckOnline();
+            if (isconnected) {               
+
+                try {
+                    const response = await ServicesConfiguration.context.spHttpClient.get(`${ServicesConfiguration.context.pageContext.web.absoluteUrl}/_api/web/getList('${this.listRelativeUrl}')`,
+                        SPHttpClient.configurations.v1,
+                        {
+                            headers: {
+                                'Accept': 'application/json;odata.metadata=minimal',
+                                'Cache-Control': 'no-cache'
+                            }
+                        });
+                        
+                    const tempList = await response.json();
+                    const lastModifiedDate = new Date(tempList.LastItemUserModifiedDate ? tempList.LastItemUserModifiedDate : tempList.d.LastItemUserModifiedDate);
+                    result = [];
+                    ids.forEach((id) => {
+                        const lastLoad = this.getIdLastLoad(id);
+                        if(!lastLoad || lastLoad < lastModifiedDate) {
+                            result.push(id);
+                        }
+                    });
+
+
+                } catch (error) {
+                    console.error(error);
+                }
+
+
+            }
+        }
+
+        return result;
+    }
 
     /**********************************Service specific calls  *******************************/
     
     /**
      * Get items by caml query
      * @param query caml query (<Where></Where>)
-     * @param orderBy array of <FieldRef Name='Field1' Ascending='TRUE'/>
+     * @param orderBy array of <FieldRef Name='Field' Ascending='TRUE'/>
      * @param limit  number of lines
      * @param lastId last id for paged queries
      */

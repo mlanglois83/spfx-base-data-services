@@ -19,10 +19,8 @@ export class UserService extends BaseDataService<User> {
 
 
     /**
-     * 
-     * @param type items type
-     * @param context current sp component context 
-     * @param termsetname termset name
+     * Instanciates a user service
+     * @param cacheDuration Cache duration in minutes (default : 10)
      */
     constructor(cacheDuration: number = standardUserCacheDuration) {
         super(User, "Users", cacheDuration);
