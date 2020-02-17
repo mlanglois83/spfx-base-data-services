@@ -13,7 +13,28 @@ export abstract class SPItem implements IBaseItem {
      */
     public __internalLinks?: any;
 
-    // TODO: Getter setter
+    public __getInternalLinks(propertyName: string): any {
+        let result = null;
+        if(this.__internalLinks) {
+            result = this.__internalLinks[propertyName];
+        }
+        return result;
+    }
+    public __setInternalLinks(propertyName: string, value: any): void {
+        this.__internalLinks = this.__internalLinks || {};
+        this.__internalLinks[propertyName] = value;
+    }
+    public __deleteInternalLinks(propertyName: string): void {
+        if(this.__internalLinks) {
+            delete this.__internalLinks[propertyName];
+        }
+    }
+    
+    public __clearEmptyInternalLinks(): void {
+        if(this.__internalLinks && Object.keys(this.__internalLinks).length === 0) { 
+            delete this.__internalLinks;
+        }       
+    }
 
     /**
      * Item id
