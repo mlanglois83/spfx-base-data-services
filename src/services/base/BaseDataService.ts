@@ -1,5 +1,5 @@
 import { assign } from "@microsoft/sp-lodash-subset";
-import { IBaseItem, IAddOrUpdateResult, IDataService } from "../../interfaces";
+import { IBaseItem, IAddOrUpdateResult, IDataService, IQuery } from "../../interfaces";
 import { OfflineTransaction } from "../../models/index";
 import { UtilsService } from "../index";
 import { TransactionService } from "../synchronization/TransactionService";
@@ -236,10 +236,10 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
 
     }
 
-    protected abstract get_Internal(query: any): Promise<Array<T>>;
+    protected abstract get_Internal(query: IQuery): Promise<Array<T>>;
 
 
-    public async get(query: any): Promise<Array<T>> {
+    public async get(query: IQuery): Promise<Array<T>> {
         const keyCached = super.hashCode(query).toString();
         let promise = this.getExistingPromise(keyCached);
         if (promise) {

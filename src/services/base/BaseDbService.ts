@@ -6,7 +6,7 @@ import { IDataService } from "../../interfaces/IDataService";
 import { SPFile } from "../../models/index";
 import { UtilsService } from "../index";
 import { BaseService } from "./BaseService";
-import { IAddOrUpdateResult } from "../../interfaces";
+import { IAddOrUpdateResult, IQuery } from "../../interfaces";
 import { Constants } from "../../constants";
 import { ServicesConfiguration } from "../..";
 
@@ -185,7 +185,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
     }
 
 
-    public async get(query?: string): Promise<Array<T>> {
+    public async get(query: IQuery): Promise<Array<T>> {
         const results = new Array<T>();
         const hash = super.hashCode(query);
         const items = await this.getAll();
