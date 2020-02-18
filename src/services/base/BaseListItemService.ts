@@ -2,8 +2,8 @@ import { ServicesConfiguration } from "../..";
 import { SPHttpClient } from '@microsoft/sp-http';
 import { cloneDeep, find, assign, findIndex } from "@microsoft/sp-lodash-subset";
 import { CamlQuery, List, sp } from "@pnp/sp";
-import { Constants, FieldType } from "../../constants/index";
-import { IBaseItem, IFieldDescriptor, IAddOrUpdateResult } from "../../interfaces/index";
+import { Constants, FieldType, TestOperator, QueryToken, LogicalOperator } from "../../constants/index";
+import { IBaseItem, IFieldDescriptor, IAddOrUpdateResult, IQuery, IPredicate, ILogicalSequence, IOrderBy } from "../../interfaces/index";
 import { BaseDataService } from "./BaseDataService";
 import { UtilsService } from "..";
 import { SPItem, User, TaxonomyTerm, OfflineTransaction, SPFile } from "../../models";
@@ -556,7 +556,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
      * @param limit  number of lines
      * @param lastId last id for paged queries
      */
-    public getByCamlQuery(query: string, orderBy?: string[], limit?: number, lastId?: number): Promise<Array<T>> {
+    /*public getByCamlQuery(query: string, orderBy?: string[], limit?: number, lastId?: number): Promise<Array<T>> {
         const queryXml = this.getQuery(query, orderBy,limit);
         const camlQuery = {
             ViewXml: queryXml
@@ -567,7 +567,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
             };
         }
         return this.get(camlQuery);
-    }
+    }*/
 
     /********************************** Link to lookups  *************************************/
     private linkedLookupFields(loadLookups?: Array<string>): any {
@@ -715,7 +715,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
     }
     /***************** SP Calls associated to service standard operations ********************/
     
-    public async get(query: any, loadLookups?: Array<string>): Promise<Array<T>>{
+    public async get(query: IQuery, loadLookups?: Array<string>): Promise<Array<T>>{
         const results = await super.get(query);
         await this.populateLookups(results, loadLookups);
         return results;
@@ -728,14 +728,15 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
      * @returns {Promise<Array<T>>}
      * @memberof BaseListItemService
      */
-    protected async get_Internal(query: any): Promise<Array<T>> {
+    protected async get_Internal(query: IQuery): Promise<Array<T>> {
+        const spQuery = this.getCamlQuery(query);
         let results = new Array<T>();
         const selectFields = this.getOdataFieldNames();
         let itemsQuery = this.list.select(...selectFields);
         if(this.hasAttachments) {
             itemsQuery = itemsQuery.expand(Constants.commonFields.attachments);
         }
-        const items = await itemsQuery.getItemsByCAMLQuery(query as CamlQuery);
+        const items = await itemsQuery.getItemsByCAMLQuery(spQuery);
         if(items && items.length > 0) {
             await this.Init();
             results = items.map((r) => { 
@@ -1430,5 +1431,206 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
             </Query>            
             ${limit !== undefined ? `<RowLimit>${limit}</RowLimit>` : ""}
         </View>`;
+    }
+
+    private getCamlQuery(query: IQuery): CamlQuery {
+        const result: CamlQuery = {
+            ViewXml: `<View Scope="RecursiveAll">
+                <Query>
+                    ${this.getWhere(query)}
+                    ${this.getOrderBy(query)}
+                </Query>
+                ${query.limit !== undefined ? `<RowLimit>${query.limit}</RowLimit>` : ""}
+            </View>`
+        };
+        if(query.lastId !== undefined) {
+            result.ListItemCollectionPosition = {
+                "PagingInfo": "Paged=TRUE&p_ID=" + query.lastId
+            };
+        }
+        return result;
+    }
+
+    private getOrderBy(query: IQuery): string {
+        let result = "";
+        if(query.orderBy && query.orderBy.length > 0) {
+            result = 
+            result = `<OrderBy>
+                ${query.orderBy.map(ob => this.getFieldRef(ob)).join('')}
+            </OrderBy>`;
+        }
+        return result;
+    }
+    private getWhere(query: IQuery): string {
+        let result = "";
+        if(query.test) {
+            result = `<Where>
+                ${query.test.type === "predicate" ? this.getPredicate(query.test) : this.getLogicalSequence(query.test)}
+            </Where>`;
+        }
+        return result;
+    }
+    private getLogicalSequence(sequence: ILogicalSequence): string {
+        if(!sequence.children || sequence.children.length === 0) {
+            return "";
+        }
+        if(sequence.children.length === 1) {
+            if(sequence.children[0].type === "predicate") {
+                return this.getPredicate(sequence.children[0]);
+            }
+            else {
+                return this.getLogicalSequence(sequence.children[0]);
+            }
+        }
+        else {
+            // first part
+            let result = `<${sequence.operator}>`;
+            if(sequence.children[0].type === "predicate") {
+                result += this.getPredicate(sequence.children[0]);
+            }
+            else {
+                result += this.getLogicalSequence(sequence.children[0]);
+            }
+            sequence.children.splice(0,1);
+            result += this.getLogicalSequence(sequence);
+            result += `</${sequence.operator}>`;
+            return result;
+        }
+    }
+
+    private getPredicate(predicate: IPredicate): string {
+        let result = "";
+        switch (predicate.operator) {
+            case TestOperator.IsNotNull:
+            case TestOperator.IsNull:
+                result = `<${predicate.operator}>
+                    ${this.getFieldRef(predicate)}
+                </${predicate.operator}>`;
+                break;    
+            case TestOperator.In:
+                if(predicate.value && isArray(predicate.value) && predicate.value.length > 0) {
+                    if(predicate.value.length <= 500) {
+                        return `<${predicate.operator}>
+                            ${this.getFieldRef(predicate)}
+                            <Values>
+                                ${predicate.value.map(v => this.getValue(predicate.propertyName, v, predicate.lookupId)).join('')}
+                            </Values>
+                        </${predicate.operator}>`;
+                    }
+                    else {
+                        const transformed: ILogicalSequence = {
+                            type: "sequence",
+                            operator: LogicalOperator.Or,
+                            children: []
+                        };
+                        while(predicate.value.length) {
+                            const subValues = predicate.value.splice(0,500);
+                            transformed.children.push({
+                                type: "predicate",
+                                operator: TestOperator.In,
+                                propertyName: predicate.propertyName,
+                                value: subValues,
+                                includeTimeValue: predicate.includeTimeValue,
+                                lookupId: predicate.lookupId
+                            });
+                        }
+                        return this.getLogicalSequence(transformed);
+                    }
+                }
+                else {
+                    return `<${predicate.operator}>
+                        ${this.getFieldRef(predicate)}
+                        <Values>
+                            ${this.getValue(predicate.propertyName, -1, predicate.lookupId)}
+                        </Values>
+                    </${predicate.operator}>`;
+                }
+
+                break;    
+            default:
+                result = `<${predicate.operator}>
+                    ${this.getFieldRef(predicate)}
+                    ${this.getValue(predicate.propertyName, predicate.value, predicate.lookupId)}
+                </${predicate.operator}>`;
+                break;
+        }
+        return result;
+    }
+    private getFieldRef(obj: IPredicate | IOrderBy): string {
+        let result = "";
+        const fields = this.ItemFields;
+        const field = fields[obj.propertyName];
+        if(field) {    
+            result = `<FieldRef Name="${field.fieldName}"${obj.type === "predicate" && obj.lookupId ? " LookupId=\"TRUE\"" : ""}${obj.type === "predicate" && obj.includeTimeValue !== undefined ? (" IncludeTimeValue=\"" + (obj.includeTimeValue ? "TRUE" : "FALSE") + "\"") : ""}${obj.type === "orderby" && obj.ascending !== undefined && ! obj.ascending ? " Ascending=\"FALSE\"" : ""} />`;
+        }
+        else {
+            throw new Error("Field was not found : " + obj.propertyName);
+        }
+        return result;
+    }
+    private getValue(propertyName: string, fieldValue: any, lookupID?: boolean): string {
+        let result = "";
+        const fields = this.ItemFields;
+        const field = fields[propertyName];
+        if(field) {    
+            let type = "";
+            let value = "";
+            switch (field.fieldType) {
+                case FieldType.Simple:
+                    if(typeof(fieldValue) === "number") {
+                        type = "Number";       
+                        value = fieldValue.toString();       
+                    }
+                    else if(typeof(fieldValue) === "boolean") {
+                        type="Boolean";
+                        value = fieldValue ? "1" : "0";
+                    }          
+                    else {
+                        type="Text"; 
+                        value = fieldValue.toString(); 
+                    }                     
+                    break;
+                case FieldType.Date:
+                    type = "DateTime";
+                    if(fieldValue === QueryToken.Now || fieldValue === QueryToken.Today) {
+                        value = `<${fieldValue}/>`;
+                    }
+                    else {
+                        value = fieldValue.toISOString().replace(/\.\d+Z/g, "Z");
+                    }
+                    break;                
+                case FieldType.Json:
+                    type="Text";
+                    value = JSON.stringify(fieldValue);
+                    break;               
+                case FieldType.Lookup:
+                case FieldType.LookupMulti:
+                    type = "Lookup";        
+                    value = fieldValue.toString();            
+                    break;               
+                case FieldType.Taxonomy:
+                case FieldType.TaxonomyMulti:
+                    type = lookupID ? "Integer" : "Text";
+                    value = fieldValue.toString();   
+                    break;               
+                case FieldType.User:
+                case FieldType.UserMulti:
+                    type = fieldValue === QueryToken.UserID ? "Integer" : "User";
+                    if(fieldValue === QueryToken.UserID) {
+                        value = `<${fieldValue}/>`;
+                    }
+                    else {                        
+                        value = fieldValue.toString();   
+                    }
+                    break;
+                default:
+                    break;
+            }
+            result = `<Value Type="${type}">${value}</Value>`;
+        }
+        else {
+            throw new Error("Field was not found : " + propertyName);
+        }
+        return result;
     }
 }

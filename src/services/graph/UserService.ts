@@ -1,12 +1,11 @@
 import { BaseDataService } from "..";
-import { User, PictureSize } from "../..";
+import { User, PictureSize, IQuery } from "../..";
 import { graph } from "@pnp/graph";
 import { sp } from "@pnp/sp";
 import { Text } from "@microsoft/sp-core-library";
 import { ServicesConfiguration } from "../../configuration/ServicesConfiguration";
-import { find, cloneDeep } from "@microsoft/sp-lodash-subset";
+import { find } from "@microsoft/sp-lodash-subset";
 import { TestOperator } from "../../constants";
-import { IPredicate } from "../../interfaces";
 
 const standardUserCacheDuration = 10;
 export class UserService extends BaseDataService<User> {
@@ -28,10 +27,12 @@ export class UserService extends BaseDataService<User> {
         super(User, "Users", cacheDuration);
     }
 
-    protected async get_Internal(query: any): Promise<Array<User>> {
-        query = query.trim();
-        let reverseFilter = query;
-        const parts = query.split(" ");
+    protected async get_Internal(query: IQuery): Promise<Array<User>> {
+        // TODO: build query
+        let queryStr = "";
+        queryStr = queryStr.trim();
+        let reverseFilter = queryStr;
+        const parts = queryStr.split(" ");
         if (parts.length > 1) {
         reverseFilter = parts[1].trim() + " " + parts[0].trim();
         }
@@ -139,7 +140,7 @@ export class UserService extends BaseDataService<User> {
 
 
     public async getByDisplayName(displayName: string): Promise<Array<User>> {
-        let users = await this.get(displayName);
+        let users = await this.get({test: {type: "predicate", propertyName: "displayName", operator: TestOperator.BeginsWith, value: displayName}});
         if(users.length === 0) {
             users = await this.getAll();
 
