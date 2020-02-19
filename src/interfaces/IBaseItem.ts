@@ -11,10 +11,6 @@ export interface IBaseItem {
      */
     title: string;
     /**
-     * Queries associated with the item
-     */
-    queries?: Array<number>;
-    /**
      * Item version
      */
     version?: number;

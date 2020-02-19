@@ -4,9 +4,9 @@ import { IBaseItem } from "../../interfaces/index";
  */
 export class User implements IBaseItem {
     /**
-     * O365 id of the user
+     * id of the user
      */
-    public id: string;
+    public id = -1;
     /**
      * User display name
      */
@@ -16,17 +16,13 @@ export class User implements IBaseItem {
      */
     public mail: string;
     /**
-     * Associated SP User ID
-     */
-    public spId?: number;
-    /**
      * User principal name (login)
      */
     public userPrincipalName: string;
-    /**
-     * Queries used to retrieve user (only used in data services)
-     */
-    public queries?: Array<number>;
+    /*
+    * User is site admin
+    */
+    public isSiteAdmin = false;
     /**
      * Get or Set User display name
      */
@@ -41,14 +37,15 @@ export class User implements IBaseItem {
     }
     /**
      * Instancate an user object
-     * @param graphUser User object returned by graph api
+     * @param graphUser User object returned by graph api or sp
      */
-    constructor(graphUser?: any) {
-        if (graphUser) {
-            this.title = graphUser.displayName ? graphUser.displayName : "";
-            this.id = graphUser.id ? graphUser.id  : "";
-            this.mail = graphUser.mail ? graphUser.mail : "";
-            this.userPrincipalName = graphUser.userPrincipalName ? graphUser.userPrincipalName : "";
+    constructor(userObj?: any) {
+        if (userObj) {
+            this.title = userObj.displayName ? userObj.displayName : (userObj.Title ? userObj.Title : "");
+            this.id = userObj.Id ? userObj.Id  : -1;
+            this.mail = userObj.mail ? userObj.mail : (userObj.Email ? userObj.Email : "");
+            this.userPrincipalName = userObj.userPrincipalName ? userObj.userPrincipalName : (userObj.UserPrincipalName ? userObj.UserPrincipalName : "");            
+            this.isSiteAdmin = userObj.IsSiteAdmin === true;
         }
     }
 

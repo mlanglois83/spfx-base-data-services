@@ -1,12 +1,12 @@
-import { assign } from "@microsoft/sp-lodash-subset";
-import { IBaseItem, IAddOrUpdateResult, IDataService, IQuery } from "../../interfaces";
-import { OfflineTransaction } from "../../models/index";
+import { assign, cloneDeep } from "@microsoft/sp-lodash-subset";
+import { IBaseItem, IAddOrUpdateResult, IDataService, IQuery, ILogicalSequence, IPredicate } from "../../interfaces";
+import { OfflineTransaction, TaxonomyTerm } from "../../models/index";
 import { UtilsService } from "../index";
 import { TransactionService } from "../synchronization/TransactionService";
 import { BaseDbService } from "./BaseDbService";
 import { BaseService } from "./BaseService";
 import { Text } from "@microsoft/sp-core-library";
-import { TransactionType, Constants } from "../../constants";
+import { TransactionType, Constants, LogicalOperator, TestOperator, QueryToken } from "../../constants";
 import { ServicesConfiguration } from "../..";
 import { stringIsNullOrEmpty } from "@pnp/common";
 
@@ -261,7 +261,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                         const convresult = await Promise.all(result.map((res) => {
                             return this.convertItemToDbFormat(res);
                         }));
-                        await this.dbService.addOrUpdateItems(convresult, query);
+                        await this.dbService.addOrUpdateItems(convresult/*, query*/);
                         this.UpdateIdsLastLoad(...convresult.map(e => e.id));
                         this.UpdateCacheData(keyCached);
                     }
@@ -270,6 +270,8 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                         result = await Promise.all(tmp.map((res) => {
                             return this.mapItem(res);
                         }));
+                        // filter
+                        result = this.filterItems(query, result);
                     }
 
                     this.removePromise(keyCached);
@@ -493,5 +495,258 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
 
     public __updateCache(...items: Array<T>): Promise<Array<T>> {
         return this.dbService.addOrUpdateItems(items);
+    }
+
+
+    ////////////////////////////// Queries ////////////////////////////////////
+    private filterItems(query: IQuery, items: Array<T>): Array<T> {
+        // filter items by test
+        const results = query.test ? items.filter((i) => { return this.getTestResult(query.test, i);}) : cloneDeep(items);
+        // order by
+        if(query.orderBy) {
+            results.sort(function(a, b){
+                for (const order of query.orderBy) {
+                    const aKey = a[order.propertyName];
+                    const bKey = b[order.propertyName];
+                    if(typeof(aKey) === "string" || typeof(bKey) === "string") {
+                        if(order.ascending === false) {
+                            if((aKey || "").localeCompare(bKey || "") < 0) {
+                                return 1;
+                            }
+                            if((aKey || "").localeCompare(bKey || "") > 0) {
+                                return -1;
+                            }
+                        }
+                        else {
+                            if((aKey || "").localeCompare(bKey || "") < 0) {
+                                return -1;
+                            }
+                            if((aKey || "").localeCompare(bKey || "") > 0) {
+                                return 1;
+                            }
+                        }
+                    }
+                    else if(aKey.id && bKey.id) {
+                        if(order.ascending === false) {
+                            if((aKey.title || "").localeCompare(bKey.title || "") < 0) {
+                                return 1;
+                            }
+                            if((aKey.title || "").localeCompare(bKey.title || "") > 0) {
+                                return -1;
+                            }
+                        }
+                        else {
+                            if((aKey.title || "").localeCompare(bKey.title || "") < 0) {
+                                return -1;
+                            }
+                            if((aKey.title || "").localeCompare(bKey.title || "") > 0) {
+                                return 1;
+                            }
+                        }
+                    }
+                    else {
+                        if(order.ascending === false) {
+                            if(aKey < bKey) {
+                                return 1;
+                            }
+                            if(aKey.title > bKey) {
+                                return -1;
+                            }
+                        }
+                        else {
+                            if(aKey < bKey) {
+                                return -1;
+                            }
+                            if(aKey.title > bKey) {
+                                return 1;
+                            }
+                        }
+                    }
+                }
+                return 0;
+              });
+        }
+        // limit
+        if(query.limit) {
+            results.splice(query.limit);
+        }
+        return results;
+    }
+    private getTestResult(testElement: IPredicate | ILogicalSequence, item: T): boolean {
+        return (
+            testElement.type === "predicate" ? 
+            this.getPredicateResult(testElement, item) :
+            this.getSequenceResult(testElement, item)
+        );
+    }
+    private getPredicateResult(predicate: IPredicate, item: T): boolean {
+        let result = false;
+        let value = item[predicate.propertyName];
+        let refVal = predicate.value;
+        // Dates
+        if(refVal === QueryToken.Now) {
+            refVal = new Date();
+        }
+        else if(refVal === QueryToken.Today) {
+            const now = new Date();
+            refVal = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        }
+        if(refVal && refVal instanceof Date && !predicate.includeTimeValue) {
+            refVal = new Date(refVal.getFullYear(), refVal.getMonth(), refVal.getDate());
+        }
+        if(value && value instanceof Date && !predicate.includeTimeValue) {
+            value = new Date(value.getFullYear(), value.getMonth(), value.getDate());
+        }
+        // Lookups
+        if(refVal === QueryToken.UserID) {
+            refVal = ServicesConfiguration.configuration.currentUserId;
+        }
+        if(predicate.lookupId) {
+            if(value && value.id && typeof(value.id) === "number") {
+                value = value.id;
+            }
+        }
+        else if(value && value.id && typeof(value.id) === "number") {
+            value = value.title;
+        }
+        
+        switch(predicate.operator) {
+            case TestOperator.BeginsWith:
+                result = (
+                    value && typeof(value) === "string" && 
+                    refVal && typeof(refVal) === "string" ? 
+                    value.indexOf(refVal) === 0 : 
+                    false
+                );
+                break;
+            case TestOperator.Contains:
+                result = (
+                    value && typeof(value) === "string" && 
+                    refVal && typeof(refVal) === "string" ? 
+                    value.indexOf(refVal) !== -1 : 
+                    false
+                );
+                break;
+            case TestOperator.Eq:
+                if(value instanceof TaxonomyTerm && predicate.lookupId) {
+                    result = value.wssids.indexOf(refVal) !== -1;
+                }
+                else {
+                    result = value === refVal;
+                }
+                break;
+            case TestOperator.Geq:
+                result = (typeof(value) === "string" && typeof(refVal) === "string") ?
+                    value.localeCompare(refVal) >= 0 :
+                    value >= refVal;
+                break;
+            case TestOperator.Gt:
+                result = (typeof(value) === "string" && typeof(refVal) === "string") ?
+                    value.localeCompare(refVal) > 0 :
+                    value > refVal;
+                break;
+            case TestOperator.In:
+                if(value instanceof TaxonomyTerm && predicate.lookupId) {
+                    result = Array.isArray(refVal) && refVal.some(v => value.wssids.indexOf(v) !== -1);
+                }
+                else {
+                    result = Array.isArray(refVal) && refVal.some(v => v === value);
+                }
+                break;
+            case TestOperator.Includes:
+                if(Array.isArray(value)) {
+                    for (const lookup of value) {
+                        if(predicate.lookupId) {
+                            if(lookup && lookup.id) {
+                                if(typeof(lookup.id) === "number") {
+                                    result = lookup === refVal;
+                                }
+                                else if(lookup instanceof TaxonomyTerm) {
+                                    result = lookup.wssids.indexOf(refVal) !== -1;
+                                }
+
+                            }
+                        }
+                        else if(lookup && lookup.id) {
+                            result = lookup.title === refVal;
+                        }
+                        if(result) {
+                            break;
+                        }
+                    }
+                }
+                break;
+            case TestOperator.IsNotNull:
+                result = value !== null && value !== undefined && value !== "";
+                break;
+            case TestOperator.IsNull:                
+                result = value === null || value === undefined || value === "";
+                break;
+            case TestOperator.Leq:
+                result = (typeof(value) === "string" && typeof(refVal) === "string") ?
+                    value.localeCompare(refVal) <= 0 :
+                    value <= refVal;
+                break;
+            case TestOperator.Lt:
+                result = (typeof(value) === "string" && typeof(refVal) === "string") ?
+                    value.localeCompare(refVal) < 0 :
+                    value < refVal;
+                break;
+            case TestOperator.Neq:
+                if(value instanceof TaxonomyTerm && predicate.lookupId) {
+                    result = value.wssids.indexOf(refVal) === -1;
+                }
+                else {
+                    result = value !== refVal;
+                }
+                break;
+            case TestOperator.NotIncludes:                
+                if(Array.isArray(value)) {
+                    result = true;
+                    for (const lookup of value) {
+                        if(predicate.lookupId) {
+                            if(lookup && lookup.id) {
+                                if(typeof(lookup.id) === "number") {
+                                    result = lookup === refVal;
+                                }
+                                else if(lookup instanceof TaxonomyTerm) {
+                                    result = lookup.wssids.indexOf(refVal) !== -1;
+                                }
+
+                            }
+                        }
+                        else if(lookup && lookup.id) {
+                            result = lookup.title === refVal;
+                        }
+                        if(result) {
+                            break;
+                        }
+                        if(!result) {
+                            break;
+                        }
+                    }
+                }
+                break;
+            default: 
+                break;
+        }
+        return result;
+    }
+    
+    private getSequenceResult(sequence: ILogicalSequence, item: T): boolean {
+        // and : find first false, or : find first true
+        let result = sequence.operator === LogicalOperator.And;
+        for (const subTest of sequence.children) {
+            const tmp = subTest.type === "predicate" ? this.getPredicateResult(subTest, item) : this.getSequenceResult(subTest,item);
+            if(!tmp && sequence.operator === LogicalOperator.And) {
+                result = false;
+                break;
+            }
+            else if(tmp && sequence.operator === LogicalOperator.Or) {
+                result = true;
+                break;
+            }
+        }
+        return result;
     }
 }

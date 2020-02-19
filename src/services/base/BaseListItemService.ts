@@ -237,7 +237,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                         // get values from init values
                         const users = this.getServiceInitValues(fieldDescriptor.modelName);                        
                         const existing = find(users, (user) => {
-                            return user.spId === id;
+                            return user.id === id;
                         });
                         converted[propertyName] = existing ? existing : fieldDescriptor.defaultValue;
                     }
@@ -258,7 +258,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                         const users = this.getServiceInitValues(fieldDescriptor.modelName);
                         ids.forEach(umid => {
                             const existing = find(users, (user) => {
-                                return user.spId === umid;
+                                return user.id === umid;
                             });
                             if(existing) {
                                 val.push(existing);
@@ -434,12 +434,12 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
     private async convertSingleUserFieldValue(value: User): Promise<any> {
         let result: any = null;
         if (value) {
-            if(!value.spId || value.spId <=0) {
+            if(value.id <=0) {
                 const userService: UserService = new UserService();
                 value = await userService.linkToSpUser(value);
 
             }
-            result = value.spId;
+            result = value.id;
         }
         return result;
     }
@@ -1031,11 +1031,11 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                     let user = null;
                     if(this.initialized) {
                         const users = this.getServiceInitValues(User["name"]);
-                        user = find(users, (u) => { return u.spId === id; });
+                        user = find(users, (u) => { return u.id === id; });
                     }
                     else {
                         const userService: UserService = new UserService();
-                        user = await userService.getBySpId(id);
+                        user = await userService.getItemById(id);
                     }
                     item[prop] = user;
                     break;
@@ -1417,21 +1417,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
             }
         }
     }
-    /**
-     * 
-     * @param query caml query (<Where></Where>)
-     * @param orderBy array of <FieldRef Name='Field1' Ascending='TRUE'/>
-     * @param limit  number of lines
-     */
-    private getQuery(query: string, orderBy?: string[], limit?: number): string {
-        return`<View Scope="RecursiveAll">
-            <Query>
-                ${query}
-                ${orderBy ? `<OrderBy>${orderBy.join('')}</OrderBy>` : ""}
-            </Query>            
-            ${limit !== undefined ? `<RowLimit>${limit}</RowLimit>` : ""}
-        </View>`;
-    }
+    
 
     private getCamlQuery(query: IQuery): CamlQuery {
         const result: CamlQuery = {
