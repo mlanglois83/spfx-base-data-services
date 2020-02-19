@@ -1,4 +1,5 @@
 import { IBaseItem, IAddOrUpdateResult } from ".";
+import { IQuery } from "./IQuery";
 /**
  * Contract interface for all dataservices
  */
@@ -11,7 +12,7 @@ export interface IDataService<T extends IBaseItem> {
      * Retrieve items using query
      * @param query query element (ie CAML for SP)
      */
-    get(query: any): Promise<Array<T>>;
+    get(query: IQuery): Promise<Array<T>>;
     /**
      * Adds or updates an item
      * @param item Instance of a Model that has to be sent

@@ -186,16 +186,16 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
 
 
     public async get(query: IQuery): Promise<Array<T>> {
-        const results = new Array<T>();
-        const hash = super.hashCode(query);
+        /*const results = new Array<T>();
+        const hash = super.hashCode(query);*/
         const items = await this.getAll();
-
-        for (const item of items) {
+        return items;//this.filterItems(query, items);
+        /*for (const item of items) {
             if (item.queries && item.queries.indexOf(hash) >= 0) {
                 results.push(item);
             }
         }
-        return results;
+        return results;*/
     }
 
 
@@ -203,7 +203,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
      * add items in table (ids updated)
      * @param newItems 
      */
-    public async addOrUpdateItems(newItems: Array<T>, query?: any): Promise<Array<T>> {
+    public async addOrUpdateItems(newItems: Array<T>/*, query?: any*/): Promise<Array<T>> {
         await this.OpenDb();
         let nextid = await this.getNextAvailableKey();
         const tx = this.db.transaction(this.tableName, 'readwrite');
@@ -245,7 +245,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                 }
                 else {
                     //if item comes from query add property query
-                    if (query) {
+                    /*if (query) {
                         item.queries = new Array<number>();
                         const hash = this.hashCode(query);
                         //get item from cache if exist
@@ -265,7 +265,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                         } else {
                             item.queries.push(hash);
                         }
-                    }
+                    }*/
 
                     await store.put(assign({}, item)); // store simple object with data only 
                 }

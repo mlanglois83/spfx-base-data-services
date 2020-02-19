@@ -36,6 +36,7 @@ export class ServicesConfiguration {
         context: null,
         serviceFactory: null,
         tableNames: [],
+        currentUserId: -1,
         translations: {
             AddLabel: "Add",
             DeleteLabel: "Delete",

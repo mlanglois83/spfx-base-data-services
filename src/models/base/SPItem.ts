@@ -52,10 +52,6 @@ export abstract class SPItem implements IBaseItem {
     @spField({fieldName: "OData__UIVersionString"})
     public version?: number;
     /**
-     * Queries (only used in services)
-     */
-    public queries?: Array<number>;
-    /**
      * Defines if item is valid for sending it to list
      */
     public get isValid(): boolean {

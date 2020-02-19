@@ -38,4 +38,8 @@ export interface IConfiguration {
      * Service factory able to instanciate services allowing the synchronization service to work
      */
     serviceFactory: BaseServiceFactory;
+    /**
+     * Current user id
+     */
+    currentUserId: number;
 }
