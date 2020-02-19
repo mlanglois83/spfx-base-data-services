@@ -642,7 +642,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         for (const modelName in allIds) {
             if (allIds.hasOwnProperty(modelName)) {
                 const ids = allIds[modelName];
-                if(ids) {
+                if(ids && ids.length > 0) {
                     const service = ServicesConfiguration.configuration.serviceFactory.create(modelName);
                     promises.push(service.getItemsById(ids));
                 }
