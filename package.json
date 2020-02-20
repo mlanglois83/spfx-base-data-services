@@ -1,6 +1,6 @@
 {
   "name": "spfx-base-data-services",
-  "version": "1.1.6",
+  "version": "1.1.7",
   "private": false,
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
