@@ -7,9 +7,9 @@
 - [Installation](#installation)
 - [Project integration](#project-integration)
   - [Initialization](#initialization)
-  - [Packaging the solution](#packaging)
+  - [Packaging the solution](#packaging-the-solution)
 
-## [Description](#description)
+## Description
 
 spfx-base-dataservice  is a set of base classes and tools aimed to create a data service able to interract with main SharePoint / O365 data sources in SPFX webparts. It contains base implementation for the following services:
 
@@ -27,17 +27,17 @@ The main feature provided by implementing this library is:
 - Version conflicts check (version management must be activated on list). In case the destination item is newer, an error is thrown and the destination item is returned.
 - Automatic data synchronization. All actions made by services offline are stored in a transactions table. A synchronization process runs api calls for all transactions and garantees data consistency between SharePoint and local database.
 
-## [Installation](#installation)
+## Installation
 
 To use the package, it must be installed via npm and saved as project dependency using the command:
 
 `npm i spfx-base-data-service --save`
 
-## [Project integration](#project-integration)
+## Project integration
 
   The service needs a few configuration to work in a SPFX webpart project.
   
-### [Initialization](#initialization)
+### Initialization
   
   In webparts code file override init method as following :
   
@@ -70,7 +70,7 @@ public  onInit(): Promise<void> {
 }
 ```
   
-### [Packaging the solution](#packaging)
+### Packaging the solution
   
   As services use Class names to generate model and service instances, the following function must be added in file gulpfile.js:
   
