@@ -1515,7 +1515,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                             operator: LogicalOperator.Or,
                             children: []
                         };
-                        const copy = predicate.value
+                        const copy = predicate.value;
                         while(copy.length) {
                             const subValues = copy.splice(0,500);
                             transformed.children.push({
