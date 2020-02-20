@@ -150,7 +150,7 @@ export class UtilsService extends BaseService {
      * @param isLookup true if query is based on lookup id (default false)
      */
     public static getCamlInQuery(fieldName: string, fieldType: string, values: Array<number | string>, isLookup = false): string {
-        let copy = cloneDeep(values);
+        const copy = cloneDeep(values);
         if(copy &&  copy.length > 0) {
             const orClauses = [];
             while(copy.length) {
