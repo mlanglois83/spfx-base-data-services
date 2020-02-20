@@ -1,7 +1,8 @@
 import { BaseService } from "./base/BaseService";
 import { ServicesConfiguration } from "../";
 import { Text } from '@microsoft/sp-core-library';
-import { cloneDeep } from "@microsoft/sp-lodash-subset";
+import { cloneDeep, find } from "@microsoft/sp-lodash-subset";
+import { TaxonomyTerm } from "../models";
 /**
  * Utility class
  */
@@ -156,6 +157,28 @@ export class UtilsService extends BaseService {
         }
         else {
             return `<In><FieldRef LookupId="${isLookup ? "TRUE": "FALSE"}" Name="${fieldName}"></FieldRef><Values><Value Type="${fieldType}">-1</Value></Values></In>`;
+        }
+    }
+
+    public static getTermFullPathString(term: TaxonomyTerm, allTerms: Array<TaxonomyTerm>, baseLevel = 0): string {
+        const parts = term.path.split(";");
+        if(parts.length - baseLevel <= 1) {
+            return term.title;
+        }
+        else {
+            const resultParts = [];
+            const iterator = [];
+            for (let index = 0; index < parts.length - 1; index++) {
+                const part = parts[index];
+                iterator.push(part);
+                if(index >= baseLevel){
+                    const currentPath = iterator.join(";");
+                    const refTerm = find(allTerms, {path: currentPath});
+                    resultParts.push(refTerm.title);
+                }
+            }
+            resultParts.push(term.title);
+            return resultParts.join(" > ");
         }
     }
 }
