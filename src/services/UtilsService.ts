@@ -174,6 +174,9 @@ export class UtilsService extends BaseService {
                 if(index >= baseLevel){
                     const currentPath = iterator.join(";");
                     const refTerm = find(allTerms, {path: currentPath});
+                    if(!refTerm) {
+                        return term.path.split(";").slice(baseLevel).join(" > ");
+                    }
                     resultParts.push(refTerm.title);
                 }
             }
