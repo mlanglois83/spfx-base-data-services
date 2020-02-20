@@ -1,5 +1,6 @@
 {
   "name": "spfx-base-data-services",
+  "description": "A set of tools to create powerfull dataservices on spfx applications",
   "version": "1.0.21",
   "private": false,
   "main": "dist/index.js",

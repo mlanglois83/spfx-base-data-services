@@ -1,6 +1,7 @@
 import { BaseService } from "./base/BaseService";
 import { ServicesConfiguration } from "../";
 import { Text } from '@microsoft/sp-core-library';
+import { cloneDeep } from "@microsoft/sp-lodash-subset";
 /**
  * Utility class
  */
@@ -144,10 +145,11 @@ export class UtilsService extends BaseService {
      * @param isLookup true if query is based on lookup id (default false)
      */
     public static getCamlInQuery(fieldName: string, fieldType: string, values: Array<number | string>, isLookup = false): string {
-        if(values &&  values.length > 0) {
+        let copy = cloneDeep(values);
+        if(copy &&  copy.length > 0) {
             const orClauses = [];
-            while(values.length) {
-                const subValues = values.splice(0,500);
+            while(copy.length) {
+                const subValues = copy.splice(0,500);
                 orClauses.push(`<In><FieldRef LookupId="${isLookup ? "TRUE": "FALSE"}" Name="${fieldName}"></FieldRef><Values>${subValues.map((value) => { return `<Value Type="${fieldType}">${value}</Value>`; }).join('')}</Values></In>`);
             }
             return UtilsService.buildCAMLQueryRecursive("Or", orClauses);
