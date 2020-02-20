@@ -1,8 +1,12 @@
 import { BaseService } from "./base/BaseService";
 import { ServicesConfiguration } from "../";
 import { Text } from '@microsoft/sp-core-library';
+<<<<<<< HEAD
 import { cloneDeep, find } from "@microsoft/sp-lodash-subset";
 import { TaxonomyTerm } from "../models";
+=======
+import { cloneDeep } from "@microsoft/sp-lodash-subset";
+>>>>>>> a6e0467... Ajout description au package
 /**
  * Utility class
  */
@@ -146,7 +150,7 @@ export class UtilsService extends BaseService {
      * @param isLookup true if query is based on lookup id (default false)
      */
     public static getCamlInQuery(fieldName: string, fieldType: string, values: Array<number | string>, isLookup = false): string {
-        const copy = cloneDeep(values);
+        let copy = cloneDeep(values);
         if(copy &&  copy.length > 0) {
             const orClauses = [];
             while(copy.length) {
