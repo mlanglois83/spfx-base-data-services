@@ -1,12 +1,7 @@
 import { BaseService } from "./base/BaseService";
-import { ServicesConfiguration } from "../";
+import { ServicesConfiguration, TaxonomyTerm } from "../";
 import { Text } from '@microsoft/sp-core-library';
-<<<<<<< HEAD
 import { cloneDeep, find } from "@microsoft/sp-lodash-subset";
-import { TaxonomyTerm } from "../models";
-=======
-import { cloneDeep } from "@microsoft/sp-lodash-subset";
->>>>>>> a6e0467... Ajout description au package
 /**
  * Utility class
  */

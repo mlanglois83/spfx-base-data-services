@@ -1,5 +1,4 @@
 import { IBaseItem } from "../../interfaces/index";
-import { stringIsNullOrEmpty } from "@pnp/common";
 
 /**
  * Base object for sharepoint taxonomy term abstraction objects
