@@ -4,7 +4,7 @@ import { Constants } from "../../constants/index";
 import { TaxonomyTerm } from "../../models";
 import { BaseDataService } from "./BaseDataService";
 import { TaxonomyHiddenListService } from "../";
-import { find } from "@microsoft/sp-lodash-subset";
+import { find, cloneDeep } from "@microsoft/sp-lodash-subset";
 import { Text } from "@microsoft/sp-core-library";
 import { stringIsNullOrEmpty } from "@pnp/common";
 import { ServicesConfiguration } from "../..";
@@ -104,13 +104,19 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
     }
     public async getItemsById_Internal(ids: Array<string>): Promise<Array<T>> {
         const results: Array<T> = [];
-        const batch = taxonomy.createBatch();
-        ids.forEach((id) => {
-            this.termset.terms.getById(id).inBatch(batch).get().then((term)=> {
-                results.push(new this.itemType(term));
+        const batches = [];
+        const copy = cloneDeep(ids);
+        while(copy.length > 0) {
+            const sub = copy.splice(0,100);
+            const batch = taxonomy.createBatch();
+            sub.forEach((id) => {
+                this.termset.terms.getById(id).inBatch(batch).get().then((term)=> {
+                    results.push(new this.itemType(term));
+                });
             });
-        });
-        await batch.execute();
+            batches.push(batch);
+        }        
+        await Promise.all(batches.map(b => b.execute()));
         return results;
     }
 

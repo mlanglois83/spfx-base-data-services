@@ -55,14 +55,20 @@ export class BaseFileService<T extends IBaseItem> extends BaseDataService<T>{
     }
     public async getItemsById_Internal(ids: Array<string>): Promise<Array<T>> {
         const results: Array<T> = [];
-        const batch = sp.createBatch();
-        ids.forEach((id) => {
-            sp.web.getFileByServerRelativeUrl(id).select('FileRef', 'FileLeafRef').get().then(async (item)=> {
-                const fo = await this.createFileObject(item);
-                results.push(fo);
+        const batches = [];
+        const copy = cloneDeep(ids);
+        while(copy.length > 0) {
+            const sub = copy.splice(0,100);
+            const batch = sp.createBatch();
+            sub.forEach((id) => {
+                sp.web.getFileByServerRelativeUrl(id).select('FileRef', 'FileLeafRef').get().then(async (item)=> {
+                    const fo = await this.createFileObject(item);
+                    results.push(fo);
+                });
             });
-        });
-        await batch.execute();
+            batches.push(batch);
+        }        
+        await Promise.all(batches.map(b => b.execute()));        
         return results;
     }
 

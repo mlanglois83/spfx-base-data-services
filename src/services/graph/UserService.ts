@@ -4,7 +4,7 @@ import { graph } from "@pnp/graph";
 import { sp } from "@pnp/sp";
 import { Text } from "@microsoft/sp-core-library";
 import { ServicesConfiguration } from "../../configuration/ServicesConfiguration";
-import { find } from "@microsoft/sp-lodash-subset";
+import { find, cloneDeep } from "@microsoft/sp-lodash-subset";
 import { TestOperator } from "../../constants";
 import { IPredicate } from "../../interfaces";
 
@@ -81,14 +81,20 @@ export class UserService extends BaseDataService<User> {
 
     public async getItemsById_Internal(ids: Array<number>): Promise<Array<User>> {
         const results: Array<User> = [];
-        const batch = sp.createBatch();
-        ids.forEach(id => {
-            sp.web.siteUsers.getById(id).select("Id","UserPrincipalName","Email","Title","IsSiteAdmin").inBatch(batch).get().then((spu) => {                
-                const result= new User(spu);
-                results.push(result);
+        const batches = [];
+        const copy = cloneDeep(ids);
+        while(copy.length > 0) {
+            const sub = copy.splice(0,100);
+            const batch = sp.createBatch();
+            sub.forEach((id) => {
+                sp.web.siteUsers.getById(id).select("Id","UserPrincipalName","Email","Title","IsSiteAdmin").inBatch(batch).get().then((spu) => {                
+                    const result= new User(spu);
+                    results.push(result);
+                });
             });
-        });
-        await batch.execute();
+            batches.push(batch);
+        }        
+        await Promise.all(batches.map(b => b.execute()));
         return results;    
     }
 

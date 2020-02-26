@@ -786,20 +786,14 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
      * @param id item id
      */
     protected async getItemsById_Internal(ids: Array<number>): Promise<Array<T>> {
-        const results: Array<T> = [];
-        const selectFields = this.getOdataFieldNames();
-        const batch = sp.createBatch();
-        ids.forEach((id) => {
-            let itemsQuery = this.list.items.getById(id).select(...selectFields);
-            if(this.hasAttachments) {
-                itemsQuery = itemsQuery.expand(Constants.commonFields.attachments);
+        return this.get_Internal({
+            test:{
+                type: "predicate",
+                operator: TestOperator.In,
+                propertyName: "id",
+                value: ids
             }
-            itemsQuery.inBatch(batch).get().then((item)=> {
-                results.push(this.getItemFromRest(item));
-            });
         });
-        await batch.execute();
-        return results;   
     }
 
 
