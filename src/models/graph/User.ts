@@ -1,4 +1,4 @@
-import { IBaseItem } from "../../interfaces/index";
+import { IBaseItem } from "../../interfaces";
 /**
  * Abstraction class for O365 user associated with a SP User
  */

@@ -1,4 +1,4 @@
-export * from "./configuration/ServicesConfiguration";
+export * from "./configuration";
 export * from "./interfaces";
 export * from "./models";
 export * from "./services";

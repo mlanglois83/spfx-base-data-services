@@ -1,13 +1,13 @@
 import { assign, cloneDeep, findIndex } from "@microsoft/sp-lodash-subset";
 import { IBaseItem, IDataService, IQuery, ILogicalSequence, IPredicate } from "../../interfaces";
-import { OfflineTransaction, TaxonomyTerm } from "../../models/index";
-import { UtilsService } from "../index";
+import { OfflineTransaction, TaxonomyTerm } from "../../models";
+import { UtilsService } from "../UtilsService";
 import { TransactionService } from "../synchronization/TransactionService";
 import { BaseDbService } from "./BaseDbService";
 import { BaseService } from "./BaseService";
 import { Text } from "@microsoft/sp-core-library";
 import { TransactionType, Constants, LogicalOperator, TestOperator, QueryToken } from "../../constants";
-import { ServicesConfiguration } from "../..";
+import { ServicesConfiguration } from "../../configuration";
 import { stringIsNullOrEmpty } from "@pnp/common";
 
 

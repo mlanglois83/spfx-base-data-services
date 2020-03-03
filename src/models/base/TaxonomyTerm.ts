@@ -1,4 +1,4 @@
-import { IBaseItem } from "../../interfaces/index";
+import { IBaseItem } from "../../interfaces";
 import { stringIsNullOrEmpty } from "@pnp/common";
 
 /**

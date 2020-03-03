@@ -1,5 +1,5 @@
 
-import { IBaseItem } from "../../interfaces/index";
+import { IBaseItem } from "../../interfaces";
 import { Decorators } from "../../decorators";
 
 const spField = Decorators.spField;
@@ -51,6 +51,10 @@ export abstract class SPItem implements IBaseItem {
      */
     @spField({fieldName: "OData__UIVersionString"})
     public version?: number;
+    /**
+     * Last update error
+     */
+    public error?: Error;
     /**
      * Defines if item is valid for sending it to list
      */

@@ -1,4 +1,4 @@
-import { FieldType } from "..";
+import { FieldType } from "../constants";
 
 export interface IFieldDescriptor {
     /**

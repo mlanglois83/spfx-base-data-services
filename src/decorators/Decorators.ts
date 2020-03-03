@@ -1,4 +1,4 @@
-import { IFieldDescriptor } from "..";
+import { IFieldDescriptor } from "../interfaces";
 
 
 export namespace Decorators {

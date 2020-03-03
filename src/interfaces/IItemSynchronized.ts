@@ -1,4 +1,4 @@
-import { IBaseItem } from "./IBaseItem";
+import { IBaseItem } from ".";
 import { TransactionType } from "../constants";
 
 export interface IItemSynchronized {
