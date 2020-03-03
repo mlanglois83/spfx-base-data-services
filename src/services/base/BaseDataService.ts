@@ -1,5 +1,5 @@
-import { assign, cloneDeep } from "@microsoft/sp-lodash-subset";
-import { IBaseItem, IAddOrUpdateResult, IDataService, IQuery, ILogicalSequence, IPredicate } from "../../interfaces";
+import { assign, cloneDeep, findIndex } from "@microsoft/sp-lodash-subset";
+import { IBaseItem, IDataService, IQuery, ILogicalSequence, IPredicate } from "../../interfaces";
 import { OfflineTransaction, TaxonomyTerm } from "../../models/index";
 import { UtilsService } from "../index";
 import { TransactionService } from "../synchronization/TransactionService";
@@ -42,9 +42,9 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
 
     /**
      * 
-     * @param type type of items
-     * @param context context of the current wp
-     * @param tableName name of indexedDb table 
+     * @param type - type of items
+     * @param context - context of the current wp
+     * @param tableName - name of indexedDb table 
      */
     constructor(type: (new (item?: any) => T), tableName: string, cacheDuration = -1) {
         super();
@@ -388,8 +388,8 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
 
     protected abstract addOrUpdateItem_Internal(item: T): Promise<T>;
 
-    public async addOrUpdateItem(item: T): Promise<IAddOrUpdateResult<T>> {
-        let result: IAddOrUpdateResult<T> = null;
+    public async addOrUpdateItem(item: T): Promise<T> {
+        let result: T = null;
         let itemResult: T = null;
 
         let isconnected = true;
@@ -402,26 +402,20 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                 const converted = await this.convertItemToDbFormat(itemResult);
                 await this.dbService.addOrUpdateItem(converted);
                 this.UpdateIdsLastLoad(converted.id);
-                result = {
-                    item: itemResult
-                };
+                result = itemResult;
             } catch (error) {
                 console.error(error);
                 if (error.name === Constants.Errors.ItemVersionConfict) {
                     itemResult = await this.getItemById_Internal(item.id);
                     const converted = await this.convertItemToDbFormat(itemResult);
                     await this.dbService.addOrUpdateItem(converted);
-                    result = {
-                        item: itemResult,
-                        error: error
-                    };
+                    itemResult.error = error;
+                    result = itemResult;
                     this.UpdateIdsLastLoad(converted.id);
                 }
                 else {
-                    result = {
-                        item: item,
-                        error: error
-                    };
+                    item.error = error;
+                    result = item;
                 }
 
             }
@@ -429,22 +423,73 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         else {
             const dbItem = await this.convertItemToDbFormat(item);
             const resultitem = await this.dbService.addOrUpdateItem(dbItem);
-            result = {
-                item: item,
-                error: resultitem.error
-            };
+            item.error = resultitem.error;
+            result = item;
             // update id (only field modified in db)
-            result.item.id = resultitem.item.id;
+            result.id = resultitem.id;
             // create a new transaction
             const ot: OfflineTransaction = new OfflineTransaction();
             ot.itemData = assign({}, dbItem);
-            ot.itemType = result.item.constructor["name"];
+            ot.itemType = result.constructor["name"];
             ot.title = TransactionType.AddOrUpdate;
             await this.transactionService.addOrUpdateItem(ot);
         }
 
         return result;
     }
+
+    protected abstract addOrUpdateItems_Internal(items: Array<T>): Promise<Array<T>>;
+
+    public async addOrUpdateItems(items: Array<T>): Promise<Array<T>> {
+        let results: Array<T> = [];
+
+        let isconnected = true;
+        if (ServicesConfiguration.configuration.checkOnline) {
+            isconnected = await UtilsService.CheckOnline();
+        }
+        if (isconnected) {
+            results = await this.addOrUpdateItems_Internal(items);
+            const versionErrors = results.filter((res) => {
+                return res.error !== null || res.error !== undefined && res.error.name === Constants.Errors.ItemVersionConfict;
+            });
+            // find back items with version error
+            if(versionErrors.length > 0) {
+                const spitems = await this.getItemsById_Internal(versionErrors.map(ve => ve.id));
+                spitems.forEach((retrieved) => {
+                    const idx = findIndex(versionErrors, {id: retrieved.id});
+                    if(idx > -1) {
+                        versionErrors[idx] = retrieved;
+                    }
+                });
+            }
+            for (const item of results) {
+                const converted = await this.convertItemToDbFormat(item);
+                await this.dbService.addOrUpdateItem(converted);
+                this.UpdateIdsLastLoad(converted.id);
+            }
+            
+            
+        }
+        else {
+            for (const item of items) {
+                const dbItem = await this.convertItemToDbFormat(item);
+                const resultitem = await this.dbService.addOrUpdateItem(dbItem);
+                item.error = resultitem.error;
+                // update id (only field modified in db)
+                item.id = resultitem.id;
+                // create a new transaction
+                const ot: OfflineTransaction = new OfflineTransaction();
+                ot.itemData = assign({}, dbItem);
+                ot.itemType = item.constructor["name"];
+                ot.title = TransactionType.AddOrUpdate;
+                await this.transactionService.addOrUpdateItem(ot);
+            }
+            
+        }
+
+        return results;
+    }
+
 
     protected abstract deleteItem_Internal(item: T): Promise<void>;
 

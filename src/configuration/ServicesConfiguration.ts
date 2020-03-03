@@ -51,7 +51,7 @@ export class ServicesConfiguration {
 
     /**
      * Initializes configuration, must be called before services instanciation
-     * @param configuration IConfiguration object
+     * @param configuration - configuration object
      */
     public static Init(configuration: IConfiguration): void {
         ServicesConfiguration.configurationInternal = configuration;

@@ -14,4 +14,8 @@ export interface IBaseItem {
      * Item version
      */
     version?: number;
+    /**
+     * Last update error
+     */
+    error?: Error;
 }

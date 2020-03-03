@@ -34,7 +34,7 @@ export class TaxonomyTerm implements IBaseItem {
     public customProperties: any;
     /**
      * Instanciates a term object
-     * @param term term object from rest call
+     * @param - term term object from rest call
      */
     constructor(term? : any) {
         if (term != undefined) {

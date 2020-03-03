@@ -18,15 +18,15 @@ export class SynchronizationService extends BaseService {
 
     /**
      * Registers a function called when an item was synchronized
-     * @param key Unique key for callback
-     * @param callback Callbackfunction called when an item was synchronized
+     * @param key - unique key for callback
+     * @param callback - callback function called when an item was synchronized
      */
     public static registerItemSynchronizedCallback(key: string, callback: (synchro: IItemSynchronized) => void): void {
         SynchronizationService.itemSynchroCallbacks[key] = callback;
     }
     /**
      * Unregisters a function associated with item synchronisation
-     * @param key Unique callback key
+     * @param key - unique callback key
      */
     public static unregisterItemSynchronizedCallback(key: string): void {
         if(SynchronizationService.itemSynchroCallbacks[key]) {
@@ -35,15 +35,15 @@ export class SynchronizationService extends BaseService {
     }
     /**
      * Registers a function called when synchronization has ended
-     * @param key Unique key for callback
-     * @param callback Callbackfunction called when  synchronization has ended
+     * @param key - unique key for callback
+     * @param callback - callback function called when synchronization has ended
      */
     public static registerSynchronizationCallback(key: string, callback: (synchroResult: ISynchronizationEnded) => void): void {
         SynchronizationService.synchroCallbacks[key] = callback;
     }
     /**
      * Unregister a function registered for synchronisation end
-     * @param key Unique callback key
+     * @param key - unique callback key
      */
     public static unregisterSynchronizationCallback(key: string): void {
         if(SynchronizationService.synchroCallbacks[key]) {
@@ -103,15 +103,15 @@ export class SynchronizationService extends BaseService {
                             nextTransactions = await Promise.all(transactions.slice(index + 1).map(async (updatedTr) => {
                                 if(updatedTr.itemType === transaction.itemType &&
                                 (updatedTr.itemData as IBaseItem).id === oldId) {
-                                    (updatedTr.itemData as IBaseItem).id = updatedItem.item.id;
-                                    (updatedTr.itemData as IBaseItem).version = updatedItem.item.version;
+                                    (updatedTr.itemData as IBaseItem).id = updatedItem.id;
+                                    (updatedTr.itemData as IBaseItem).version = updatedItem.version;
                                     await this.transactionService.addOrUpdateItem(updatedTr);
                                 }
                                 return updatedTr;                            
                             }));
                         }
                         if (dataService.updateLinkedTransactions) {
-                            nextTransactions = await dataService.updateLinkedTransactions(oldId, updatedItem.item.id, nextTransactions);
+                            nextTransactions = await dataService.updateLinkedTransactions(oldId, updatedItem.id, nextTransactions);
                         }
                         if(index < transactions.length - 1) {
                             transactions.splice(index + 1, transactions.length - index - 1, ...nextTransactions);
@@ -126,7 +126,7 @@ export class SynchronizationService extends BaseService {
                             nextTransactions = await Promise.all(transactions.slice(index + 1).map(async (updatedTr) => {
                                 if(updatedTr.itemType === transaction.itemType &&
                                 (updatedTr.itemData as IBaseItem).id === item.id) {
-                                    (updatedTr.itemData as IBaseItem).version = updatedItem.item.version;
+                                    (updatedTr.itemData as IBaseItem).version = updatedItem.version;
                                     await this.transactionService.addOrUpdateItem(updatedTr);
                                 }
                                 return updatedTr;                            
@@ -145,7 +145,7 @@ export class SynchronizationService extends BaseService {
                     else {
                         await this.transactionService.deleteItem(transaction);
                     }
-                    SynchronizationService.emitItemSynchronized({item: updatedItem.item, oldId: (isAdd ? oldId: undefined), operation: TransactionType.AddOrUpdate});
+                    SynchronizationService.emitItemSynchronized({item: updatedItem, oldId: (isAdd ? oldId: undefined), operation: TransactionType.AddOrUpdate});
                     break;
                 case TransactionType.Delete:
                     try {

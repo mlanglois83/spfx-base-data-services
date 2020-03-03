@@ -3,7 +3,7 @@ import { SPHttpClient } from '@microsoft/sp-http';
 import { cloneDeep, find, assign, findIndex } from "@microsoft/sp-lodash-subset";
 import { CamlQuery, List, sp } from "@pnp/sp";
 import { Constants, FieldType, TestOperator, QueryToken, LogicalOperator } from "../../constants/index";
-import { IBaseItem, IFieldDescriptor, IAddOrUpdateResult, IQuery, IPredicate, ILogicalSequence, IOrderBy } from "../../interfaces/index";
+import { IBaseItem, IFieldDescriptor, IQuery, IPredicate, ILogicalSequence, IOrderBy } from "../../interfaces/index";
 import { BaseDataService } from "./BaseDataService";
 import { UtilsService } from "..";
 import { SPItem, User, TaxonomyTerm, OfflineTransaction, SPFile } from "../../models";
@@ -46,9 +46,10 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
     /***************************** Constructor **************************************/
     /**
      * 
-     * @param type items type
-     * @param context current sp component context 
-     * @param listRelativeUrl list web relative url
+     * @param type - items type
+     * @param listRelativeUrl - list web relative url
+     * @param tableName - name of table in local db
+     * @param cacheDuration - cache duration in minutes
      */
     constructor(type: (new (item?: any) => T), listRelativeUrl: string, tableName: string, cacheDuration?: number) {
         super(type, tableName, cacheDuration);
@@ -446,8 +447,8 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
 
     /**
      * 
-     * @param wssid 
-     * @param terms 
+     * @param wssid - wssid of term to retrieve
+     * @param terms - terms list where term must be found
      */
     public getTaxonomyTermByWssId<TermType extends TaxonomyTerm>(wssid: number, terms: Array<TermType>): TermType {
         return find(terms, (term) => {
@@ -505,7 +506,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
     }
     /**
      * Retrieve id of items to be reloaded
-     * @param ids Id if items to check
+     * @param ids - id if items to check
      */
     protected async getExpiredIds(...ids: Array<number | string>): Promise<Array<number | string>> {
         let result: Array<number | string> = await super.getExpiredIds(...ids);
@@ -549,25 +550,6 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
 
     /**********************************Service specific calls  *******************************/
     
-    /**
-     * Get items by caml query
-     * @param query caml query (<Where></Where>)
-     * @param orderBy array of <FieldRef Name='Field' Ascending='TRUE'/>
-     * @param limit  number of lines
-     * @param lastId last id for paged queries
-     */
-    /*public getByCamlQuery(query: string, orderBy?: string[], limit?: number, lastId?: number): Promise<Array<T>> {
-        const queryXml = this.getQuery(query, orderBy,limit);
-        const camlQuery = {
-            ViewXml: queryXml
-        } as CamlQuery;
-        if(lastId !== undefined) {
-            camlQuery.ListItemCollectionPosition = {
-                "PagingInfo": "Paged=TRUE&p_ID=" + lastId
-            };
-        }
-        return this.get(camlQuery);
-    }*/
 
     /********************************** Link to lookups  *************************************/
     private linkedLookupFields(loadLookups?: Array<string>): any {
@@ -724,7 +706,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
     /**
      * Get items by query
      * @protected
-     * @param {*} query
+     * @param {IQuery} query - query used to retrieve items
      * @returns {Promise<Array<T>>}
      * @memberof BaseListItemService
      */
@@ -754,7 +736,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
 
     /**
      * Get an item by id
-     * @param id item id
+     * @param {number} id - item id
      */
     protected async getItemById_Internal(id: number): Promise<T> {
         let result = null;
@@ -783,7 +765,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
 
     /**
      * Get a list of items by id
-     * @param id item id
+     * @param ids - array of item id to retrieve
      */
     protected async getItemsById_Internal(ids: Array<number>): Promise<Array<T>> {
         return this.get_Internal({
@@ -824,14 +806,19 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         return results;
     }
 
-    public async addOrUpdateItem(item: T, loadLookups?: Array<string>): Promise<IAddOrUpdateResult<T>>{        
+    public async addOrUpdateItem(item: T, loadLookups?: Array<string>): Promise<T>{        
         this.updateInternalLinks(item, loadLookups);
         return super.addOrUpdateItem(item);
     }
 
+    public async addOrUpdateItems(items: Array<T>, loadLookups?: Array<string>): Promise<Array<T>>{        
+        items.forEach(item => this.updateInternalLinks(item, loadLookups));
+        return super.addOrUpdateItems(items);
+    }
+
     /**
      * Add or update an item
-     * @param item SPItem derived object to be converted
+     * @param item - SPItem derived object to be converted
      */
     protected async addOrUpdateItem_Internal(item: T): Promise<T> {
         const result = cloneDeep(item);
@@ -874,10 +861,102 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         return result;
     }
 
+    protected async addOrUpdateItems_Internal(items: Array<T>): Promise<Array<T>> {
+        const result = cloneDeep(items);
+        const itemsToAdd = result.filter((item) =>{
+            return item.id < 0;
+        });
+        const versionedItems = result.filter((item) =>{
+            return item.version !== undefined && item.version !== null && item.id > 0;
+        });
+        const updatedItems = result.filter((item) =>{
+            return (item.version === undefined || item.version === null) && item.id > 0;
+        });
+
+        await this.initFields();
+        const selectFields = this.getOdataCommonFieldNames();
+        // creation batch
+        if(itemsToAdd.length > 0) {
+            const batches = [];
+            while(itemsToAdd.length > 0) {
+                const sub = itemsToAdd.splice(0,100);
+                const batch = sp.createBatch();
+                for (const item of sub) {
+                    const itemId = item.id;
+                    const converted = await this.getSPRestItem(item);
+                    this.list.items.select(...selectFields).inBatch(batch).add(converted).then(async (addResult) => {
+                        await this.populateCommonFields(item, addResult.data);               
+                        await this.updateWssIds(item, addResult.data); 
+                        if(itemId < -1) {
+                            await this.updateLinksInDb(Number(itemId), Number(item.id));
+                        }
+                    }).catch((error) => {
+                        item.error = error;
+                    });                    
+                    
+                }
+                batches.push(batch);
+            }        
+            await Promise.all(batches.map(b => b.execute()));
+        }
+        // versionned batch
+        if(versionedItems.length > 0) {
+            const batches = [];
+            while(versionedItems.length > 0) {
+                const sub = versionedItems.splice(0,100);
+                const batch = sp.createBatch();
+                for (const item of sub) {
+                    this.list.items.getById(item.id as number).select(Constants.commonFields.version).inBatch(batch).get().then(async (existing) =>{
+                        if (parseFloat(existing[Constants.commonFields.version]) > item.version) {
+                            const error = new Error(ServicesConfiguration.configuration.translations.versionHigherErrorMessage);
+                            error.name = Constants.Errors.ItemVersionConfict;
+                            item.error = error;
+                        }
+                        else {
+                            updatedItems.push(item);
+                        }
+                    }).catch((error) => {
+                        item.error = error; 
+                    });           
+                }
+                batches.push(batch);
+            }        
+            await Promise.all(batches.map(b => b.execute()));
+        }
+        // classical update batch + version checked
+        if(updatedItems.length > 0) {
+            const batches = [];
+            const popBatches = [];
+            while(updatedItems.length > 0) {
+                const sub = updatedItems.splice(0,100);
+                const batch = sp.createBatch();
+                const popbatch = sp.createBatch();
+                for (const item of sub) {
+                    const converted = await this.getSPRestItem(item);
+                    this.list.items.getById(item.id as number).select(...selectFields).inBatch(batch).update(converted).then(async (updateResult) =>{
+                        updateResult.item.select(...selectFields).inBatch(popbatch).get().then(async (version) => {
+                            await this.populateCommonFields(item, version);                    
+                            await this.updateWssIds(item, version);
+                        }).catch((error) => {
+                            item.error = error; 
+                        });                 
+                    
+                    }).catch((error) => {
+                        item.error = error; 
+                    });           
+                }
+                batches.push(batch);
+                popBatches.push(popbatch);
+            }        
+            await Promise.all(batches.map(b => b.execute()));
+            await Promise.all(popBatches.map(b => b.execute()));
+        }
+        return result;
+    }
 
     /**
      * Delete an item
-     * @param item SPItem derived class to be deleted
+     * @param item - SPItem derived class to be deleted
      */
     protected async deleteItem_Internal(item: T): Promise<void> {
         await this.list.items.getById(item.id as number).recycle();
@@ -1051,7 +1130,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
 
     /**
      * convert full item to db format (with links only)
-     * @param item full provisionned item
+     * @param item - full provisionned item
      */
     protected async convertItemToDbFormat(item: T): Promise<T> {
         const converted = item as unknown as SPItem;
@@ -1118,7 +1197,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
 
     /**
      * populate item from db storage
-     * @param item db item with links in internalLinks fields
+     * @param item - db item with links in internalLinks fields
      */
     public async mapItem(item: T): Promise<T> {
         const converted = item as unknown as SPItem;

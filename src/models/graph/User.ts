@@ -37,7 +37,7 @@ export class User implements IBaseItem {
     }
     /**
      * Instancate an user object
-     * @param graphUser User object returned by graph api or sp
+     * @param userObj - user object returned by graph api or sp
      */
     constructor(userObj?: any) {
         if (userObj) {

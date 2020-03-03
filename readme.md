@@ -16,12 +16,12 @@
 
 ## Description
 
-spfx-base-dataservice  is a set of base classes and tools aimed to create a data service able to interract with main SharePoint / O365 data sources in SPFX webparts. It contains base implementation for the following services:
+spfx-base-dataservice  is a set of base classes and tools aimed to create a data service able to interract with main SharePoint / O365 data sources in SPFX web parts. It contains base implementation for the following services:
 
-- SharePoint List including main data types (text, boolen, lookup, Taxonomy...).
+- SharePoint List including main data types (text, boolean, lookup, Taxonomy...).
 - Document Library.
 - SharePoint Users.
-- Taxonomy Termset stored in a global group or in the site collection group.
+- Taxonomy Term set stored in a global group or in the site collection group.
 
 The main feature provided by implementing this library is:
 
@@ -30,7 +30,7 @@ The main feature provided by implementing this library is:
 - Cache management: all service can store data in cache using an age in minutes.
 - Online/Offline management for Progressive Web Apps: calls to service automatically switch to local storage in case the app is offline. All features are available.
 - Version conflicts check (version management must be activated on list). In case the destination item is newer, an error is thrown and the destination item is returned.
-- Automatic data synchronization. All actions made by services offline are stored in a transactions table. A synchronization process runs api calls for all transactions and garantees data consistency between SharePoint and local database.
+- Automatic data synchronization. All actions made by services offline are stored in a transactions table. A synchronization process runs api calls for all transactions and guarantees data consistency between SharePoint and local database.
 
 ## Installation
 
@@ -125,7 +125,7 @@ where  `./src/{services,models}/**/*.ts` is the path in solution where services 
 
 ### Service Factory
 
-To be able to instanciate models ans services, a service factory based on type BaseServiceFactory. The service factory exposes 2 methods :
+To be able to instanciate models ans services, a service factory based on type [BaseServiceFactory](#baseservicefactory). The service factory exposes 2 methods :
 
 - create for service instanciation
 - getItemTypeByName for model instanciation
@@ -138,7 +138,7 @@ import { BaseServiceFactory, BaseDataService, IBaseItem, TaxonomyHidden, User, T
 export class ServiceFactory extends BaseServiceFactory {
     /**
     * Instanciate a data service given associated model name
-    * @param  modelName Model associated with the service type to instanciate
+    * @param  modelName - Model associated with the service type to instanciate
     */
     public create(modelName: string): BaseDataService<IBaseItem> {
         let result = null;
@@ -161,7 +161,7 @@ export class ServiceFactory extends BaseServiceFactory {
 
     /**
     * Retrieve model constructor given its name
-    * @param  modelName Model type name
+    * @param modelName - Model type name
     */
     public getItemTypeByName(modelName: string): (new (item?: any) => IBaseItem) {
         let result = super.getItemTypeByName(typeName);
@@ -190,7 +190,7 @@ export class ServiceFactory extends BaseServiceFactory {
 
 #### List item model
 
-A list item model is a class that inherits from base class SPItem. To link properties to list fields, use decorator function [spField](#spfield) with appropriate parameters according to field name, type and the way you want to retrieve value. By default, ID and Title field are retrieved in id and title properties.
+A list item model is a class that inherits from base class [SPItem](#spitem). To link properties to list fields, use decorator function [spField](#spfield) with appropriate parameters according to field name, type and the way you want to retrieve value. By default, ID and Title field are retrieved in id and title properties.
 In case of linked fields in model declaration, associated models and services must exist and must be declared in ServiceFactory implementation.
 
 Sample:
@@ -252,9 +252,8 @@ export class Model extends SPItem {
 
 #### List service
 
-A SharePoint List service inherits from base class BaseListItemService. Links to Sharepoint list and local db are set by overriding constructor. There is no other method to declare if the solution only needs to access list via allready available operations:
+A SharePoint List service inherits from base class BaseListItemService. Links to SharePoint list and local db are set by overriding constructor. There is no other method to declare if the solution only needs to access list via already available operations:
 
-- Create
 - Add or update
 - Delete
 - Get all elements
@@ -275,9 +274,55 @@ export class ListService extends BaseListItemService<Model> {
 }
 ```
 
-### Taxonomy Termset
+### Taxonomy Term set
+
+#### Taxonomy term model
+
+A taxonomy term model is a class that inherits from base class [TaxonomyTerm](#taxonomyterm).
+By default, this object exposes the following properties :
+
+- Term id
+- Label
+- Term path
+- Custom properties
+- Custom sort order
+- Deprecated
+
+Sample:
+
+```javascript
+import { TaxonomyTerm } from  'spfx-base-data-services';
+
+export  class  ModelName extends  TaxonomyTerm {
+}
+```
+
+#### Term set service
+
+A taxonomy term set service inherits from base class [BaseTermsetService](#basetermsetservice). Links to SharePoint term set and local db are set by overriding constructor. Service can search global term set or for local term set (stored in site collection group), link can be made on term set id or by name. There is no other method to declare if the solution only needs to access term set via already available operations:
+
+- Get all elements
+- Get by id(s)
+
+Sample:
+
+```javascript
+
+import { BaseTermsetService } from 'spfx-base-data-services';
+// import ModelName
+
+export class TermSetService extends BaseTermsetService<ModelName> {
+    constructor() {
+        super(NameOrId, TableName, false /* store in site collection group */, 1440 /* cache duration in minutes */);
+    }
+}
+```
 
 ### Library
+
+#### Library service
+
+#### File model
 
 ### Extending Services
 

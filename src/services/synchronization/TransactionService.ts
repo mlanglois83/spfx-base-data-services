@@ -1,8 +1,7 @@
-import { BaseDbService } from "../base/BaseDbService";
-import { OfflineTransaction, SPFile } from "../../models/index";
 import { assign } from "@microsoft/sp-lodash-subset";
-import { IAddOrUpdateResult } from "../../interfaces";
 import { ServicesConfiguration } from "../../configuration/ServicesConfiguration";
+import { OfflineTransaction, SPFile } from "../../models/index";
+import { BaseDbService } from "../base/BaseDbService";
 
 export class TransactionService extends BaseDbService<OfflineTransaction> {
     private transactionFileService: BaseDbService<SPFile>;
@@ -16,10 +15,10 @@ export class TransactionService extends BaseDbService<OfflineTransaction> {
 
     /**
      * Add or update an item in DB and returns updated item
-     * @param item Item to add or update
+     * @param item - item to add or update
      */
-    public async addOrUpdateItem(item: OfflineTransaction): Promise<IAddOrUpdateResult<OfflineTransaction>> {
-        let result: IAddOrUpdateResult<OfflineTransaction> = null;
+    public async addOrUpdateItem(item: OfflineTransaction): Promise<OfflineTransaction> {
+        let result: OfflineTransaction = null;
         if (this.isFile(item.itemType)) {
             // if existing transaction, remove with associated files
             const existing = await this.getItemById(item.id);
@@ -35,7 +34,7 @@ export class TransactionService extends BaseDbService<OfflineTransaction> {
             result = await super.addOrUpdateItem(item);
             // reassign values for result
             file.serverRelativeUrl = baseUrl;
-            result.item.itemData = assign({}, file);
+            result.itemData = assign({}, file);
         }
         else {
             result = await super.addOrUpdateItem(item);
@@ -55,12 +54,12 @@ export class TransactionService extends BaseDbService<OfflineTransaction> {
 
     /**
      * add items in table (ids updated)
-     * @param newItems 
+     * @param newItems  - items to add or update
      */
     public async addOrUpdateItems(newItems: Array<OfflineTransaction>): Promise<Array<OfflineTransaction>> {
         const updateResults = Promise.all(newItems.map(async (item) => {
             const result = await this.addOrUpdateItem(item);
-            return result.item;
+            return result;
         }));
         return updateResults;
     }
@@ -85,7 +84,7 @@ export class TransactionService extends BaseDbService<OfflineTransaction> {
 
     /**
      * Get a transaction given its id
-     * @param id transaction id
+     * @param id - transaction id
      */
     public async getItemById(id: number): Promise<OfflineTransaction> {
         const result = await super.getItemById(id);
