@@ -896,8 +896,11 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                     
                 }
                 batches.push(batch);
-            }        
-            await Promise.all(batches.map(b => b.execute()));
+            }                              
+            while(batches.length > 0) {
+                const sub = batches.splice(0,5);
+                await Promise.all(sub.map(b => b.execute()));
+            }   
         }
         // versionned batch
         if(versionedItems.length > 0) {
@@ -920,8 +923,11 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                     });           
                 }
                 batches.push(batch);
-            }        
-            await Promise.all(batches.map(b => b.execute()));
+            }   
+            while(batches.length > 0) {
+                const sub = batches.splice(0,5);
+                await Promise.all(sub.map(b => b.execute()));
+            }
         }
         // classical update batch + version checked
         if(updatedItems.length > 0) {
@@ -947,9 +953,15 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 }
                 batches.push(batch);
                 popBatches.push(popbatch);
-            }        
-            await Promise.all(batches.map(b => b.execute()));
-            await Promise.all(popBatches.map(b => b.execute()));
+            }                   
+            while(batches.length > 0) {
+                const sub = batches.splice(0,5);
+                await Promise.all(sub.map(b => b.execute()));
+            }    
+            while(popBatches.length > 0) {
+                const sub = popBatches.splice(0,5);
+                await Promise.all(sub.map(b => b.execute()));
+            }  
         }
         return result;
     }

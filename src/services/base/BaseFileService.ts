@@ -68,7 +68,10 @@ export class BaseFileService<T extends IBaseItem> extends BaseDataService<T>{
             });
             batches.push(batch);
         }        
-        await Promise.all(batches.map(b => b.execute()));        
+        while(batches.length > 0) {
+            const sub = batches.splice(0,5);
+            await Promise.all(sub.map(b => b.execute()));
+        }      
         return results;
     }
 
