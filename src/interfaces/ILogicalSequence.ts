@@ -1,5 +1,5 @@
 import { LogicalOperator } from "../constants";
-import { IPredicate } from "./IPredicate";
+import { IPredicate } from ".";
 
 export interface ILogicalSequence {
     type: "sequence";

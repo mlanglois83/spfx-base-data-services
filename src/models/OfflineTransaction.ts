@@ -1,5 +1,5 @@
-import { TransactionType } from "../constants/index";
-import { IBaseItem } from "../interfaces/index";
+import { TransactionType } from "../constants";
+import { IBaseItem } from "../interfaces";
 
 /**
  * Offline transaction abstraction class

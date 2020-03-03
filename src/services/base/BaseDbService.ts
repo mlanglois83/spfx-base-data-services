@@ -1,7 +1,12 @@
 import { Text } from "@microsoft/sp-core-library";
 import { assign } from "@microsoft/sp-lodash-subset";
 import { DB, ObjectStore, openDb } from "idb";
-import { BaseService, Constants, IBaseItem, IDataService, IQuery, ServicesConfiguration, SPFile, UtilsService } from "../..";
+import { IBaseItem, IDataService, IQuery } from "../../interfaces";
+import { BaseService } from "./BaseService";
+import { UtilsService } from "../UtilsService";
+import { ServicesConfiguration } from "../../configuration";
+import { Constants } from "../../constants";
+import { SPFile } from "../../models";
 
 
 

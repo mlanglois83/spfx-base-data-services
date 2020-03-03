@@ -1648,7 +1648,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                         value = fieldValue.toString();       
                     }
                     else if(typeof(fieldValue) === "boolean") {
-                        type="Boolean";
+                        type= "Boolean";
                         value = fieldValue ? "1" : "0";
                     }          
                     else {
@@ -1666,12 +1666,12 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                     }
                     break;                
                 case FieldType.Json:
-                    type="Text";
+                    type= "Text";
                     value = JSON.stringify(fieldValue);
                     break;               
                 case FieldType.Lookup:
                 case FieldType.LookupMulti:
-                    type = "Lookup";        
+                    type = lookupID ? "Integer" : "Lookup"; 
                     value = fieldValue.toString();            
                     break;               
                 case FieldType.Taxonomy:

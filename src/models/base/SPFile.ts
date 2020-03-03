@@ -1,4 +1,4 @@
-import { IBaseItem } from "../..";
+import { IBaseItem } from "../../interfaces";
 
 /**
  * Data model for a SharePoint File
@@ -20,7 +20,10 @@ export class SPFile implements IBaseItem {
      * File title (name)
      */
     public title: string;
-
+    /**
+     * Last update error
+     */
+    public error?: Error;
     /**
      * Get or set file server relative url
      */
