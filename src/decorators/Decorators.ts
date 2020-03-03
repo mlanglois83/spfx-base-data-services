@@ -1,10 +1,11 @@
 import { IFieldDescriptor } from "..";
 
-/**
- * Decorator function used for SPItem derived models fields
- * @param declaration field declaration for binding
- */
+
 export namespace Decorators {
+    /**
+     * Decorator function used for SPItem derived models fields
+     * @param declaration - field declaration for binding
+     */
     export function spField(declaration: IFieldDescriptor): (target: any, propertyKey: string) => void {
         return (target: any, propertyKey: string): void => {
             // constructs a static dictionnary on SPItem class

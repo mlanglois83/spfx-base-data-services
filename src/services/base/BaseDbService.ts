@@ -1,14 +1,8 @@
 import { Text } from "@microsoft/sp-core-library";
 import { assign } from "@microsoft/sp-lodash-subset";
-import { DB, openDb, ObjectStore } from "idb";
-import { IBaseItem } from "../../interfaces/IBaseItem";
-import { IDataService } from "../../interfaces/IDataService";
-import { SPFile } from "../../models/index";
-import { UtilsService } from "../index";
-import { BaseService } from "./BaseService";
-import { IAddOrUpdateResult, IQuery } from "../../interfaces";
-import { Constants } from "../../constants";
-import { ServicesConfiguration } from "../..";
+import { DB, ObjectStore, openDb } from "idb";
+import { BaseService, Constants, IBaseItem, IDataService, IQuery, ServicesConfiguration, SPFile, UtilsService } from "../..";
+
 
 
 /**
@@ -21,7 +15,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
 
     /**
      * 
-     * @param tableName : Name of the db table the service interracts with
+     * @param tableName - name of the db table the service interracts with
      */
     constructor(type: (new (item?: any) => T), tableName: string) {
         super();
@@ -91,9 +85,9 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
 
     /**
      * Add or update an item in DB and returns updated item
-     * @param item Item to add or update
+     * @param item - item to add or update
      */
-    public async addOrUpdateItem(item: T): Promise<IAddOrUpdateResult<T>> {
+    public async addOrUpdateItem(item: T): Promise<T> {
         await this.OpenDb();
         const nextid = await this.getNextAvailableKey();
         const tx = this.db.transaction(this.tableName, 'readwrite');
@@ -136,9 +130,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                 await store.put(assign({}, item)); // store simple object with data only 
             }
             await tx.complete;
-            return {
-                item: item
-            };
+            return item;
 
         } catch (error) {
             console.error(error.message + " - " + error.Name);
@@ -147,10 +139,8 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
             } catch { 
                 // error allready thrown
             }
-            return {
-                item: item, 
-                error: error
-            };
+            item.error = error;
+            return item;
         }
     }
 
@@ -201,9 +191,9 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
 
     /**
      * add items in table (ids updated)
-     * @param newItems 
+     * @param newItems - items to add or update
      */
-    public async addOrUpdateItems(newItems: Array<T>/*, query?: any*/): Promise<Array<T>> {
+    public async addOrUpdateItems(newItems: Array<T>): Promise<Array<T>> {
         await this.OpenDb();
         let nextid = await this.getNextAvailableKey();
         const tx = this.db.transaction(this.tableName, 'readwrite');
@@ -244,29 +234,6 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
 
                 }
                 else {
-                    //if item comes from query add property query
-                    /*if (query) {
-                        item.queries = new Array<number>();
-                        const hash = this.hashCode(query);
-                        //get item from cache if exist
-                        const temp: IBaseItem = await store.get(item.id);
-                        //if exist    
-                        if (temp) {
-                            //if item never store from query, init array
-                            if (!temp.queries) {
-                                temp.queries = new Array<number>();
-                            }
-                            //if query never launched
-                            //add query to item db
-                            if (temp.queries.indexOf(hash) < 0) {
-                                temp.queries.push(hash);
-                            }
-                            item.queries = temp.queries;
-                        } else {
-                            item.queries.push(hash);
-                        }
-                    }*/
-
                     await store.put(assign({}, item)); // store simple object with data only 
                 }
             }));
@@ -337,7 +304,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
 
     /**
      * Clear table and insert new items
-     * @param newItems Items to insert in place of existing
+     * @param newItems - items to insert in place of existing
      */
     public async replaceAll(newItems: Array<T>): Promise<void> {
         await this.clear();

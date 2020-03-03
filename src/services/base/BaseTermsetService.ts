@@ -54,9 +54,9 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
 
     /**
      * 
-     * @param type items type
-     * @param context current sp component context 
-     * @param termsetname termset name
+     * @param type - items type
+     * @param context - current sp component context 
+     * @param termsetname - term set name
      */
     constructor(type: (new (item?: any) => T), termsetnameorid: string, tableName: string, isGlobal = true, cacheDuration: number = standardTermSetCacheDuration) {
         super(type, tableName, cacheDuration);
@@ -128,6 +128,11 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
 
     protected async addOrUpdateItem_Internal(item: T): Promise<T> {        
         console.log("[" + this.serviceName + ".addOrUpdateItem_Internal] - " + JSON.stringify(item));
+        throw new Error("Not implemented");
+    }
+
+    protected async addOrUpdateItems_Internal(items: Array<T>): Promise<Array<T>> {        
+        console.log("[" + this.serviceName + ".addOrUpdateItems_Internal] - " + JSON.stringify(items));
         throw new Error("Not implemented");
     }
 

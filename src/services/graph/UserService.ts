@@ -12,7 +12,7 @@ const standardUserCacheDuration = 10;
 export class UserService extends BaseDataService<User> {
     /**
      * Instanciates a user service
-     * @param cacheDuration Cache duration in minutes (default : 10)
+     * @param cacheDuration - cache duration in minutes (default : 10)
      */
     constructor(cacheDuration: number = standardUserCacheDuration) {
         super(User, "Users", cacheDuration);
@@ -103,7 +103,7 @@ export class UserService extends BaseDataService<User> {
             const result = await sp.web.ensureUser(user.userPrincipalName);
             user.id = result.data.Id;
             const dbresult = await this.dbService.addOrUpdateItem(user);
-            user = dbresult.item;
+            user = dbresult;
         }
         return user;        
     }

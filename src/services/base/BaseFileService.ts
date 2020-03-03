@@ -22,9 +22,9 @@ export class BaseFileService<T extends IBaseItem> extends BaseDataService<T>{
 
     /**
      * 
-     * @param type items type
-     * @param context current sp component context 
-     * @param listRelativeUrl list web relative url
+     * @param type - items type
+     * @param context - current sp component context 
+     * @param listRelativeUrl - list web relative url
      */
     constructor(type: (new (item?: any) => T), listRelativeUrl: string, tableName: string) {
         super(type, tableName);
@@ -128,6 +128,22 @@ export class BaseFileService<T extends IBaseItem> extends BaseDataService<T>{
             }
         }
         return item;
+    }
+
+    public async addOrUpdateItems_Internal(items: Array<T>): Promise<Array<T>> {
+        const result = [];
+        const operations = items.map((item) => {
+            return this.addOrUpdateItem_Internal(item);
+        });
+        operations.map(operation => {
+            return operation;                  
+        }).reduce((chain, operation) => {                  
+            return chain.then(() => {return operation;});                  
+        }, Promise.resolve()).then((item) => {
+            result.push(item);            
+        });
+        // TODO : gestion d'erreurs
+        return items;
     }
 
     public async deleteItem_Internal(item: T): Promise<void> {

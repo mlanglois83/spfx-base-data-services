@@ -34,7 +34,7 @@ export class UtilsService extends BaseService {
 
     /**
      * Converts blob object to array buffer
-     * @param blob source blob
+     * @param blob - source blob
      */
     public static blobToArrayBuffer(blob): Promise<ArrayBuffer> {
         return new Promise<ArrayBuffer>((resolve, reject) => {
@@ -49,8 +49,8 @@ export class UtilsService extends BaseService {
 
     /**
      * Converts array buffer to blob
-     * @param buffer source array buffer
-     * @param type file mime type
+     * @param buffer - source array buffer
+     * @param type - file mime type
      */
     public static arrayBufferToBlob(buffer: ArrayBuffer, type: string): Blob {
         return new Blob([buffer], { type: type });
@@ -58,7 +58,7 @@ export class UtilsService extends BaseService {
 
     /**
      * Return base 64 url from file content
-     * @param fileData file content
+     * @param fileData - file content
      */
     public static getOfflineFileUrl(fileData: Blob): Promise<string> {
         return new Promise<string>((resolve, reject) => {
@@ -73,7 +73,7 @@ export class UtilsService extends BaseService {
     }
     /**
      * Return parent folder url from url
-     * @param url child url 
+     * @param url - child url 
      */
     public static getParentFolderUrl(url: string): string {
         const urlParts = url.split('/');
@@ -83,7 +83,7 @@ export class UtilsService extends BaseService {
 
     /**
      * Concatenatee array buffers
-     * @param arrays array buffers
+     * @param arrays - array buffers to concatenate
      */
     public static concatArrayBuffers(...arrays: ArrayBuffer[]): ArrayBuffer {
         let length = 0;
@@ -103,7 +103,7 @@ export class UtilsService extends BaseService {
 
     /**
      * Escapes a string for use in a regex
-     * @param value string to escape
+     * @param value - string to escape
      */
     public static escapeRegExp(value: string): string {
         return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
@@ -111,8 +111,8 @@ export class UtilsService extends BaseService {
 
     /**
      * transform an array to the corresponding caml in clause values (surrounded with <Values></Values> tag)
-     * @param values array of value to transform to in values
-     * @param fieldType sp field type
+     * @param values - array of value to transform to in values
+     * @param fieldType - sp field type
      * @deprecated Use getCamlInQuery (for limit management)
      */
     public static getCamlInValues(values: Array<number | string>, fieldType: string): string {
@@ -121,8 +121,8 @@ export class UtilsService extends BaseService {
 
     /**  
      * Construction récursive d'une requête CAML
-     * @param operandenom de l'operateur (Or ou And)</param>
-     * @param listClauses liste des clause du Where</param>
+     * @param operande - operator name (Or, And)
+     * @param listClauses - where clauses list
      */
     public static buildCAMLQueryRecursive(operande: string, listClauses: Array<string>): string {
         if (!listClauses || listClauses.length === 0)
@@ -139,10 +139,10 @@ export class UtilsService extends BaseService {
 
     /**
      * transform an array to the corresponding caml in clause (surrounded with <Values></Values> tag)
-     * @param fieldName internal name of field
-     * @param fieldType sp field type
-     * @param values array of value to transform to in values
-     * @param isLookup true if query is based on lookup id (default false)
+     * @param fieldName - internal name of field
+     * @param fieldType - sp field type
+     * @param values - array of value to transform to in values
+     * @param isLookup - true if query is based on lookup id (default false)
      */
     public static getCamlInQuery(fieldName: string, fieldType: string, values: Array<number | string>, isLookup = false): string {
         const copy = cloneDeep(values);
