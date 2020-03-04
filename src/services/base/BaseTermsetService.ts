@@ -117,7 +117,7 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
             batches.push(batch);
         }        
         while(batches.length > 0) {
-            const sub = batches.splice(0,5);
+            const sub = batches.splice(0,3);
             await Promise.all(sub.map(b => b.execute()));
         }
         return results;
@@ -134,7 +134,7 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
         throw new Error("Not implemented");
     }
 
-    protected async addOrUpdateItems_Internal(items: Array<T>): Promise<Array<T>> {        
+    protected async addOrUpdateItems_Internal(items: Array<T>/*, onItemUpdated?: (oldItem: T, newItem: T) => void*/): Promise<Array<T>> {        
         console.log("[" + this.serviceName + ".addOrUpdateItems_Internal] - " + JSON.stringify(items));
         throw new Error("Not implemented");
     }

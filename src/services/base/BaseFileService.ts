@@ -69,7 +69,7 @@ export class BaseFileService<T extends IBaseItem> extends BaseDataService<T>{
             batches.push(batch);
         }        
         while(batches.length > 0) {
-            const sub = batches.splice(0,5);
+            const sub = batches.splice(0,3);
             await Promise.all(sub.map(b => b.execute()));
         }      
         return results;
@@ -133,17 +133,18 @@ export class BaseFileService<T extends IBaseItem> extends BaseDataService<T>{
         return item;
     }
 
-    public async addOrUpdateItems_Internal(items: Array<T>): Promise<Array<T>> {
+    public async addOrUpdateItems_Internal(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void): Promise<Array<T>> {
         const result = [];
         const operations = items.map((item) => {
             return this.addOrUpdateItem_Internal(item);
         });
-        operations.map(operation => {
-            return operation;                  
-        }).reduce((chain, operation) => {                  
+        operations.reduce((chain, operation) => {                  
             return chain.then(() => {return operation;});                  
         }, Promise.resolve()).then((item) => {
-            result.push(item);            
+            result.push(item);       
+            if(onItemUpdated) {
+                onItemUpdated(item, item);
+            }     
         });
         // TODO : gestion d'erreurs
         return items;

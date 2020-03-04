@@ -261,7 +261,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                         const convresult = await Promise.all(result.map((res) => {
                             return this.convertItemToDbFormat(res);
                         }));
-                        await this.dbService.addOrUpdateItems(convresult/*, query*/);
+                        await this.dbService.addOrUpdateItems(convresult);
                         this.UpdateIdsLastLoad(...convresult.map(e => e.id));
                         this.UpdateCacheData(keyCached);
                     }
@@ -438,9 +438,9 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         return result;
     }
 
-    protected abstract addOrUpdateItems_Internal(items: Array<T>): Promise<Array<T>>;
+    protected abstract addOrUpdateItems_Internal(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void): Promise<Array<T>>;
 
-    public async addOrUpdateItems(items: Array<T>): Promise<Array<T>> {
+    public async addOrUpdateItems(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void): Promise<Array<T>> {
         let results: Array<T> = [];
 
         let isconnected = true;
@@ -448,7 +448,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
             isconnected = await UtilsService.CheckOnline();
         }
         if (isconnected) {
-            results = await this.addOrUpdateItems_Internal(items);
+            results = await this.addOrUpdateItems_Internal(items, onItemUpdated);
             const versionErrors = results.filter((res) => {
                 return res.error !== null || res.error !== undefined && res.error.name === Constants.Errors.ItemVersionConfict;
             });
@@ -472,17 +472,22 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         }
         else {
             for (const item of items) {
+                const copy = cloneDeep(item);
                 const dbItem = await this.convertItemToDbFormat(item);
                 const resultitem = await this.dbService.addOrUpdateItem(dbItem);
-                item.error = resultitem.error;
+                copy.error = resultitem.error;
                 // update id (only field modified in db)
-                item.id = resultitem.id;
+                copy.id = resultitem.id;
+                results.push(copy);
                 // create a new transaction
                 const ot: OfflineTransaction = new OfflineTransaction();
                 ot.itemData = assign({}, dbItem);
                 ot.itemType = item.constructor["name"];
                 ot.title = TransactionType.AddOrUpdate;
                 await this.transactionService.addOrUpdateItem(ot);
+                if(onItemUpdated) {
+                    onItemUpdated(copy, item);
+                }
             }
             
         }
