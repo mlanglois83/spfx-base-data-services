@@ -54,7 +54,7 @@ export class UserService extends BaseDataService<User> {
         throw new Error("Not implemented");
     }
     
-    protected async addOrUpdateItems_Internal(items: Array<User>): Promise<Array<User>> {
+    protected async addOrUpdateItems_Internal(items: Array<User>/*, onItemUpdated?: (oldItem: User, newItem: User) => void*/): Promise<Array<User>> {
         console.log("[" + this.serviceName + ".addOrUpdateItems_Internal] - " + JSON.stringify(items));
         throw new Error("Not implemented");
     }
@@ -95,7 +95,7 @@ export class UserService extends BaseDataService<User> {
             batches.push(batch);
         }        
         while(batches.length > 0) {
-            const sub = batches.splice(0,5);
+            const sub = batches.splice(0,3);
             await Promise.all(sub.map(b => b.execute()));
         }
         return results;    

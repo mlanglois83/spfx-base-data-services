@@ -1,5 +1,5 @@
 import { Text } from "@microsoft/sp-core-library";
-import { assign } from "@microsoft/sp-lodash-subset";
+import { assign, cloneDeep } from "@microsoft/sp-lodash-subset";
 import { DB, ObjectStore, openDb } from "idb";
 import { IBaseItem, IDataService, IQuery } from "../../interfaces";
 import { BaseService } from "./BaseService";
@@ -180,17 +180,9 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
     }
 
 
-    public async get(query: IQuery): Promise<Array<T>> {
-        /*const results = new Array<T>();
-        const hash = super.hashCode(query);*/
+    public async get(query: IQuery): Promise<Array<T>> { // eslint-disable-line @typescript-eslint/no-unused-vars
         const items = await this.getAll();
-        return items;//this.filterItems(query, items);
-        /*for (const item of items) {
-            if (item.queries && item.queries.indexOf(hash) >= 0) {
-                results.push(item);
-            }
-        }
-        return results;*/
+        return items;
     }
 
 
@@ -198,13 +190,14 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
      * add items in table (ids updated)
      * @param newItems - items to add or update
      */
-    public async addOrUpdateItems(newItems: Array<T>): Promise<Array<T>> {
+    public async addOrUpdateItems(newItems: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void): Promise<Array<T>> {
         await this.OpenDb();
         let nextid = await this.getNextAvailableKey();
         const tx = this.db.transaction(this.tableName, 'readwrite');
         const store = tx.objectStore(this.tableName);
+        const copy = cloneDeep(newItems);
         try {
-            await Promise.all(newItems.map(async (item) => {
+            await Promise.all(copy.map(async (item, itemIdx) => {
                 if (typeof (item.id) === "number" && !store.autoIncrement && item.id === -1) {
                     item.id = nextid--;
                 }
@@ -241,9 +234,12 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                 else {
                     await store.put(assign({}, item)); // store simple object with data only 
                 }
+                if(onItemUpdated) {
+                    onItemUpdated(newItems[itemIdx] ,item);
+                }
             }));
             await tx.complete;
-            return newItems;
+            return copy;
         } catch (error) {
             console.error(error.message + " - " + error.Name);
             try {                

@@ -768,14 +768,29 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
      * @param ids - array of item id to retrieve
      */
     protected async getItemsById_Internal(ids: Array<number>): Promise<Array<T>> {
-        return this.get_Internal({
-            test:{
-                type: "predicate",
-                operator: TestOperator.In,
-                propertyName: "id",
-                value: ids
+        const result: Array<T> = [];
+        const promises: Promise<Array<T>>[] = [];
+        const copy = cloneDeep(ids);
+        while(copy.length > 0) {
+            const sub = copy.splice(0, 2000);
+            promises.push(this.get_Internal({
+                test:{
+                    type: "predicate",
+                    operator: TestOperator.In,
+                    propertyName: "id",
+                    value: sub
+                },
+                limit: 2000
+            }));
+        }
+        while(promises.length > 0) {
+            const sub = promises.splice(0, 3);
+            const tmp = await Promise.all(sub);
+            for (const res of tmp) {
+                result.push(...res);
             }
-        });
+        }
+        return result;
     }
 
 
@@ -811,9 +826,9 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         return super.addOrUpdateItem(item);
     }
 
-    public async addOrUpdateItems(items: Array<T>, loadLookups?: Array<string>): Promise<Array<T>>{        
+    public async addOrUpdateItems(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void, loadLookups?: Array<string>): Promise<Array<T>>{        
         items.forEach(item => this.updateInternalLinks(item, loadLookups));
-        return super.addOrUpdateItems(items);
+        return super.addOrUpdateItems(items, onItemUpdated);
     }
 
     /**
@@ -861,7 +876,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         return result;
     }
 
-    protected async addOrUpdateItems_Internal(items: Array<T>): Promise<Array<T>> {
+    protected async addOrUpdateItems_Internal(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void): Promise<Array<T>> {
         const result = cloneDeep(items);
         const itemsToAdd = result.filter((item) =>{
             return item.id < 0;
@@ -877,11 +892,13 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         const selectFields = this.getOdataCommonFieldNames();
         // creation batch
         if(itemsToAdd.length > 0) {
+            let idx = 0;
             const batches = [];
             while(itemsToAdd.length > 0) {
                 const sub = itemsToAdd.splice(0,100);
                 const batch = sp.createBatch();
                 for (const item of sub) {
+                    const currentIdx = idx;
                     const itemId = item.id;
                     const converted = await this.getSPRestItem(item);
                     this.list.items.select(...selectFields).inBatch(batch).add(converted).then(async (addResult) => {
@@ -890,25 +907,33 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                         if(itemId < -1) {
                             await this.updateLinksInDb(Number(itemId), Number(item.id));
                         }
+                        if(onItemUpdated) {
+                            onItemUpdated(items[currentIdx], item);
+                        }
                     }).catch((error) => {
-                        item.error = error;
+                        item.error = error;                        
+                        if(onItemUpdated) {
+                            onItemUpdated(items[currentIdx], item);
+                        }
                     });                    
-                    
+                    idx++;
                 }
                 batches.push(batch);
             }                              
             while(batches.length > 0) {
-                const sub = batches.splice(0,5);
+                const sub = batches.splice(0,3);
                 await Promise.all(sub.map(b => b.execute()));
             }   
         }
         // versionned batch
         if(versionedItems.length > 0) {
+            let idx = 0;
             const batches = [];
             while(versionedItems.length > 0) {
                 const sub = versionedItems.splice(0,100);
                 const batch = sp.createBatch();
                 for (const item of sub) {
+                    const currentIdx = idx;
                     this.list.items.getById(item.id as number).select(Constants.commonFields.version).inBatch(batch).get().then(async (existing) =>{
                         if (parseFloat(existing[Constants.commonFields.version]) > item.version) {
                             const error = new Error(ServicesConfiguration.configuration.translations.versionHigherErrorMessage);
@@ -917,20 +942,28 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                         }
                         else {
                             updatedItems.push(item);
+                        }                        
+                        if(onItemUpdated) {
+                            onItemUpdated(items[currentIdx], item);
                         }
                     }).catch((error) => {
-                        item.error = error; 
-                    });           
+                        item.error = error;                         
+                        if(onItemUpdated) {
+                            onItemUpdated(items[currentIdx], item);
+                        }
+                    });  
+                    idx++;         
                 }
                 batches.push(batch);
             }   
             while(batches.length > 0) {
-                const sub = batches.splice(0,5);
+                const sub = batches.splice(0,3);
                 await Promise.all(sub.map(b => b.execute()));
             }
         }
         // classical update batch + version checked
         if(updatedItems.length > 0) {
+            let idx = 0;
             const batches = [];
             const popBatches = [];
             while(updatedItems.length > 0) {
@@ -938,28 +971,39 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 const batch = sp.createBatch();
                 const popbatch = sp.createBatch();
                 for (const item of sub) {
+                    const currentIdx = idx;
                     const converted = await this.getSPRestItem(item);
                     this.list.items.getById(item.id as number).select(...selectFields).inBatch(batch).update(converted).then(async (updateResult) =>{
                         updateResult.item.select(...selectFields).inBatch(popbatch).get().then(async (version) => {
                             await this.populateCommonFields(item, version);                    
-                            await this.updateWssIds(item, version);
+                            await this.updateWssIds(item, version);                                                     
+                            if(onItemUpdated) {
+                                onItemUpdated(items[currentIdx], item);
+                            }
                         }).catch((error) => {
-                            item.error = error; 
+                            item.error = error;                                                      
+                            if(onItemUpdated) {
+                                onItemUpdated(items[currentIdx], item);
+                            }
                         });                 
                     
                     }).catch((error) => {
-                        item.error = error; 
-                    });           
+                        item.error = error;                                                  
+                        if(onItemUpdated) {
+                            onItemUpdated(items[currentIdx], item);
+                        }
+                    }); 
+                    idx++;          
                 }
                 batches.push(batch);
                 popBatches.push(popbatch);
             }                   
             while(batches.length > 0) {
-                const sub = batches.splice(0,5);
+                const sub = batches.splice(0,3);
                 await Promise.all(sub.map(b => b.execute()));
             }    
             while(popBatches.length > 0) {
-                const sub = popBatches.splice(0,5);
+                const sub = popBatches.splice(0,3);
                 await Promise.all(sub.map(b => b.execute()));
             }  
         }
