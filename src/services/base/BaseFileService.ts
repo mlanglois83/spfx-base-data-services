@@ -67,11 +67,12 @@ export class BaseFileService<T extends IBaseItem> extends BaseDataService<T>{
                 });
             });
             batches.push(batch);
-        }        
-        while(batches.length > 0) {
+        }    
+        await UtilsService.runBatchesInStacks(batches, 3);    
+        /*while(batches.length > 0) {
             const sub = batches.splice(0,3);
             await Promise.all(sub.map(b => b.execute()));
-        }      
+        }      */
         return results;
     }
 

@@ -1,4 +1,4 @@
-import { BaseDataService } from "..";
+import { BaseDataService, UtilsService } from "..";
 import { User, PictureSize, IQuery } from "../..";
 import { graph } from "@pnp/graph";
 import { sp } from "@pnp/sp";
@@ -93,11 +93,12 @@ export class UserService extends BaseDataService<User> {
                 });
             });
             batches.push(batch);
-        }        
-        while(batches.length > 0) {
+        }  
+        await UtilsService.runBatchesInStacks(batches, 3);      
+        /*while(batches.length > 0) {
             const sub = batches.splice(0,3);
             await Promise.all(sub.map(b => b.execute()));
-        }
+        }*/
         return results;    
     }
 

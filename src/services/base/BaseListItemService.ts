@@ -919,11 +919,12 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                     idx++;
                 }
                 batches.push(batch);
-            }                              
-            while(batches.length > 0) {
+            }   
+            await UtilsService.runBatchesInStacks(batches, 3);                            
+            /*while(batches.length > 0) {
                 const sub = batches.splice(0,3);
                 await Promise.all(sub.map(b => b.execute()));
-            }   
+            }*/   
         }
         // versionned batch
         if(versionedItems.length > 0) {
@@ -955,11 +956,12 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                     idx++;         
                 }
                 batches.push(batch);
-            }   
-            while(batches.length > 0) {
+            }               
+            await UtilsService.runBatchesInStacks(batches, 3); 
+            /*while(batches.length > 0) {
                 const sub = batches.splice(0,3);
                 await Promise.all(sub.map(b => b.execute()));
-            }
+            }*/
         }
         // classical update batch + version checked
         if(updatedItems.length > 0) {
@@ -997,15 +999,19 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 }
                 batches.push(batch);
                 popBatches.push(popbatch);
-            }                   
-            while(batches.length > 0) {
+            }   
+            
+            await UtilsService.runBatchesInStacks(batches, 3);                 
+            /*while(batches.length > 0) {
                 const sub = batches.splice(0,3);
                 await Promise.all(sub.map(b => b.execute()));
-            }    
-            while(popBatches.length > 0) {
+            }*/
+            
+            await UtilsService.runBatchesInStacks(popBatches, 3);  
+            /*while(popBatches.length > 0) {
                 const sub = popBatches.splice(0,3);
                 await Promise.all(sub.map(b => b.execute()));
-            }  
+            }*/  
         }
         return result;
     }
