@@ -2,6 +2,7 @@ import { BaseService } from "./base/BaseService";
 import { ServicesConfiguration, TaxonomyTerm } from "../";
 import { Text } from '@microsoft/sp-core-library';
 import { cloneDeep, find } from "@microsoft/sp-lodash-subset";
+import { ODataBatch } from "@pnp/odata";
 /**
  * Utility class
  */
@@ -181,6 +182,67 @@ export class UtilsService extends BaseService {
             }
             resultParts.push(term.title);
             return resultParts.join(" > ");
+        }
+    }
+    
+    public static divideArray<T>(source: Array<T>, segments: number): Array<Array<T>> {
+        if (segments < 2) {
+            return [source];
+        }
+      
+        const len = source.length;
+        const out: Array<Array<T>> = [];
+      
+        let i = 0;
+        let size: number;
+      
+        if (len % segments === 0) {
+            size = Math.floor(len / segments);
+            while (i < len) {
+                out.push(source.slice(i, (i += size)));
+            }
+        } else {
+            while (i < len) {
+                size = Math.ceil((len - i) / segments);
+                out.push(source.slice(i, i + size));
+                i += size;
+                segments -= 1;
+            }
+        }      
+        return out;
+    }
+    public static async runPromisesInStacks<T>(promises: Promise<T>[], stackCount: number): Promise<T[]> {
+        const result: T[] = [];
+        const segments = UtilsService.divideArray(promises, stackCount);
+        const results = await Promise.all(segments.map((s) => {
+            return UtilsService.chainPromises(s);
+        }));
+        results.forEach((r) => {
+            result.push(...r);
+        });        
+        return result;
+    }
+
+    public static async chainPromises<T>(promises: Promise<T>[]): Promise<T[]> {
+        const result: T[] = [];
+        while(promises.length > 0) {
+            const currentPromise = promises.shift();
+            const currentResult = await currentPromise;
+            result.push(currentResult);
+        }
+        return result;
+    }
+    public static async runBatchesInStacks(batches: ODataBatch[], stackCount: number): Promise<void> {        
+        const segments = UtilsService.divideArray(batches, stackCount);
+        await Promise.all(segments.map((s) => {
+            return UtilsService.chainBatches(s);
+        }));
+    }
+
+    public static async chainBatches(batches: ODataBatch[]): Promise<void> {
+        while(batches.length > 0) {
+            const currentBatch = batches.shift();
+            await currentBatch.execute();
         }
     }
 }
