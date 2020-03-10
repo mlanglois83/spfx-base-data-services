@@ -939,14 +939,14 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                         if (parseFloat(existing[Constants.commonFields.version]) > item.version) {
                             const error = new Error(ServicesConfiguration.configuration.translations.versionHigherErrorMessage);
                             error.name = Constants.Errors.ItemVersionConfict;
-                            item.error = error;
+                            item.error = error;                                                   
+                            if(onItemUpdated) {
+                                onItemUpdated(items[currentIdx], item);
+                            }
                         }
                         else {
                             updatedItems.push(item);
-                        }                        
-                        if(onItemUpdated) {
-                            onItemUpdated(items[currentIdx], item);
-                        }
+                        } 
                     }).catch((error) => {
                         item.error = error;                         
                         if(onItemUpdated) {
@@ -958,36 +958,21 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 batches.push(batch);
             }               
             await UtilsService.runBatchesInStacks(batches, 3); 
-            /*while(batches.length > 0) {
-                const sub = batches.splice(0,3);
-                await Promise.all(sub.map(b => b.execute()));
-            }*/
         }
+        // 
+        const resultItems = [];
         // classical update batch + version checked
         if(updatedItems.length > 0) {
             let idx = 0;
             const batches = [];
-            const popBatches = [];
             while(updatedItems.length > 0) {
                 const sub = updatedItems.splice(0,100);
                 const batch = sp.createBatch();
-                const popbatch = sp.createBatch();
                 for (const item of sub) {
                     const currentIdx = idx;
                     const converted = await this.getSPRestItem(item);
-                    this.list.items.getById(item.id as number).select(...selectFields).inBatch(batch).update(converted).then(async (updateResult) =>{
-                        updateResult.item.select(...selectFields).inBatch(popbatch).get().then(async (version) => {
-                            await this.populateCommonFields(item, version);                    
-                            await this.updateWssIds(item, version);                                                     
-                            if(onItemUpdated) {
-                                onItemUpdated(items[currentIdx], item);
-                            }
-                        }).catch((error) => {
-                            item.error = error;                                                      
-                            if(onItemUpdated) {
-                                onItemUpdated(items[currentIdx], item);
-                            }
-                        });                 
+                    this.list.items.getById(item.id as number).select(...selectFields).inBatch(batch).update(converted).then(async () =>{
+                        resultItems.push(item);                        
                     
                     }).catch((error) => {
                         item.error = error;                                                  
@@ -998,20 +983,36 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                     idx++;          
                 }
                 batches.push(batch);
-                popBatches.push(popbatch);
-            }   
-            
-            await UtilsService.runBatchesInStacks(batches, 3);                 
-            /*while(batches.length > 0) {
-                const sub = batches.splice(0,3);
-                await Promise.all(sub.map(b => b.execute()));
-            }*/
-            
-            await UtilsService.runBatchesInStacks(popBatches, 3);  
-            /*while(popBatches.length > 0) {
-                const sub = popBatches.splice(0,3);
-                await Promise.all(sub.map(b => b.execute()));
-            }*/  
+            }               
+            await UtilsService.runBatchesInStacks(batches, 3);        
+        }
+        // update properties
+        if(updatedItems.length > 0) {
+            let idx = 0;
+            const batches = [];
+            while(updatedItems.length > 0) {
+                const sub = updatedItems.splice(0,100);
+                const batch = sp.createBatch();
+                for (const item of sub) {                    
+                    const currentIdx = idx;
+                    this.list.items.getById(item.id as number).select(...selectFields).inBatch(batch).get().then(async (version) =>{
+                        await this.populateCommonFields(item, version);                    
+                        await this.updateWssIds(item, version);                                                     
+                        if(onItemUpdated) {
+                            onItemUpdated(items[currentIdx], item);
+                        }                       
+                    
+                    }).catch((error) => {
+                        item.error = error;                                                  
+                        if(onItemUpdated) {
+                            onItemUpdated(items[currentIdx], item);
+                        }
+                    });  
+                    idx++;          
+                }
+                batches.push(batch);
+            }               
+            await UtilsService.runBatchesInStacks(batches, 3);        
         }
         return result;
     }
