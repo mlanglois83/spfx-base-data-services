@@ -149,7 +149,7 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
     private getOrderedChildTerms(term: T, allTerms: Array<T>): Array<T> {
         //items.sort((a: T,b: T) => {return a.path.localeCompare(b.path);});
         const result = [];
-        const childterms = allTerms.filter((t) => { return t.path.indexOf(term.path) == 0; });
+        const childterms = allTerms.filter((t) => { return t.path.indexOf(term.path + ";") == 0; });
         const level = term.path.split(";").length;
         let directChilds = childterms.filter((ct) => { return ct.path.split(";").length === level + 1; });
         if (!stringIsNullOrEmpty(term.customSortOrder)) {
