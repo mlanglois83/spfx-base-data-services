@@ -111,16 +111,17 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
             const batch = taxonomy.createBatch();
             sub.forEach((id) => {
                 this.termset.terms.getById(id).inBatch(batch).get().then((term)=> {
-                    results.push(new this.itemType(term));
+                    if(term) {
+                        results.push(new this.itemType(term));
+                    }
+                    else {
+                        console.log(`[${this.serviceName}] - term with id ${id} not found`);
+                    }
                 });
             });
             batches.push(batch);
         }
         await UtilsService.runBatchesInStacks(batches, 3);        
-        /*while(batches.length > 0) {
-            const sub = batches.splice(0,3);
-            await Promise.all(sub.map(b => b.execute()));
-        }*/
         return results;
     }
 

@@ -365,7 +365,12 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                         else {
                             const tmp = await this.dbService.getItemsById(ids);
                             results = await Promise.all(tmp.map((res) => {
-                                return this.mapItem(res);
+                                if(res) {
+                                    return this.mapItem(res);
+                                }
+                                else {
+                                    return null;
+                                }
                             }));
                         }
                         this.removePromise(promiseKey);
