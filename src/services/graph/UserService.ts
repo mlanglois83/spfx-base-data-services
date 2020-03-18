@@ -88,17 +88,18 @@ export class UserService extends BaseDataService<User> {
             const batch = sp.createBatch();
             sub.forEach((id) => {
                 sp.web.siteUsers.getById(id).select("Id","UserPrincipalName","Email","Title","IsSiteAdmin").inBatch(batch).get().then((spu) => {                
-                    const result= new User(spu);
-                    results.push(result);
+                    if(spu) {
+                        const result= new User(spu);
+                        results.push(result);
+                    }
+                    else {                        
+                        console.log(`[${this.serviceName}] - user with id ${id} not found`);
+                    }
                 });
             });
             batches.push(batch);
         }  
-        await UtilsService.runBatchesInStacks(batches, 3);      
-        /*while(batches.length > 0) {
-            const sub = batches.splice(0,3);
-            await Promise.all(sub.map(b => b.execute()));
-        }*/
+        await UtilsService.runBatchesInStacks(batches, 3);
         return results;    
     }
 

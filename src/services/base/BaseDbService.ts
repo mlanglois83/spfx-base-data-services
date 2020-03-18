@@ -377,6 +377,6 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
         const results: Array<T> = await Promise.all(ids.map((id) => {
             return this.getItemById(id);
         }));
-        return results;
+        return results.filter(r=>{ return r !== null && r !== undefined; });
     }
 }

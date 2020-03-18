@@ -620,21 +620,21 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
             }
         }
         // Init queries       
-        const promises = [];
+        const promises: Array<Promise<SPItem[]>> = [];
         for (const modelName in allIds) {
             if (allIds.hasOwnProperty(modelName)) {
                 const ids = allIds[modelName];
                 if(ids && ids.length > 0) {
-                    const service = ServicesConfiguration.configuration.serviceFactory.create(modelName);
+                    const service = ServicesConfiguration.configuration.serviceFactory.create(modelName) as BaseDataService<SPItem>;
                     promises.push(service.getItemsById(ids));
                 }
             }
         }
         // execute and store
-        const results = await Promise.all(promises);
+        const results = await UtilsService.runPromisesInStacks(promises, 3);
         results.forEach(itemsTab => {
             if(itemsTab.length > 0) {
-                const modelName = itemsTab[0].constructor.name;
+                const modelName = itemsTab[0].constructor["name"];
                 this.initValues[modelName] = this.initValues[modelName] || [];
                 this.initValues[modelName].push(...itemsTab);
             }
@@ -783,13 +783,10 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 limit: 2000
             }));
         }
-        while(promises.length > 0) {
-            const sub = promises.splice(0, 3);
-            const tmp = await Promise.all(sub);
-            for (const res of tmp) {
-                result.push(...res);
-            }
-        }
+        const res = await UtilsService.runPromisesInStacks(promises, 3);
+        for (const tmp of res) {
+            result.push(...tmp.filter(i=>{return i !== null && i!== undefined;}));
+        }        
         return result;
     }
 
@@ -920,11 +917,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 }
                 batches.push(batch);
             }   
-            await UtilsService.runBatchesInStacks(batches, 3);                            
-            /*while(batches.length > 0) {
-                const sub = batches.splice(0,3);
-                await Promise.all(sub.map(b => b.execute()));
-            }*/   
+            await UtilsService.runBatchesInStacks(batches, 3);   
         }
         // versionned batch
         if(versionedItems.length > 0) {
@@ -1266,73 +1259,75 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         const converted = item as unknown as SPItem;
         const result: T = cloneDeep(item);
         const convertedResult= result as unknown as SPItem;
-        await this.Init();
-        for (const propertyName in this.ItemFields) {
-            if (this.ItemFields.hasOwnProperty(propertyName)) {
-                const fieldDescriptor = this.ItemFields[propertyName];
-                if(//fieldDescriptor.fieldType === FieldType.Lookup ||
-                    fieldDescriptor.fieldType === FieldType.User ||
-                    fieldDescriptor.fieldType === FieldType.Taxonomy) {
-                    if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                        // get values from init values
-                        const id: number = converted.__getInternalLinks(propertyName);
-                        if(id !== null) {
-                            const destElements = this.getServiceInitValues(fieldDescriptor.modelName);                        
-                            const existing = find(destElements, (destElement) => {
-                                return destElement.id === id;
-                            });
-                            convertedResult[propertyName] = existing ? existing : fieldDescriptor.defaultValue;
-                        }
-                        else {
-                            convertedResult[propertyName] = fieldDescriptor.defaultValue;
-                        }
-                    }   
-                    convertedResult.__deleteInternalLinks(propertyName);
-                }
-                else if(//fieldDescriptor.fieldType === FieldType.LookupMulti ||
-                    fieldDescriptor.fieldType === FieldType.UserMulti ||
-                    fieldDescriptor.fieldType === FieldType.TaxonomyMulti) {
-                    if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {    
-                        // get values from init values
-                        const ids = converted.__getInternalLinks(propertyName) || [];
-                        if(ids.length > 0) {
-                            const val = [];
-                            const targetItems = this.getServiceInitValues(fieldDescriptor.modelName);
-                            ids.forEach(id => {
-                                const existing = find(targetItems, (tmpitem) => {
-                                    return tmpitem.id === id;
+        if(item) {
+            await this.Init();
+            for (const propertyName in this.ItemFields) {
+                if (this.ItemFields.hasOwnProperty(propertyName)) {
+                    const fieldDescriptor = this.ItemFields[propertyName];
+                    if(//fieldDescriptor.fieldType === FieldType.Lookup ||
+                        fieldDescriptor.fieldType === FieldType.User ||
+                        fieldDescriptor.fieldType === FieldType.Taxonomy) {
+                        if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                            // get values from init values
+                            const id: number = converted.__getInternalLinks(propertyName);
+                            if(id !== null) {
+                                const destElements = this.getServiceInitValues(fieldDescriptor.modelName);                        
+                                const existing = find(destElements, (destElement) => {
+                                    return destElement.id === id;
                                 });
-                                if(existing) {
-                                    val.push(existing);
-                                } 
-                            });
-                            convertedResult[propertyName] = val;
-                        }
-                        else {
-                            convertedResult[propertyName] = fieldDescriptor.defaultValue;
-                        }
-                    }                    
-                    convertedResult.__deleteInternalLinks(propertyName);
-                }
-                else {
-                    if(fieldDescriptor.fieldName === Constants.commonFields.attachments) {
-                        // get values from init values
-                        const urls = converted.__getInternalLinks(propertyName) || [];
-                        if(urls.length > 0) {
-                            const files = await this.attachmentsService.getItemsById(urls);
-                            convertedResult[propertyName] = files;
-                        }                            
-                        else {
-                            convertedResult[propertyName] = fieldDescriptor.defaultValue;
-                        }                        
+                                convertedResult[propertyName] = existing ? existing : fieldDescriptor.defaultValue;
+                            }
+                            else {
+                                convertedResult[propertyName] = fieldDescriptor.defaultValue;
+                            }
+                        }   
+                        convertedResult.__deleteInternalLinks(propertyName);
+                    }
+                    else if(//fieldDescriptor.fieldType === FieldType.LookupMulti ||
+                        fieldDescriptor.fieldType === FieldType.UserMulti ||
+                        fieldDescriptor.fieldType === FieldType.TaxonomyMulti) {
+                        if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {    
+                            // get values from init values
+                            const ids = converted.__getInternalLinks(propertyName) || [];
+                            if(ids.length > 0) {
+                                const val = [];
+                                const targetItems = this.getServiceInitValues(fieldDescriptor.modelName);
+                                ids.forEach(id => {
+                                    const existing = find(targetItems, (tmpitem) => {
+                                        return tmpitem.id === id;
+                                    });
+                                    if(existing) {
+                                        val.push(existing);
+                                    } 
+                                });
+                                convertedResult[propertyName] = val;
+                            }
+                            else {
+                                convertedResult[propertyName] = fieldDescriptor.defaultValue;
+                            }
+                        }                    
                         convertedResult.__deleteInternalLinks(propertyName);
                     }
                     else {
-                        convertedResult[propertyName] = converted[propertyName] ;
-                    }
-                }       
-            }
-        }        
+                        if(fieldDescriptor.fieldName === Constants.commonFields.attachments) {
+                            // get values from init values
+                            const urls = converted.__getInternalLinks(propertyName) || [];
+                            if(urls.length > 0) {
+                                const files = await this.attachmentsService.getItemsById(urls);
+                                convertedResult[propertyName] = files;
+                            }                            
+                            else {
+                                convertedResult[propertyName] = fieldDescriptor.defaultValue;
+                            }                        
+                            convertedResult.__deleteInternalLinks(propertyName);
+                        }
+                        else {
+                            convertedResult[propertyName] = converted[propertyName] ;
+                        }
+                    }       
+                }
+            }      
+        }  
         convertedResult.__clearEmptyInternalLinks();
         return result;
     }

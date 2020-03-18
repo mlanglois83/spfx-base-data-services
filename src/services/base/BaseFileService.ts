@@ -62,17 +62,18 @@ export class BaseFileService<T extends IBaseItem> extends BaseDataService<T>{
             const batch = sp.createBatch();
             sub.forEach((id) => {
                 sp.web.getFileByServerRelativeUrl(id).select('FileRef', 'FileLeafRef').get().then(async (item)=> {
-                    const fo = await this.createFileObject(item);
-                    results.push(fo);
+                    if(item) {                        
+                        const fo = await this.createFileObject(item);
+                        results.push(fo);
+                    }
+                    else {                        
+                        console.log(`[${this.serviceName}] - file with url ${id} not found`);
+                    }
                 });
             });
             batches.push(batch);
         }    
         await UtilsService.runBatchesInStacks(batches, 3);    
-        /*while(batches.length > 0) {
-            const sub = batches.splice(0,3);
-            await Promise.all(sub.map(b => b.execute()));
-        }      */
         return results;
     }
 
