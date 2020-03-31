@@ -182,13 +182,13 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
 
     }
 
-    protected abstract getAll_Internal(): Promise<Array<T>>;
+    protected abstract getAll_Internal(linkedFields?: Array<string>): Promise<Array<T>>;
 
     /* 
      * Retrieve all elements from datasource depending on connection is enabled
      * If service is not configured as offline, an exception is thrown;
      */
-    public async getAll(): Promise<Array<T>> {
+    public async getAll(linkedFields?: Array<string>): Promise<Array<T>> {
         let promise = this.getExistingPromise();
         if (promise) {
             console.log(this.serviceName + " getAll : load allready called before, sharing promise");
@@ -206,7 +206,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                     }
 
                     if (reloadData) {
-                        result = await this.getAll_Internal();
+                        result = await this.getAll_Internal(linkedFields);
                         const convresult = await Promise.all(result.map((res) => {
                             return this.convertItemToDbFormat(res);
                         }));
@@ -216,9 +216,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                     }
                     else {
                         const tmp = await this.dbService.getAll();
-                        result = await Promise.all(tmp.map((res) => {
-                            return this.mapItem(res);
-                        }));
+                        result = await this.mapItems(tmp, linkedFields);
                     }
 
 
@@ -236,10 +234,10 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
 
     }
 
-    protected abstract get_Internal(query: IQuery): Promise<Array<T>>;
+    protected abstract get_Internal(query: IQuery, linkedFields?: Array<string>): Promise<Array<T>>;
 
 
-    public async get(query: IQuery): Promise<Array<T>> {
+    public async get(query: IQuery, linkedFields?: Array<string>): Promise<Array<T>> {
         const keyCached = super.hashCode(query).toString();
         let promise = this.getExistingPromise(keyCached);
         if (promise) {
@@ -257,7 +255,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                     }
 
                     if (reloadData) {
-                        result = await this.get_Internal(query);
+                        result = await this.get_Internal(query, linkedFields);
                         const convresult = await Promise.all(result.map((res) => {
                             return this.convertItemToDbFormat(res);
                         }));
@@ -267,9 +265,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                     }
                     else {
                         const tmp = await this.dbService.get(query);
-                        result = await Promise.all(tmp.map((res) => {
-                            return this.mapItem(res);
-                        }));
+                        result = await this.mapItems(tmp, linkedFields);
                         // filter
                         result = this.filterItems(query, result);
                     }
@@ -287,9 +283,9 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         return promise;
     }
 
-    protected abstract getItemById_Internal(id: number | string): Promise<T>;
+    protected abstract getItemById_Internal(id: number | string, linkedFields?: Array<string>): Promise<T>;
 
-    public async getItemById(id: number): Promise<T> {
+    public async getItemById(id: number, linkedFields?: Array<string>): Promise<T> {
         const promiseKey = "getById_" + id.toString();
         let promise = this.getExistingPromise(promiseKey);
         if (promise) {
@@ -307,7 +303,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                     }
 
                     if (reloadData) {
-                        result = await this.getItemById_Internal(id);
+                        result = await this.getItemById_Internal(id, linkedFields);
                         const converted = await this.convertItemToDbFormat(result);
                         await this.dbService.addOrUpdateItem(converted);
                         this.UpdateIdsLastLoad(id);
@@ -315,7 +311,8 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                     else {
                         const temp = await this.dbService.getItemById(id);
                         if (temp) { 
-                            result = await this.mapItem(temp); 
+                            const res = await this.mapItems([temp], linkedFields);
+                            result = res.shift(); 
                         }
                     }
 
@@ -332,9 +329,9 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         return promise;
     }
 
-    protected abstract getItemsById_Internal(ids: Array<number | string>): Promise<Array<T>>;
+    protected abstract getItemsById_Internal(ids: Array<number | string>, linkedFields?: Array<string>): Promise<Array<T>>;
 
-    public async getItemsById(ids: Array<number | string>): Promise<Array<T>> {
+    public async getItemsById(ids: Array<number | string>, linkedFields?: Array<string>): Promise<Array<T>> {
         const promiseKey = "getByIds_" + ids.join();
         let promise = this.getExistingPromise(promiseKey);
         if (promise) {
@@ -353,8 +350,9 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                         }
 
                         if (reloadData) {
-                            const expired = await this.getItemsById_Internal(deprecatedIds);
-                            const cached = await this.dbService.getItemsById(ids.filter((i) => {return deprecatedIds.indexOf(i) === -1;}));
+                            const expired = await this.getItemsById_Internal(deprecatedIds, linkedFields);
+                            const tmpcached = await this.dbService.getItemsById(ids.filter((i) => {return deprecatedIds.indexOf(i) === -1;}));
+                            const cached = await this.mapItems(tmpcached,linkedFields);
                             results = expired.concat(cached);
                             const convresults = await Promise.all(results.map(async (res) => {
                                 return this.convertItemToDbFormat(res);
@@ -364,14 +362,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                         }
                         else {
                             const tmp = await this.dbService.getItemsById(ids);
-                            results = await Promise.all(tmp.map((res) => {
-                                if(res) {
-                                    return this.mapItem(res);
-                                }
-                                else {
-                                    return null;
-                                }
-                            }));
+                            results = await this.mapItems(tmp, linkedFields);
                         }
                         this.removePromise(promiseKey);
                         resolve(results);
@@ -532,8 +523,8 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         return item;
     }
 
-    public mapItem(item: T): Promise<T> {
-        return Promise.resolve(item);
+    public mapItems(items: Array<T>, linkedFields?: Array<string>): Promise<Array<T>> { // eslint-disable-line @typescript-eslint/no-unused-vars
+        return Promise.resolve(items);
     }
     
     public async updateLinkedTransactions(oldId: number | string, newId: number | string, nextTransactions: Array<OfflineTransaction>): Promise<Array<OfflineTransaction>> {

@@ -86,12 +86,13 @@ export class SynchronizationService extends BaseService {
             // init service for tardive links
             await dataService.Init();
             // transform item to destination type
-            const item = assign(new itemType(), transaction.itemData);
+            const item: IBaseItem = assign(new itemType(), transaction.itemData);
             switch (transaction.title) {
                 case TransactionType.AddOrUpdate:
                     const oldId = item.id;
                     const isAdd = typeof (oldId) === "number" && oldId < 0;       
-                    const dbItem = await dataService.mapItem(item);
+                    const tmp = await dataService.mapItems([item]);
+                    const dbItem = tmp.shift();
                     const updatedItem = await dataService.addOrUpdateItem(dbItem);
 
                     // handle id and version changed

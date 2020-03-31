@@ -697,11 +697,6 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
     }
     /***************** SP Calls associated to service standard operations ********************/
     
-    public async get(query: IQuery, loadLookups?: Array<string>): Promise<Array<T>>{
-        const results = await super.get(query);
-        await this.populateLookups(results, loadLookups);
-        return results;
-    }
 
     /**
      * Get items by query
@@ -710,7 +705,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
      * @returns {Promise<Array<T>>}
      * @memberof BaseListItemService
      */
-    protected async get_Internal(query: IQuery): Promise<Array<T>> {
+    protected async get_Internal(query: IQuery, linkedFields?: Array<string>): Promise<Array<T>> {
         const spQuery = this.getCamlQuery(query);
         let results = new Array<T>();
         const selectFields = this.getOdataFieldNames();
@@ -725,20 +720,15 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 return this.getItemFromRest(r); 
             });
         }
+        await this.populateLookups(results, linkedFields);
         return results;
-    }
-
-    public async getItemById(id: number, loadLookups?: Array<string>): Promise<T>{
-        const result = await super.getItemById(id);
-        await this.populateLookups([result], loadLookups);
-        return result;
     }
 
     /**
      * Get an item by id
      * @param {number} id - item id
      */
-    protected async getItemById_Internal(id: number): Promise<T> {
+    protected async getItemById_Internal(id: number, linkedFields?: Array<string>): Promise<T> {
         let result = null;
         const selectFields = this.getOdataFieldNames();
         let itemsQuery = this.list.items.getById(id).select(...selectFields);
@@ -751,23 +741,16 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
             result = this.getItemFromRest(temp);
             return result;
         }
-
+        await this.populateLookups([result], linkedFields);
         return result;
     }
 
-
-    
-    public async getItemsById(ids: Array<number>, loadLookups?: Array<string>): Promise<Array<T>>{
-        const results = await super.getItemsById(ids);
-        await this.populateLookups(results, loadLookups);
-        return results;
-    }
 
     /**
      * Get a list of items by id
      * @param ids - array of item id to retrieve
      */
-    protected async getItemsById_Internal(ids: Array<number>): Promise<Array<T>> {
+    protected async getItemsById_Internal(ids: Array<number>, linkedFields?: Array<string>): Promise<Array<T>> {
         const result: Array<T> = [];
         const promises: Promise<Array<T>>[] = [];
         const copy = cloneDeep(ids);
@@ -787,21 +770,15 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         for (const tmp of res) {
             result.push(...tmp.filter(i=>{return i !== null && i!== undefined;}));
         }        
+        await this.populateLookups(result, linkedFields);
         return result;
-    }
-
-
-    public async getAll(loadLookups?: Array<string>): Promise<Array<T>>{
-        const results = await super.getAll();
-        await this.populateLookups(results, loadLookups);
-        return results;
     }
 
     /**
      * Retrieve all items
      * 
      */
-    protected async getAll_Internal(): Promise<Array<T>> {
+    protected async getAll_Internal(linkedFields?: Array<string>): Promise<Array<T>> {
         let results: Array<T> = [];
         const selectFields = this.getOdataFieldNames();
         let itemsQuery = this.list.items.select(...selectFields);
@@ -815,6 +792,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 return this.getItemFromRest(r); 
             });
         }
+        await this.populateLookups(results, linkedFields);
         return results;
     }
 
@@ -1035,7 +1013,8 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 const operations: Promise<void>[] = [];
                 const items = await this.dbService.getAll();
                 for (const item of items) {
-                    const converted = await this.mapItem(item);
+                    const mapped = await this.mapItems([item]);
+                    const converted = mapped.shift();
                     if(converted[prop] && converted[prop].length > 0) {
                         updatedItems.push(converted);
                         converted[prop].forEach(attachment => {
@@ -1255,81 +1234,88 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
      * populate item from db storage
      * @param item - db item with links in internalLinks fields
      */
-    public async mapItem(item: T): Promise<T> {
-        const converted = item as unknown as SPItem;
-        const result: T = cloneDeep(item);
-        const convertedResult= result as unknown as SPItem;
-        if(item) {
+    public async mapItems(items: Array<T>, linkedFields?: Array<string>): Promise<Array<T>> {        
+        const results: Array<T> = [];
+        if(items && items.length > 0) {
             await this.Init();
-            for (const propertyName in this.ItemFields) {
-                if (this.ItemFields.hasOwnProperty(propertyName)) {
-                    const fieldDescriptor = this.ItemFields[propertyName];
-                    if(//fieldDescriptor.fieldType === FieldType.Lookup ||
-                        fieldDescriptor.fieldType === FieldType.User ||
-                        fieldDescriptor.fieldType === FieldType.Taxonomy) {
-                        if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                            // get values from init values
-                            const id: number = converted.__getInternalLinks(propertyName);
-                            if(id !== null) {
-                                const destElements = this.getServiceInitValues(fieldDescriptor.modelName);                        
-                                const existing = find(destElements, (destElement) => {
-                                    return destElement.id === id;
-                                });
-                                convertedResult[propertyName] = existing ? existing : fieldDescriptor.defaultValue;
+            for (const item of items) {
+                const converted = item as unknown as SPItem;
+                const result: T = cloneDeep(item);
+                const convertedResult= result as unknown as SPItem;
+                if(item) {
+                    for (const propertyName in this.ItemFields) {
+                        if (this.ItemFields.hasOwnProperty(propertyName)) {
+                            const fieldDescriptor = this.ItemFields[propertyName];
+                            if(//fieldDescriptor.fieldType === FieldType.Lookup ||
+                                fieldDescriptor.fieldType === FieldType.User ||
+                                fieldDescriptor.fieldType === FieldType.Taxonomy) {
+                                if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                                    // get values from init values
+                                    const id: number = converted.__getInternalLinks(propertyName);
+                                    if(id !== null) {
+                                        const destElements = this.getServiceInitValues(fieldDescriptor.modelName);                        
+                                        const existing = find(destElements, (destElement) => {
+                                            return destElement.id === id;
+                                        });
+                                        convertedResult[propertyName] = existing ? existing : fieldDescriptor.defaultValue;
+                                    }
+                                    else {
+                                        convertedResult[propertyName] = fieldDescriptor.defaultValue;
+                                    }
+                                }   
+                                convertedResult.__deleteInternalLinks(propertyName);
+                            }
+                            else if(//fieldDescriptor.fieldType === FieldType.LookupMulti ||
+                                fieldDescriptor.fieldType === FieldType.UserMulti ||
+                                fieldDescriptor.fieldType === FieldType.TaxonomyMulti) {
+                                if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {    
+                                    // get values from init values
+                                    const ids = converted.__getInternalLinks(propertyName) || [];
+                                    if(ids.length > 0) {
+                                        const val = [];
+                                        const targetItems = this.getServiceInitValues(fieldDescriptor.modelName);
+                                        ids.forEach(id => {
+                                            const existing = find(targetItems, (tmpitem) => {
+                                                return tmpitem.id === id;
+                                            });
+                                            if(existing) {
+                                                val.push(existing);
+                                            } 
+                                        });
+                                        convertedResult[propertyName] = val;
+                                    }
+                                    else {
+                                        convertedResult[propertyName] = fieldDescriptor.defaultValue;
+                                    }
+                                }                    
+                                convertedResult.__deleteInternalLinks(propertyName);
                             }
                             else {
-                                convertedResult[propertyName] = fieldDescriptor.defaultValue;
-                            }
-                        }   
-                        convertedResult.__deleteInternalLinks(propertyName);
-                    }
-                    else if(//fieldDescriptor.fieldType === FieldType.LookupMulti ||
-                        fieldDescriptor.fieldType === FieldType.UserMulti ||
-                        fieldDescriptor.fieldType === FieldType.TaxonomyMulti) {
-                        if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {    
-                            // get values from init values
-                            const ids = converted.__getInternalLinks(propertyName) || [];
-                            if(ids.length > 0) {
-                                const val = [];
-                                const targetItems = this.getServiceInitValues(fieldDescriptor.modelName);
-                                ids.forEach(id => {
-                                    const existing = find(targetItems, (tmpitem) => {
-                                        return tmpitem.id === id;
-                                    });
-                                    if(existing) {
-                                        val.push(existing);
-                                    } 
-                                });
-                                convertedResult[propertyName] = val;
-                            }
-                            else {
-                                convertedResult[propertyName] = fieldDescriptor.defaultValue;
-                            }
-                        }                    
-                        convertedResult.__deleteInternalLinks(propertyName);
-                    }
-                    else {
-                        if(fieldDescriptor.fieldName === Constants.commonFields.attachments) {
-                            // get values from init values
-                            const urls = converted.__getInternalLinks(propertyName) || [];
-                            if(urls.length > 0) {
-                                const files = await this.attachmentsService.getItemsById(urls);
-                                convertedResult[propertyName] = files;
-                            }                            
-                            else {
-                                convertedResult[propertyName] = fieldDescriptor.defaultValue;
-                            }                        
-                            convertedResult.__deleteInternalLinks(propertyName);
+                                if(fieldDescriptor.fieldName === Constants.commonFields.attachments) {
+                                    // get values from init values
+                                    const urls = converted.__getInternalLinks(propertyName) || [];
+                                    if(urls.length > 0) {
+                                        const files = await this.attachmentsService.getItemsById(urls);
+                                        convertedResult[propertyName] = files;
+                                    }                            
+                                    else {
+                                        convertedResult[propertyName] = fieldDescriptor.defaultValue;
+                                    }                        
+                                    convertedResult.__deleteInternalLinks(propertyName);
+                                }
+                                else {
+                                    convertedResult[propertyName] = converted[propertyName] ;
+                                }
+                            }       
                         }
-                        else {
-                            convertedResult[propertyName] = converted[propertyName] ;
-                        }
-                    }       
-                }
-            }      
-        }  
-        convertedResult.__clearEmptyInternalLinks();
-        return result;
+                    }      
+                }  
+                convertedResult.__clearEmptyInternalLinks();
+                results.push(result);
+            }
+        }
+        await this.populateLookups(results, linkedFields);
+        return results;
     }
     
     public async updateLinkedTransactions(oldId: number, newId: number, nextTransactions: Array<OfflineTransaction>): Promise<Array<OfflineTransaction>> {
