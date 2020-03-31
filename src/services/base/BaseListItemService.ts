@@ -661,7 +661,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                         links.length > 0) {     
                         item[propertyName] = [];                   
                         links.forEach((id) =>{
-                            const litem = find(this.initValues[propertyName], {id: id});
+                            const litem = find(refCol, {id: id});
                             if(litem) {
                                 converted[propertyName].push(litem);
                             }
