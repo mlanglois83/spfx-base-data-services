@@ -160,31 +160,7 @@ export class UtilsService extends BaseService {
         }
     }
 
-    public static getTermFullPathString(term: TaxonomyTerm, allTerms: Array<TaxonomyTerm>, baseLevel = 0): string {
-        const parts = term.path.split(";");
-        if(parts.length - baseLevel <= 1) {
-            return term.title;
-        }
-        else {
-            const resultParts = [];
-            const iterator = [];
-            for (let index = 0; index < parts.length - 1; index++) {
-                const part = parts[index];
-                iterator.push(part);
-                if(index >= baseLevel){
-                    const currentPath = iterator.join(";");
-                    const refTerm = find(allTerms, {path: currentPath});
-                    if(!refTerm) {
-                        return term.path.split(";").slice(baseLevel).join(" > ");
-                    }
-                    resultParts.push(refTerm.title);
-                }
-            }
-            resultParts.push(term.title);
-            return resultParts.join(" > ");
-        }
-    }
-    
+        
     public static divideArray<T>(source: Array<T>, segments: number): Array<Array<T>> {
         if (segments < 2) {
             return [source];
