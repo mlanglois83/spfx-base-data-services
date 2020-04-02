@@ -221,6 +221,19 @@ export class UtilsService extends BaseService {
         }
     }
 
+    public static getTermPathPartString(term: TaxonomyTerm, allTerms: Array<TaxonomyTerm>, level: number): string {
+        const parts = term.path.split(";");
+        if(parts.length - level <= 1) {
+            return "";
+        }
+        else {
+            const subParts = parts.slice(0,level+1);
+            const currentPath = subParts.join(";");
+            const refTerm = find(allTerms, {path: currentPath});
+            return refTerm.title;
+        }
+    }
+
     public static getTermFullPathString(term: TaxonomyTerm, allTerms: Array<TaxonomyTerm>, baseLevel = 0): string {
         const parts = term.path.split(";");
         if(parts.length - baseLevel <= 1) {

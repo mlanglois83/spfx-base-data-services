@@ -1734,6 +1734,18 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                     }
                     break;
                 default:
+                    if(typeof(fieldValue) === "number") {
+                        type = "Number";       
+                        value = fieldValue.toString();       
+                    }
+                    else if(typeof(fieldValue) === "boolean") {
+                        type= "Boolean";
+                        value = fieldValue ? "1" : "0";
+                    }          
+                    else {
+                        type="Text"; 
+                        value = fieldValue.toString(); 
+                    }        
                     break;
             }
             result = `<Value Type="${type}">${value}</Value>`;
