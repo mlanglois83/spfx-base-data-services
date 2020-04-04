@@ -28,13 +28,13 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
     public get ItemFields(): any {
         const result = {};
         assign(result, this.itemType["Fields"][SPItem["name"]]);
-        if(this.itemType["Fields"][this.itemType["name"]]) {
+        if (this.itemType["Fields"][this.itemType["name"]]) {
             assign(result, this.itemType["Fields"][this.itemType["name"]]);
         }
         return result;
     }
 
-    
+
 
     /**
      * Associeted list (pnpjs)
@@ -58,29 +58,29 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
 
     }
 
-    
+
     /***************************** External sources init and access **************************************/
-    
+
     private initialized = false;
     protected get isInitialized(): boolean {
         return this.initialized;
     }
     private initPromise: Promise<void> = null;
 
-    protected async init_internal(): Promise<void>{
+    protected async init_internal(): Promise<void> {
         return;
     }
 
     public async Init(): Promise<void> {
-        if(!this.initPromise) {
-            this.initPromise =  new Promise<void>(async (resolve, reject) => {
-                if(this.initialized) {
+        if (!this.initPromise) {
+            this.initPromise = new Promise<void>(async (resolve, reject) => {
+                if (this.initialized) {
                     resolve();
                 }
                 else {
                     this.initValues = {};
                     try {
-                        if(this.init_internal) {
+                        if (this.init_internal) {
                             await this.init_internal();
                         }
                         const fields = this.ItemFields;
@@ -89,16 +89,16 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                             if (fields.hasOwnProperty(key)) {
                                 const fieldDescription = fields[key];
                                 // REM MLS : lookup removed from preload
-                                if(fieldDescription.modelName && 
-                                    models.indexOf(fieldDescription.modelName) === -1 && 
-                                    fieldDescription.fieldType !== FieldType.Lookup && 
+                                if (fieldDescription.modelName &&
+                                    models.indexOf(fieldDescription.modelName) === -1 &&
+                                    fieldDescription.fieldType !== FieldType.Lookup &&
                                     fieldDescription.fieldType !== FieldType.LookupMulti) {
                                     models.push(fieldDescription.modelName);
-                                }                                            
+                                }
                             }
                         }
                         await Promise.all(models.map(async (modelName) => {
-                            if(!this.initValues[modelName]) {
+                            if (!this.initValues[modelName]) {
                                 const service = ServicesConfiguration.configuration.serviceFactory.create(modelName);
                                 const values = await service.getAll();
                                 this.initValues[modelName] = values;
@@ -108,23 +108,23 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                         this.initPromise = null;
                         resolve();
                     }
-                    catch(error) {
+                    catch (error) {
                         this.initPromise = null;
                         reject(error);
                     }
-                }                
+                }
             });
         }
         return this.initPromise;
-        
-    }  
+
+    }
     /********** init for taxo multi ************/
     private fieldsInitialized = false;
     private initFieldsPromise: Promise<void> = null;
     private async initFields(): Promise<void> {
-        if(!this.initFieldsPromise) {
-            this.initFieldsPromise =  new Promise<void>(async (resolve, reject) => {
-                if(this.fieldsInitialized) {
+        if (!this.initFieldsPromise) {
+            this.initFieldsPromise = new Promise<void>(async (resolve, reject) => {
+                if (this.fieldsInitialized) {
                     resolve();
                 }
                 else {
@@ -135,14 +135,14 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                         for (const key in fields) {
                             if (fields.hasOwnProperty(key)) {
                                 const fieldDescription = fields[key];
-                                if(fieldDescription.fieldType === FieldType.TaxonomyMulti) {
-                                    if(stringIsNullOrEmpty(fieldDescription.hiddenFieldName)) {
+                                if (fieldDescription.fieldType === FieldType.TaxonomyMulti) {
+                                    if (stringIsNullOrEmpty(fieldDescription.hiddenFieldName)) {
                                         taxofields.push(fieldDescription.fieldName);
                                     }
                                     else {
                                         this.taxoMultiFieldNames[fieldDescription.fieldName] = fieldDescription.hiddenFieldName;
                                     }
-                                }                                      
+                                }
                             }
                         }
                         await Promise.all(taxofields.map(async (tf) => {
@@ -153,19 +153,19 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                         this.initFieldsPromise = null;
                         resolve();
                     }
-                    catch(error) {
+                    catch (error) {
                         this.initFieldsPromise = null;
                         reject(error);
                     }
-                }                
+                }
             });
         }
         return this.initFieldsPromise;
-        
-    }  
+
+    }
 
     private getServiceInitValues(modelName: string): any {
-        return this.initValues[modelName];        
+        return this.initValues[modelName];
     }
 
     /****************************** get item methods ***********************************/
@@ -178,65 +178,65 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         return item;
     }
 
-    private setFieldValue(spitem: any, destItem: T, propertyName: string,  fieldDescriptor: IFieldDescriptor): void {
+    private setFieldValue(spitem: any, destItem: T, propertyName: string, fieldDescriptor: IFieldDescriptor): void {
         const converted = destItem as unknown as SPItem;
         fieldDescriptor.fieldType = fieldDescriptor.fieldType || FieldType.Simple;
-        switch(fieldDescriptor.fieldType) {
+        switch (fieldDescriptor.fieldType) {
             case FieldType.Simple:
-                if(fieldDescriptor.fieldName === Constants.commonFields.version) {
+                if (fieldDescriptor.fieldName === Constants.commonFields.version) {
                     converted[propertyName] = spitem[fieldDescriptor.fieldName] ? parseFloat(spitem[fieldDescriptor.fieldName]) : fieldDescriptor.defaultValue;
                 }
-                else if(fieldDescriptor.fieldName === Constants.commonFields.attachments) {
-                    converted[propertyName] = spitem[fieldDescriptor.fieldName] ? spitem[fieldDescriptor.fieldName].map((fileobj) => {return new SPFile(fileobj);}) : fieldDescriptor.defaultValue;
+                else if (fieldDescriptor.fieldName === Constants.commonFields.attachments) {
+                    converted[propertyName] = spitem[fieldDescriptor.fieldName] ? spitem[fieldDescriptor.fieldName].map((fileobj) => { return new SPFile(fileobj); }) : fieldDescriptor.defaultValue;
                 }
                 else {
                     converted[propertyName] = spitem[fieldDescriptor.fieldName] ? spitem[fieldDescriptor.fieldName] : fieldDescriptor.defaultValue;
-                }                
-                break;                
+                }
+                break;
             case FieldType.Date:
                 converted[propertyName] = spitem[fieldDescriptor.fieldName] ? new Date(spitem[fieldDescriptor.fieldName]) : fieldDescriptor.defaultValue;
                 break;
             case FieldType.Lookup:
                 const lookupId: number = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"] : -1;
-                if(lookupId !== -1) {
-                    if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                if (lookupId !== -1) {
+                    if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                         // LOOKUPS --> links
                         converted.__setInternalLinks(propertyName, lookupId);
                         converted[propertyName] = fieldDescriptor.defaultValue;
-                        
+
                     }
                     else {
                         converted[propertyName] = lookupId;
-                    } 
+                    }
 
                 }
                 else {
                     converted[propertyName] = fieldDescriptor.defaultValue;
                 }
-                  
+
                 break;
             case FieldType.LookupMulti:
-                    const lookupIds: Array<number> = spitem[fieldDescriptor.fieldName + "Id"] ? (spitem[fieldDescriptor.fieldName + "Id"].results ? spitem[fieldDescriptor.fieldName + "Id"].results: spitem[fieldDescriptor.fieldName + "Id"]) : [];
-                    if(lookupIds.length > 0) {
-                        if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {   
-                            // LOOKUPS --> links
-                            converted.__setInternalLinks(propertyName, lookupIds);
-                            converted[propertyName] = fieldDescriptor.defaultValue;
-                        }
-                        else {
-                            converted[propertyName] = lookupIds;
-                        }
-                    }
-                    else {
+                const lookupIds: Array<number> = spitem[fieldDescriptor.fieldName + "Id"] ? (spitem[fieldDescriptor.fieldName + "Id"].results ? spitem[fieldDescriptor.fieldName + "Id"].results : spitem[fieldDescriptor.fieldName + "Id"]) : [];
+                if (lookupIds.length > 0) {
+                    if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                        // LOOKUPS --> links
+                        converted.__setInternalLinks(propertyName, lookupIds);
                         converted[propertyName] = fieldDescriptor.defaultValue;
                     }
-                    break;
+                    else {
+                        converted[propertyName] = lookupIds;
+                    }
+                }
+                else {
+                    converted[propertyName] = fieldDescriptor.defaultValue;
+                }
+                break;
             case FieldType.User:
                 const id: number = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"] : -1;
-                if(id !== -1) {
-                    if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {                         
+                if (id !== -1) {
+                    if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                         // get values from init values
-                        const users = this.getServiceInitValues(fieldDescriptor.modelName);                        
+                        const users = this.getServiceInitValues(fieldDescriptor.modelName);
                         const existing = find(users, (user) => {
                             return user.id === id;
                         });
@@ -244,16 +244,16 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                     }
                     else {
                         converted[propertyName] = id;
-                    } 
+                    }
                 }
                 else {
                     converted[propertyName] = fieldDescriptor.defaultValue;
-                }                      
+                }
                 break;
             case FieldType.UserMulti:
-                const ids: Array<number> = spitem[fieldDescriptor.fieldName + "Id"] ? (spitem[fieldDescriptor.fieldName + "Id"].results ? spitem[fieldDescriptor.fieldName + "Id"].results: spitem[fieldDescriptor.fieldName + "Id"]) : [];                
-                if(ids.length > 0) {
-                    if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {    
+                const ids: Array<number> = spitem[fieldDescriptor.fieldName + "Id"] ? (spitem[fieldDescriptor.fieldName + "Id"].results ? spitem[fieldDescriptor.fieldName + "Id"].results : spitem[fieldDescriptor.fieldName + "Id"]) : [];
+                if (ids.length > 0) {
+                    if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                         // get values from init values
                         const val = [];
                         const users = this.getServiceInitValues(fieldDescriptor.modelName);
@@ -261,9 +261,9 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                             const existing = find(users, (user) => {
                                 return user.id === umid;
                             });
-                            if(existing) {
+                            if (existing) {
                                 val.push(existing);
-                            } 
+                            }
                         });
                         converted[propertyName] = val;
                     }
@@ -277,7 +277,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 break;
             case FieldType.Taxonomy:
                 const wssid: number = spitem[fieldDescriptor.fieldName] ? spitem[fieldDescriptor.fieldName].WssId : -1;
-                if(id !== -1) {
+                if (id !== -1) {
                     const tterms = this.getServiceInitValues(fieldDescriptor.modelName);
                     converted[propertyName] = this.getTaxonomyTermByWssId(wssid, tterms);
                 }
@@ -286,16 +286,16 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 }
                 break;
             case FieldType.TaxonomyMulti:
-                    const tmterms = spitem[fieldDescriptor.fieldName] ? (spitem[fieldDescriptor.fieldName].results ? spitem[fieldDescriptor.fieldName].results: spitem[fieldDescriptor.fieldName]) : [];
-                    if(tmterms.length > 0) {
-                        const allterms = this.getServiceInitValues(fieldDescriptor.modelName);
-                        converted[propertyName] = tmterms.map((term) => {
-                            return this.getTaxonomyTermByWssId(term.WssId, allterms);
-                        });
-                    }
-                    else {
-                        converted[propertyName] = fieldDescriptor.defaultValue;
-                    }
+                const tmterms = spitem[fieldDescriptor.fieldName] ? (spitem[fieldDescriptor.fieldName].results ? spitem[fieldDescriptor.fieldName].results : spitem[fieldDescriptor.fieldName]) : [];
+                if (tmterms.length > 0) {
+                    const allterms = this.getServiceInitValues(fieldDescriptor.modelName);
+                    converted[propertyName] = tmterms.map((term) => {
+                        return this.getTaxonomyTermByWssId(term.WssId, allterms);
+                    });
+                }
+                else {
+                    converted[propertyName] = fieldDescriptor.defaultValue;
+                }
                 break;
             case FieldType.Json:
                 converted[propertyName] = spitem[fieldDescriptor.fieldName] ? JSON.parse(spitem[fieldDescriptor.fieldName]) : fieldDescriptor.defaultValue;
@@ -315,22 +315,22 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         const converted = item as unknown as SPItem;
         const itemValue = converted[propertyName];
         fieldDescriptor.fieldType = fieldDescriptor.fieldType || FieldType.Simple;
-        switch(fieldDescriptor.fieldType) {
+        switch (fieldDescriptor.fieldType) {
             case FieldType.Simple:
             case FieldType.Date:
-                    if(fieldDescriptor.fieldName !== Constants.commonFields.author && 
-                        fieldDescriptor.fieldName !== Constants.commonFields.created && 
-                        fieldDescriptor.fieldName !== Constants.commonFields.editor &&
-                        fieldDescriptor.fieldName !== Constants.commonFields.modified &&
-                        fieldDescriptor.fieldName !== Constants.commonFields.version) {
-                            
-                        destItem[fieldDescriptor.fieldName] = itemValue;
-                    }
+                if (fieldDescriptor.fieldName !== Constants.commonFields.author &&
+                    fieldDescriptor.fieldName !== Constants.commonFields.created &&
+                    fieldDescriptor.fieldName !== Constants.commonFields.editor &&
+                    fieldDescriptor.fieldName !== Constants.commonFields.modified &&
+                    fieldDescriptor.fieldName !== Constants.commonFields.version) {
+
+                    destItem[fieldDescriptor.fieldName] = itemValue;
+                }
                 break;
-            case FieldType.Lookup:        
-                const link = converted.__getInternalLinks(propertyName);        
-                if(itemValue) {
-                    if(typeof(itemValue) === "number") {
+            case FieldType.Lookup:
+                const link = converted.__getInternalLinks(propertyName);
+                if (itemValue) {
+                    if (typeof (itemValue) === "number") {
                         destItem[fieldDescriptor.fieldName + "Id"] = itemValue > 0 ? itemValue : null;
                     }
                     else {
@@ -341,54 +341,54 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                     destItem[fieldDescriptor.fieldName + "Id"] = null;
                 }
                 break;
-            case FieldType.LookupMulti:      
-                if(itemValue && isArray(itemValue) && itemValue.length > 0){
+            case FieldType.LookupMulti:
+                if (itemValue && isArray(itemValue) && itemValue.length > 0) {
                     const links = converted.__getInternalLinks(propertyName);
                     const firstLookupVal = itemValue[0];
-                    if(typeof(firstLookupVal) === "number") {
-                        destItem[fieldDescriptor.fieldName + "Id"] = {results: itemValue};
+                    if (typeof (firstLookupVal) === "number") {
+                        destItem[fieldDescriptor.fieldName + "Id"] = { results: itemValue };
                     }
                     else {
-                        if(links && links.length > 0) {
-                            destItem[fieldDescriptor.fieldName + "Id"] = {results: links};
+                        if (links && links.length > 0) {
+                            destItem[fieldDescriptor.fieldName + "Id"] = { results: links };
                         }
                         else {
-                            destItem[fieldDescriptor.fieldName + "Id"] = {results: []};
+                            destItem[fieldDescriptor.fieldName + "Id"] = { results: [] };
                         }
                     }
-                }      
+                }
                 else {
-                    destItem[fieldDescriptor.fieldName + "Id"] = {results: []};
+                    destItem[fieldDescriptor.fieldName + "Id"] = { results: [] };
                 }
                 break;
             case FieldType.User:
-                    if(itemValue) {
-                        if(typeof(itemValue) === "number") {
-                            destItem[fieldDescriptor.fieldName + "Id"] = itemValue > 0 ? itemValue : null;
-                        }
-                        else {
-                            destItem[fieldDescriptor.fieldName + "Id"] = await this.convertSingleUserFieldValue(itemValue);
-                        }
+                if (itemValue) {
+                    if (typeof (itemValue) === "number") {
+                        destItem[fieldDescriptor.fieldName + "Id"] = itemValue > 0 ? itemValue : null;
                     }
                     else {
-                        destItem[fieldDescriptor.fieldName + "Id"] = null;
-                    }                
+                        destItem[fieldDescriptor.fieldName + "Id"] = await this.convertSingleUserFieldValue(itemValue);
+                    }
+                }
+                else {
+                    destItem[fieldDescriptor.fieldName + "Id"] = null;
+                }
                 break;
             case FieldType.UserMulti:
-                if(itemValue && isArray(itemValue) && itemValue.length > 0) {
+                if (itemValue && isArray(itemValue) && itemValue.length > 0) {
                     const firstUserVal = itemValue[0];
-                    if(typeof(firstUserVal) === "number") {
-                        destItem[fieldDescriptor.fieldName + "Id"] = {results: itemValue};
+                    if (typeof (firstUserVal) === "number") {
+                        destItem[fieldDescriptor.fieldName + "Id"] = { results: itemValue };
                     }
                     else {
                         const userIds = await Promise.all(itemValue.map((user) => {
                             return this.convertSingleUserFieldValue(user);
                         }));
-                        destItem[fieldDescriptor.fieldName + "Id"] = {results: userIds};
+                        destItem[fieldDescriptor.fieldName + "Id"] = { results: userIds };
                     }
                 }
                 else {
-                    destItem[fieldDescriptor.fieldName + "Id"] = {results: []};
+                    destItem[fieldDescriptor.fieldName + "Id"] = { results: [] };
                 }
                 break;
             case FieldType.Taxonomy:
@@ -396,7 +396,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 break;
             case FieldType.TaxonomyMulti:
                 const hiddenFieldName = this.taxoMultiFieldNames[fieldDescriptor.fieldName];
-                if(itemValue && isArray(itemValue) && itemValue.length > 0) {
+                if (itemValue && isArray(itemValue) && itemValue.length > 0) {
                     destItem[hiddenFieldName] = this.convertTaxonomyMultiFieldValue(itemValue);
                 }
                 else {
@@ -404,7 +404,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 }
                 break;
             case FieldType.Json:
-                    destItem[fieldDescriptor.fieldName] = itemValue ? JSON.stringify(itemValue) : null;
+                destItem[fieldDescriptor.fieldName] = itemValue ? JSON.stringify(itemValue) : null;
                 break;
         }
     }
@@ -427,7 +427,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
     private convertTaxonomyMultiFieldValue(value: Array<TaxonomyTerm>): any {
         let result: any = null;
         if (value) {
-            result = value.map(term => `-1;#${term.title}|${term.id};#`).join("");            
+            result = value.map(term => `-1;#${term.title}|${term.id};#`).join("");
         }
         return result;
     }
@@ -435,7 +435,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
     private async convertSingleUserFieldValue(value: User): Promise<any> {
         let result: any = null;
         if (value) {
-            if(value.id <=0) {
+            if (value.id <= 0) {
                 const userService: UserService = new UserService();
                 value = await userService.linkToSpUser(value);
 
@@ -514,7 +514,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         if (result.length < ids.length) {
 
             const isconnected = await UtilsService.CheckOnline();
-            if (isconnected) {               
+            if (isconnected) {
 
                 try {
                     const response = await ServicesConfiguration.context.spHttpClient.get(`${ServicesConfiguration.context.pageContext.web.absoluteUrl}/_api/web/getList('${this.listRelativeUrl}')`,
@@ -525,13 +525,13 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                                 'Cache-Control': 'no-cache'
                             }
                         });
-                        
+
                     const tempList = await response.json();
                     const lastModifiedDate = new Date(tempList.LastItemUserModifiedDate ? tempList.LastItemUserModifiedDate : tempList.d.LastItemUserModifiedDate);
                     result = [];
                     ids.forEach((id) => {
                         const lastLoad = this.getIdLastLoad(id);
-                        if(!lastLoad || lastLoad < lastModifiedDate) {
+                        if (!lastLoad || lastLoad < lastModifiedDate) {
                             result.push(id);
                         }
                     });
@@ -549,20 +549,20 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
     }
 
     /**********************************Service specific calls  *******************************/
-    
+
 
     /********************************** Link to lookups  *************************************/
     private linkedLookupFields(loadLookups?: Array<string>): any {
-        const result =[];
+        const result = [];
         const fields = this.ItemFields;
         for (const key in fields) {
             if (fields.hasOwnProperty(key)) {
                 const fieldDesc = fields[key] as IFieldDescriptor;
-                if((fieldDesc.fieldType === FieldType.Lookup || fieldDesc.fieldType === FieldType.LookupMulti) && !stringIsNullOrEmpty(fieldDesc.modelName)) {
-                    if(!loadLookups || loadLookups.indexOf(fieldDesc.fieldName) !== -1) {
+                if ((fieldDesc.fieldType === FieldType.Lookup || fieldDesc.fieldType === FieldType.LookupMulti) && !stringIsNullOrEmpty(fieldDesc.modelName)) {
+                    if (!loadLookups || loadLookups.indexOf(fieldDesc.fieldName) !== -1) {
                         result[key] = fieldDesc;
                     }
-                }               
+                }
             }
         }
 
@@ -577,46 +577,46 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         for (const key in lookupFields) {
             if (lookupFields.hasOwnProperty(key)) {
                 const fieldDesc = lookupFields[key] as IFieldDescriptor;
-                allIds[fieldDesc.modelName] = allIds[fieldDesc.modelName] ||[];
+                allIds[fieldDesc.modelName] = allIds[fieldDesc.modelName] || [];
                 const ids = allIds[fieldDesc.modelName];
                 items.forEach((item: T) => {
                     const converted = item as unknown as SPItem;
                     const links = converted.__getInternalLinks(key);
                     //init value 
-                    if(fieldDesc.fieldType === FieldType.Lookup || fieldDesc.fieldType === FieldType.LookupMulti) {
+                    if (fieldDesc.fieldType === FieldType.Lookup || fieldDesc.fieldType === FieldType.LookupMulti) {
                         converted[key] = fieldDesc.defaultValue;
                     }
-                    if(fieldDesc.fieldType === FieldType.Lookup && 
+                    if (fieldDesc.fieldType === FieldType.Lookup &&
                         // lookup has value
-                        links && 
+                        links &&
                         links !== -1 &&
                         // not allready loaded (local cache)
                         (!this.initValues[fieldDesc.modelName]
                             ||
-                        !find(this.initValues[fieldDesc.modelName], {id: links})
+                            !find(this.initValues[fieldDesc.modelName], { id: links })
                         ) &&
                         // not allready in load list
                         ids.indexOf(links) === -1
-                        ) {
-                        
+                    ) {
+
                         ids.push(links);
-                    } 
-                    else if(fieldDesc.fieldType === FieldType.LookupMulti &&
-                        links && 
-                        links.length > 0) {                        
-                            links.forEach((id) =>{
-                            if(// not allready loaded (local cache)
-                            (!this.initValues[fieldDesc.modelName]
-                                ||
-                            !find(this.initValues[fieldDesc.modelName], {id: id})
-                            ) &&
-                            // not allready in load list
-                            ids.indexOf(id) === -1) {
+                    }
+                    else if (fieldDesc.fieldType === FieldType.LookupMulti &&
+                        links &&
+                        links.length > 0) {
+                        links.forEach((id) => {
+                            if (// not allready loaded (local cache)
+                                (!this.initValues[fieldDesc.modelName]
+                                    ||
+                                    !find(this.initValues[fieldDesc.modelName], { id: id })
+                                ) &&
+                                // not allready in load list
+                                ids.indexOf(id) === -1) {
                                 ids.push(id);
                             }
-                        });                        
+                        });
                     }
-                });  
+                });
             }
         }
         // Init queries       
@@ -624,7 +624,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         for (const modelName in allIds) {
             if (allIds.hasOwnProperty(modelName)) {
                 const ids = allIds[modelName];
-                if(ids && ids.length > 0) {
+                if (ids && ids.length > 0) {
                     const service = ServicesConfiguration.configuration.serviceFactory.create(modelName) as BaseDataService<SPItem>;
                     promises.push(service.getItemsById(ids));
                 }
@@ -633,41 +633,41 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         // execute and store
         const results = await UtilsService.runPromisesInStacks(promises, 3);
         results.forEach(itemsTab => {
-            if(itemsTab.length > 0) {
+            if (itemsTab.length > 0) {
                 const modelName = itemsTab[0].constructor["name"];
                 this.initValues[modelName] = this.initValues[modelName] || [];
                 this.initValues[modelName].push(...itemsTab);
             }
-        });        
+        });
         // Associate to items
         for (const propertyName in lookupFields) {
-            if (lookupFields.hasOwnProperty(propertyName)) {                
+            if (lookupFields.hasOwnProperty(propertyName)) {
                 const fieldDesc = lookupFields[propertyName] as IFieldDescriptor;
                 const refCol = this.initValues[fieldDesc.modelName];
                 items.forEach((item: T) => {
                     const converted = item as unknown as SPItem;
                     const links = converted.__getInternalLinks(propertyName);
-                    if(fieldDesc.fieldType === FieldType.Lookup && 
-                        links && 
+                    if (fieldDesc.fieldType === FieldType.Lookup &&
+                        links &&
                         links !== -1) {
-                        const litem = find(refCol, {id: links});
-                        if(litem) {
+                        const litem = find(refCol, { id: links });
+                        if (litem) {
                             converted[propertyName] = litem;
                         }
-                        
-                    } 
-                    else if(fieldDesc.fieldType === FieldType.LookupMulti &&
-                        links && 
-                        links.length > 0) {     
-                        item[propertyName] = [];                   
-                        links.forEach((id) =>{
-                            const litem = find(refCol, {id: id});
-                            if(litem) {
+
+                    }
+                    else if (fieldDesc.fieldType === FieldType.LookupMulti &&
+                        links &&
+                        links.length > 0) {
+                        item[propertyName] = [];
+                        links.forEach((id) => {
+                            const litem = find(refCol, { id: id });
+                            if (litem) {
                                 converted[propertyName].push(litem);
                             }
-                        });                        
+                        });
                     }
-                });  
+                });
             }
         }
     }
@@ -678,25 +678,25 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         for (const propertyName in lookupFields) {
             if (lookupFields.hasOwnProperty(propertyName)) {
                 const fieldDesc = lookupFields[propertyName] as IFieldDescriptor;
-                if(!loadLookups || loadLookups.indexOf(fieldDesc.fieldName) !== -1) {
-                    if(fieldDesc.fieldType === FieldType.Lookup) {
+                if (!loadLookups || loadLookups.indexOf(fieldDesc.fieldName) !== -1) {
+                    if (fieldDesc.fieldType === FieldType.Lookup) {
                         converted.__deleteInternalLinks(propertyName);
-                        if(converted[propertyName] && converted[propertyName].id > -1) {
+                        if (converted[propertyName] && converted[propertyName].id > -1) {
                             converted.__setInternalLinks(propertyName, converted[propertyName].id);
                         }
                     }
-                    else if(fieldDesc.fieldType === FieldType.LookupMulti) {
+                    else if (fieldDesc.fieldType === FieldType.LookupMulti) {
                         converted.__deleteInternalLinks(propertyName);
-                        if(converted[propertyName] && converted[propertyName].length > 0) {
+                        if (converted[propertyName] && converted[propertyName].length > 0) {
                             converted.__setInternalLinks(propertyName, converted[propertyName].filter(l => l.id !== -1).map(l => l.id));
                         }
                     }
-                }                
+                }
             }
         }
     }
     /***************** SP Calls associated to service standard operations ********************/
-    
+
 
     /**
      * Get items by query
@@ -710,14 +710,14 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         let results = new Array<T>();
         const selectFields = this.getOdataFieldNames();
         let itemsQuery = this.list.select(...selectFields);
-        if(this.hasAttachments) {
+        if (this.hasAttachments) {
             itemsQuery = itemsQuery.expand(Constants.commonFields.attachments);
         }
         const items = await itemsQuery.getItemsByCAMLQuery(spQuery);
-        if(items && items.length > 0) {
+        if (items && items.length > 0) {
             await this.Init();
-            results = items.map((r) => { 
-                return this.getItemFromRest(r); 
+            results = items.map((r) => {
+                return this.getItemFromRest(r);
             });
         }
         await this.populateLookups(results, linkedFields);
@@ -732,7 +732,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         let result = null;
         const selectFields = this.getOdataFieldNames();
         let itemsQuery = this.list.items.getById(id).select(...selectFields);
-        if(this.hasAttachments) {
+        if (this.hasAttachments) {
             itemsQuery = itemsQuery.expand(Constants.commonFields.attachments);
         }
         const temp = await itemsQuery.get();
@@ -754,10 +754,10 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         const result: Array<T> = [];
         const promises: Promise<Array<T>>[] = [];
         const copy = cloneDeep(ids);
-        while(copy.length > 0) {
+        while (copy.length > 0) {
             const sub = copy.splice(0, 2000);
             promises.push(this.get_Internal({
-                test:{
+                test: {
                     type: "predicate",
                     operator: TestOperator.In,
                     propertyName: "id",
@@ -768,8 +768,8 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         }
         const res = await UtilsService.runPromisesInStacks(promises, 3);
         for (const tmp of res) {
-            result.push(...tmp.filter(i=>{return i !== null && i!== undefined;}));
-        }        
+            result.push(...tmp.filter(i => { return i !== null && i !== undefined; }));
+        }
         await this.populateLookups(result, linkedFields);
         return result;
     }
@@ -782,26 +782,26 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         let results: Array<T> = [];
         const selectFields = this.getOdataFieldNames();
         let itemsQuery = this.list.items.select(...selectFields);
-        if(this.hasAttachments) {
+        if (this.hasAttachments) {
             itemsQuery = itemsQuery.expand(Constants.commonFields.attachments);
         }
         const items = await itemsQuery.getAll();
-        if(items && items.length > 0) {
+        if (items && items.length > 0) {
             await this.Init();
-            results = items.map((r) => { 
-                return this.getItemFromRest(r); 
+            results = items.map((r) => {
+                return this.getItemFromRest(r);
             });
         }
         await this.populateLookups(results, linkedFields);
         return results;
     }
 
-    public async addOrUpdateItem(item: T, loadLookups?: Array<string>): Promise<T>{        
+    public async addOrUpdateItem(item: T, loadLookups?: Array<string>): Promise<T> {
         this.updateInternalLinks(item, loadLookups);
         return super.addOrUpdateItem(item);
     }
 
-    public async addOrUpdateItems(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void, loadLookups?: Array<string>): Promise<Array<T>>{        
+    public async addOrUpdateItems(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void, loadLookups?: Array<string>): Promise<Array<T>> {
         items.forEach(item => this.updateInternalLinks(item, loadLookups));
         return super.addOrUpdateItems(items, onItemUpdated);
     }
@@ -816,14 +816,14 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         const selectFields = this.getOdataCommonFieldNames();
         if (item.id < 0) {
             const converted = await this.getSPRestItem(item);
-            const addResult = await this.list.items.select(...selectFields).add(converted);                    
-            await this.populateCommonFields(result, addResult.data);                   
-            await this.updateWssIds(result, addResult.data); 
-            if(item.id < -1) {
+            const addResult = await this.list.items.select(...selectFields).add(converted);
+            await this.populateCommonFields(result, addResult.data);
+            await this.updateWssIds(result, addResult.data);
+            if (item.id < -1) {
                 await this.updateLinksInDb(Number(item.id), Number(result.id));
             }
         }
-        else {            
+        else {
             // check version (cannot update if newer)
             if (item.version) {
                 const existing = await this.list.items.getById(item.id as number).select(Constants.commonFields.version).get();
@@ -835,8 +835,8 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 else {
                     const converted = await this.getSPRestItem(item);
                     const updateResult = await this.list.items.getById(item.id as number).select(...selectFields).update(converted);
-                    const version = await updateResult.item.select(...selectFields).get();                    
-                    await this.populateCommonFields(result, version);                    
+                    const version = await updateResult.item.select(...selectFields).get();
+                    await this.populateCommonFields(result, version);
                     await this.updateWssIds(result, version);
                 }
             }
@@ -844,7 +844,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 const converted = await this.getSPRestItem(item);
                 const updateResult = await this.list.items.getById(item.id as number).update(converted);
                 const version = await updateResult.item.select(...selectFields).get();
-                await this.populateCommonFields(result, version);                
+                await this.populateCommonFields(result, version);
                 await this.updateWssIds(result, version);
             }
         }
@@ -853,137 +853,137 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
 
     protected async addOrUpdateItems_Internal(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void): Promise<Array<T>> {
         const result = cloneDeep(items);
-        const itemsToAdd = result.filter((item) =>{
+        const itemsToAdd = result.filter((item) => {
             return item.id < 0;
         });
-        const versionedItems = result.filter((item) =>{
+        const versionedItems = result.filter((item) => {
             return item.version !== undefined && item.version !== null && item.id > 0;
         });
-        const updatedItems = result.filter((item) =>{
+        const updatedItems = result.filter((item) => {
             return (item.version === undefined || item.version === null) && item.id > 0;
         });
 
         await this.initFields();
         const selectFields = this.getOdataCommonFieldNames();
         // creation batch
-        if(itemsToAdd.length > 0) {
+        if (itemsToAdd.length > 0) {
             let idx = 0;
             const batches = [];
-            while(itemsToAdd.length > 0) {
-                const sub = itemsToAdd.splice(0,100);
+            while (itemsToAdd.length > 0) {
+                const sub = itemsToAdd.splice(0, 100);
                 const batch = sp.createBatch();
                 for (const item of sub) {
                     const currentIdx = idx;
                     const itemId = item.id;
                     const converted = await this.getSPRestItem(item);
                     this.list.items.select(...selectFields).inBatch(batch).add(converted).then(async (addResult) => {
-                        await this.populateCommonFields(item, addResult.data);               
-                        await this.updateWssIds(item, addResult.data); 
-                        if(itemId < -1) {
+                        await this.populateCommonFields(item, addResult.data);
+                        await this.updateWssIds(item, addResult.data);
+                        if (itemId < -1) {
                             await this.updateLinksInDb(Number(itemId), Number(item.id));
                         }
-                        if(onItemUpdated) {
+                        if (onItemUpdated) {
                             onItemUpdated(items[currentIdx], item);
                         }
                     }).catch((error) => {
-                        item.error = error;                        
-                        if(onItemUpdated) {
+                        item.error = error;
+                        if (onItemUpdated) {
                             onItemUpdated(items[currentIdx], item);
                         }
-                    });                    
+                    });
                     idx++;
                 }
                 batches.push(batch);
-            }   
-            await UtilsService.runBatchesInStacks(batches, 3);   
+            }
+            await UtilsService.runBatchesInStacks(batches, 3);
         }
         // versionned batch
-        if(versionedItems.length > 0) {
+        if (versionedItems.length > 0) {
             let idx = 0;
             const batches = [];
-            while(versionedItems.length > 0) {
-                const sub = versionedItems.splice(0,100);
+            while (versionedItems.length > 0) {
+                const sub = versionedItems.splice(0, 100);
                 const batch = sp.createBatch();
                 for (const item of sub) {
                     const currentIdx = idx;
-                    this.list.items.getById(item.id as number).select(Constants.commonFields.version).inBatch(batch).get().then(async (existing) =>{
+                    this.list.items.getById(item.id as number).select(Constants.commonFields.version).inBatch(batch).get().then(async (existing) => {
                         if (parseFloat(existing[Constants.commonFields.version]) > item.version) {
                             const error = new Error(ServicesConfiguration.configuration.translations.versionHigherErrorMessage);
                             error.name = Constants.Errors.ItemVersionConfict;
-                            item.error = error;                                                   
-                            if(onItemUpdated) {
+                            item.error = error;
+                            if (onItemUpdated) {
                                 onItemUpdated(items[currentIdx], item);
                             }
                         }
                         else {
                             updatedItems.push(item);
-                        } 
+                        }
                     }).catch((error) => {
-                        item.error = error;                         
-                        if(onItemUpdated) {
+                        item.error = error;
+                        if (onItemUpdated) {
                             onItemUpdated(items[currentIdx], item);
                         }
-                    });  
-                    idx++;         
+                    });
+                    idx++;
                 }
                 batches.push(batch);
-            }               
-            await UtilsService.runBatchesInStacks(batches, 3); 
+            }
+            await UtilsService.runBatchesInStacks(batches, 3);
         }
         // 
         const resultItems = [];
         // classical update batch + version checked
-        if(updatedItems.length > 0) {
+        if (updatedItems.length > 0) {
             let idx = 0;
             const batches = [];
-            while(updatedItems.length > 0) {
-                const sub = updatedItems.splice(0,100);
+            while (updatedItems.length > 0) {
+                const sub = updatedItems.splice(0, 100);
                 const batch = sp.createBatch();
                 for (const item of sub) {
                     const currentIdx = idx;
                     const converted = await this.getSPRestItem(item);
-                    this.list.items.getById(item.id as number).select(...selectFields).inBatch(batch).update(converted).then(async () =>{
-                        resultItems.push(item);                        
-                    
+                    this.list.items.getById(item.id as number).select(...selectFields).inBatch(batch).update(converted).then(async () => {
+                        resultItems.push(item);
+
                     }).catch((error) => {
-                        item.error = error;                                                  
-                        if(onItemUpdated) {
+                        item.error = error;
+                        if (onItemUpdated) {
                             onItemUpdated(items[currentIdx], item);
                         }
-                    }); 
-                    idx++;          
+                    });
+                    idx++;
                 }
                 batches.push(batch);
-            }               
-            await UtilsService.runBatchesInStacks(batches, 3);        
+            }
+            await UtilsService.runBatchesInStacks(batches, 3);
         }
         // update properties
-        if(updatedItems.length > 0) {
+        if (updatedItems.length > 0) {
             let idx = 0;
             const batches = [];
-            while(updatedItems.length > 0) {
-                const sub = updatedItems.splice(0,100);
+            while (updatedItems.length > 0) {
+                const sub = updatedItems.splice(0, 100);
                 const batch = sp.createBatch();
-                for (const item of sub) {                    
+                for (const item of sub) {
                     const currentIdx = idx;
-                    this.list.items.getById(item.id as number).select(...selectFields).inBatch(batch).get().then(async (version) =>{
-                        await this.populateCommonFields(item, version);                    
-                        await this.updateWssIds(item, version);                                                     
-                        if(onItemUpdated) {
-                            onItemUpdated(items[currentIdx], item);
-                        }                       
-                    
-                    }).catch((error) => {
-                        item.error = error;                                                  
-                        if(onItemUpdated) {
+                    this.list.items.getById(item.id as number).select(...selectFields).inBatch(batch).get().then(async (version) => {
+                        await this.populateCommonFields(item, version);
+                        await this.updateWssIds(item, version);
+                        if (onItemUpdated) {
                             onItemUpdated(items[currentIdx], item);
                         }
-                    });  
-                    idx++;          
+
+                    }).catch((error) => {
+                        item.error = error;
+                        if (onItemUpdated) {
+                            onItemUpdated(items[currentIdx], item);
+                        }
+                    });
+                    idx++;
                 }
                 batches.push(batch);
-            }               
-            await UtilsService.runBatchesInStacks(batches, 3);        
+            }
+            await UtilsService.runBatchesInStacks(batches, 3);
         }
         return result;
     }
@@ -1003,43 +1003,43 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
 
     public async cacheAttachmentsContent(): Promise<void> {
         const prop = this.attachmentProperty;
-        if(prop !== null) {
+        if (prop !== null) {
             let load = true;
             if (ServicesConfiguration.configuration.checkOnline) {
                 load = await UtilsService.CheckOnline();
             }
-            if(load) {
+            if (load) {
                 const updatedItems: T[] = [];
                 const operations: Promise<void>[] = [];
                 const items = await this.dbService.getAll();
                 for (const item of items) {
                     const mapped = await this.mapItems([item]);
                     const converted = mapped.shift();
-                    if(converted[prop] && converted[prop].length > 0) {
+                    if (converted[prop] && converted[prop].length > 0) {
                         updatedItems.push(converted);
                         converted[prop].forEach(attachment => {
                             operations.push(this.getAttachmentContent(attachment));
                         });
                     }
-                    
+
                 }
                 operations.map(operation => {
-                    return operation;                  
-                }).reduce((chain, operation) => {                  
-                    return chain.then(() => {return operation;});                  
-                }, Promise.resolve()).then(async() => {
+                    return operation;
+                }).reduce((chain, operation) => {
+                    return chain.then(() => { return operation; });
+                }, Promise.resolve()).then(async () => {
 
-                    if(updatedItems.length > 0) {
+                    if (updatedItems.length > 0) {
                         const dbitems = await Promise.all(updatedItems.map((u) => {
                             return this.convertItemToDbFormat(u);
                         }));
                         await this.dbService.addOrUpdateItems(dbitems);
                     }
                 });
-                
+
             }
         }
-        
+
     }
     /************************** Query filters ***************************/
 
@@ -1050,16 +1050,16 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         return this.attachmentProperty !== null;
     }
 
-    private get attachmentProperty(): string {   
-        let result: string = null;     
+    private get attachmentProperty(): string {
+        let result: string = null;
         const fields = this.ItemFields;
         for (const key in fields) {
             if (fields.hasOwnProperty(key)) {
                 const fieldDesc = fields[key];
-                if(fieldDesc.fieldName === Constants.commonFields.attachments) {
+                if (fieldDesc.fieldName === Constants.commonFields.attachments) {
                     result = key;
                     break;
-                }               
+                }
             }
         }
         return result;
@@ -1070,11 +1070,11 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
      */
     private getOdataFieldNames(): Array<string> {
         const fields = this.ItemFields;
-        const fieldNames = Object.keys(fields).filter((propertyName) => { 
-            return fields.hasOwnProperty(propertyName); 
+        const fieldNames = Object.keys(fields).filter((propertyName) => {
+            return fields.hasOwnProperty(propertyName);
         }).map((prop) => {
             let result: string = fields[prop].fieldName;
-            switch(fields[prop].fieldType) {
+            switch (fields[prop].fieldType) {
                 case FieldType.Lookup:
                 case FieldType.LookupMulti:
                 case FieldType.User:
@@ -1092,58 +1092,58 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
     private getOdataCommonFieldNames(): Array<string> {
         const fields = this.ItemFields;
         const fieldNames = [Constants.commonFields.version];
-        Object.keys(fields).filter((propertyName) => { 
-            return fields.hasOwnProperty(propertyName); 
+        Object.keys(fields).filter((propertyName) => {
+            return fields.hasOwnProperty(propertyName);
         }).forEach((prop) => {
             const fieldName = fields[prop].fieldName;
-            if(fieldName  === Constants.commonFields.author ||
-                fieldName  === Constants.commonFields.created ||
-                fieldName  === Constants.commonFields.editor ||
-                fieldName  === Constants.commonFields.modified) {
-                    let result: string = fields[prop].fieldName;
-                    switch(fields[prop].fieldType) {
-                        case FieldType.Lookup:
-                        case FieldType.LookupMulti:
-                        case FieldType.User:
-                        case FieldType.UserMulti:
-                            result += "Id";
-                            break;
-                        default:
-                            break;
-                    }
-                    fieldNames.push(result);
+            if (fieldName === Constants.commonFields.author ||
+                fieldName === Constants.commonFields.created ||
+                fieldName === Constants.commonFields.editor ||
+                fieldName === Constants.commonFields.modified) {
+                let result: string = fields[prop].fieldName;
+                switch (fields[prop].fieldType) {
+                    case FieldType.Lookup:
+                    case FieldType.LookupMulti:
+                    case FieldType.User:
+                    case FieldType.UserMulti:
+                        result += "Id";
+                        break;
+                    default:
+                        break;
                 }
+                fieldNames.push(result);
+            }
         });
         return fieldNames;
     }
 
     protected async populateCommonFields(item, restItem): Promise<void> {
-        if(item.id < 0) {
+        if (item.id < 0) {
             // update id
             item.id = restItem.Id;
         }
-        if(restItem[Constants.commonFields.version]) {
+        if (restItem[Constants.commonFields.version]) {
             item.version = parseFloat(restItem[Constants.commonFields.version]);
         }
         const fields = this.ItemFields;
         await Promise.all(Object.keys(fields).filter((propertyName) => {
-            if(fields.hasOwnProperty(propertyName)) {                
+            if (fields.hasOwnProperty(propertyName)) {
                 const fieldName = fields[propertyName].fieldName;
-                return (fieldName  === Constants.commonFields.author ||
-                    fieldName  === Constants.commonFields.created ||
-                    fieldName  === Constants.commonFields.editor ||
-                    fieldName  === Constants.commonFields.modified);
+                return (fieldName === Constants.commonFields.author ||
+                    fieldName === Constants.commonFields.created ||
+                    fieldName === Constants.commonFields.editor ||
+                    fieldName === Constants.commonFields.modified);
             }
         }).map(async (prop) => {
-            const fieldName = fields[prop].fieldName;            
-            switch(fields[prop].fieldType) {
+            const fieldName = fields[prop].fieldName;
+            switch (fields[prop].fieldType) {
                 case FieldType.Date:
                     item[prop] = new Date(restItem[fieldName]);
                     break;
                 case FieldType.User:
                     const id = restItem[fieldName + "Id"];
                     let user = null;
-                    if(this.initialized) {
+                    if (this.initialized) {
                         const users = this.getServiceInitValues(User["name"]);
                         user = find(users, (u) => { return u.id === id; });
                     }
@@ -1160,7 +1160,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         }));
 
     }
-    
+
 
 
     /**
@@ -1174,57 +1174,57 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         for (const propertyName in this.ItemFields) {
             if (this.ItemFields.hasOwnProperty(propertyName)) {
                 const fieldDescriptor = this.ItemFields[propertyName];
-                switch(fieldDescriptor.fieldType) {
-                    case FieldType.User:           
-                    case FieldType.Taxonomy:       
-                        if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                switch (fieldDescriptor.fieldType) {
+                    case FieldType.User:
+                    case FieldType.Taxonomy:
+                        if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                             //link defered
-                            if(converted[propertyName]) {
+                            if (converted[propertyName]) {
                                 convertedResult.__setInternalLinks(propertyName, converted[propertyName].id);
                             }
                             delete convertedResult[propertyName];
                         }
                         break;
-                    case FieldType.UserMulti:            
-                    case FieldType.TaxonomyMulti:                      
-                        if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {  
+                    case FieldType.UserMulti:
+                    case FieldType.TaxonomyMulti:
+                        if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                             const ids = [];
-                            if(converted[propertyName]) {
+                            if (converted[propertyName]) {
                                 converted[propertyName].forEach(element => {
-                                    if(element.id) {
-                                        if((typeof(element.id) === "number" && element.id > 0) || (typeof(element.id) === "string" && !stringIsNullOrEmpty(element.id))) {
+                                    if (element.id) {
+                                        if ((typeof (element.id) === "number" && element.id > 0) || (typeof (element.id) === "string" && !stringIsNullOrEmpty(element.id))) {
                                             ids.push(element.id);
                                         }
                                     }
                                 });
-                            }     
-                            convertedResult.__setInternalLinks(propertyName, ids.length > 0 ? ids : []);                            
+                            }
+                            convertedResult.__setInternalLinks(propertyName, ids.length > 0 ? ids : []);
                             delete convertedResult[propertyName];
                         }
-                        break;                         
-                    case FieldType.Lookup:  
+                        break;
+                    case FieldType.Lookup:
                     case FieldType.LookupMulti:
                         // internal links allready updated before (used for rest calls)
-                        if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                        if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                             delete convertedResult[propertyName];
                             convertedResult.__setInternalLinks(propertyName, converted.__getInternalLinks(propertyName));
                         }
                         break;
                     default:
-                        if(fieldDescriptor.fieldName === Constants.commonFields.attachments) {
+                        if (fieldDescriptor.fieldName === Constants.commonFields.attachments) {
                             let ids = [];
-                            if(converted[propertyName] && converted[propertyName].length > 0) {
+                            if (converted[propertyName] && converted[propertyName].length > 0) {
                                 const files = await this.attachmentsService.addOrUpdateItems(converted[propertyName]);
                                 ids = files.map((f) => {
                                     return f.id;
                                 });
-                            }                          
-                            convertedResult.__setInternalLinks(propertyName, ids.length > 0 ? ids : []);                            
+                            }
+                            convertedResult.__setInternalLinks(propertyName, ids.length > 0 ? ids : []);
                             delete convertedResult[propertyName];
                         }
-                        break;                    
+                        break;
                 }
-                
+
             }
         }
         return result;
@@ -1234,26 +1234,26 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
      * populate item from db storage
      * @param item - db item with links in internalLinks fields
      */
-    public async mapItems(items: Array<T>, linkedFields?: Array<string>): Promise<Array<T>> {        
+    public async mapItems(items: Array<T>, linkedFields?: Array<string>): Promise<Array<T>> {
         const results: Array<T> = [];
-        if(items && items.length > 0) {
+        if (items && items.length > 0) {
             await this.Init();
             for (const item of items) {
                 const converted = item as unknown as SPItem;
                 const result: T = cloneDeep(item);
-                const convertedResult= result as unknown as SPItem;
-                if(item) {
+                const convertedResult = result as unknown as SPItem;
+                if (item) {
                     for (const propertyName in this.ItemFields) {
                         if (this.ItemFields.hasOwnProperty(propertyName)) {
                             const fieldDescriptor = this.ItemFields[propertyName];
-                            if(//fieldDescriptor.fieldType === FieldType.Lookup ||
+                            if (//fieldDescriptor.fieldType === FieldType.Lookup ||
                                 fieldDescriptor.fieldType === FieldType.User ||
                                 fieldDescriptor.fieldType === FieldType.Taxonomy) {
-                                if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                                if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                                     // get values from init values
                                     const id: number = converted.__getInternalLinks(propertyName);
-                                    if(id !== null) {
-                                        const destElements = this.getServiceInitValues(fieldDescriptor.modelName);                        
+                                    if (id !== null) {
+                                        const destElements = this.getServiceInitValues(fieldDescriptor.modelName);
                                         const existing = find(destElements, (destElement) => {
                                             return destElement.id === id;
                                         });
@@ -1262,54 +1262,54 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                                     else {
                                         convertedResult[propertyName] = fieldDescriptor.defaultValue;
                                     }
-                                }   
+                                }
                                 convertedResult.__deleteInternalLinks(propertyName);
                             }
-                            else if(//fieldDescriptor.fieldType === FieldType.LookupMulti ||
+                            else if (//fieldDescriptor.fieldType === FieldType.LookupMulti ||
                                 fieldDescriptor.fieldType === FieldType.UserMulti ||
                                 fieldDescriptor.fieldType === FieldType.TaxonomyMulti) {
-                                if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {    
+                                if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                                     // get values from init values
                                     const ids = converted.__getInternalLinks(propertyName) || [];
-                                    if(ids.length > 0) {
+                                    if (ids.length > 0) {
                                         const val = [];
                                         const targetItems = this.getServiceInitValues(fieldDescriptor.modelName);
                                         ids.forEach(id => {
                                             const existing = find(targetItems, (tmpitem) => {
                                                 return tmpitem.id === id;
                                             });
-                                            if(existing) {
+                                            if (existing) {
                                                 val.push(existing);
-                                            } 
+                                            }
                                         });
                                         convertedResult[propertyName] = val;
                                     }
                                     else {
                                         convertedResult[propertyName] = fieldDescriptor.defaultValue;
                                     }
-                                }                    
+                                }
                                 convertedResult.__deleteInternalLinks(propertyName);
                             }
                             else {
-                                if(fieldDescriptor.fieldName === Constants.commonFields.attachments) {
+                                if (fieldDescriptor.fieldName === Constants.commonFields.attachments) {
                                     // get values from init values
                                     const urls = converted.__getInternalLinks(propertyName) || [];
-                                    if(urls.length > 0) {
+                                    if (urls.length > 0) {
                                         const files = await this.attachmentsService.getItemsById(urls);
                                         convertedResult[propertyName] = files;
-                                    }                            
+                                    }
                                     else {
                                         convertedResult[propertyName] = fieldDescriptor.defaultValue;
-                                    }                        
+                                    }
                                     convertedResult.__deleteInternalLinks(propertyName);
                                 }
                                 else {
-                                    convertedResult[propertyName] = converted[propertyName] ;
+                                    convertedResult[propertyName] = converted[propertyName];
                                 }
-                            }       
+                            }
                         }
-                    }      
-                }  
+                    }
+                }
                 convertedResult.__clearEmptyInternalLinks();
                 results.push(result);
             }
@@ -1317,7 +1317,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         await this.populateLookups(results, linkedFields);
         return results;
     }
-    
+
     public async updateLinkedTransactions(oldId: number, newId: number, nextTransactions: Array<OfflineTransaction>): Promise<Array<OfflineTransaction>> {
         // Update items pointing to this in transactions
         nextTransactions.forEach(transaction => {
@@ -1329,48 +1329,48 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
             for (const propertyName in fields) {
                 if (fields.hasOwnProperty(propertyName)) {
                     const fieldDescription: IFieldDescriptor = fields[propertyName];
-                    if(fieldDescription.refItemName === this.itemType["name"] || fieldDescription.modelName === this.itemType["name"]) {
+                    if (fieldDescription.refItemName === this.itemType["name"] || fieldDescription.modelName === this.itemType["name"]) {
                         // get object if not done yet
-                        if(!currentObject) {
+                        if (!currentObject) {
                             const destType = ServicesConfiguration.configuration.serviceFactory.getItemTypeByName(transaction.itemType);
                             currentObject = new destType();
                             assign(currentObject, transaction.itemData);
-                        }                        
-                        if(fieldDescription.fieldType === FieldType.Lookup) {
-                            if(fieldDescription.modelName) {
+                        }
+                        if (fieldDescription.fieldType === FieldType.Lookup) {
+                            if (fieldDescription.modelName) {
                                 // search in internalLinks
                                 const link = currentObject.__getInternalLinks(propertyName);
-                                if(link && link === oldId) {
+                                if (link && link === oldId) {
                                     currentObject.__setInternalLinks(propertyName, newId);
                                     needUpdate = true;
                                 }
                             }
-                            else if(currentObject[propertyName] === oldId){
+                            else if (currentObject[propertyName] === oldId) {
                                 // change field
                                 currentObject[propertyName] = newId;
                                 needUpdate = true;
                             }
                         }
                         else if (fieldDescription.fieldType === FieldType.LookupMulti) {
-                            if(fieldDescription.modelName) {
+                            if (fieldDescription.modelName) {
                                 // serch in internalLinks
                                 const links = currentObject.__getInternalLinks(propertyName);
-                                if(links && isArray(links)) {
+                                if (links && isArray(links)) {
                                     // find item
-                                    const lookupidx = findIndex(links, (id) => {return id === oldId;});
+                                    const lookupidx = findIndex(links, (id) => { return id === oldId; });
                                     // change id
-                                    if(lookupidx > -1) {
+                                    if (lookupidx > -1) {
                                         currentObject.__setInternalLinks(propertyName, newId);
                                         needUpdate = true;
                                     }
                                 }
                             }
-                            else if(currentObject[propertyName] && isArray(currentObject[propertyName])){
+                            else if (currentObject[propertyName] && isArray(currentObject[propertyName])) {
                                 // find index
-                                const lookupidx = findIndex(currentObject[propertyName], (id) => {return id === oldId;});
+                                const lookupidx = findIndex(currentObject[propertyName], (id) => { return id === oldId; });
                                 // change field
                                 // change id
-                                if(lookupidx > -1) {
+                                if (lookupidx > -1) {
                                     currentObject[propertyName] = newId;
                                     needUpdate = true;
                                 }
@@ -1378,122 +1378,122 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                         }
 
                     }
-                    
+
                 }
             }
-            if(needUpdate) {
+            if (needUpdate) {
                 transaction.itemData = assign({}, currentObject);
-                this.transactionService.addOrUpdateItem(transaction); 
+                this.transactionService.addOrUpdateItem(transaction);
             }
         });
         return nextTransactions;
     }
-    
-    private async updateLinksInDb(oldId: number, newId: number): Promise<void>{
+
+    private async updateLinksInDb(oldId: number, newId: number): Promise<void> {
         const allFields = assign({}, this.itemType["Fields"]);
         delete allFields[SPItem["name"]];
         delete allFields[this.itemType["name"]];
         for (const modelName in allFields) {
-            if (allFields.hasOwnProperty(modelName)) {     
-                const modelFields =  allFields[modelName];    
+            if (allFields.hasOwnProperty(modelName)) {
+                const modelFields = allFields[modelName];
                 const lookupProperties = Object.keys(modelFields).filter((prop) => {
                     return (modelFields[prop].refItemName &&
                         modelFields[prop].refItemName === this.itemType["name"] || modelFields[prop].modelName === this.itemType["name"]);
                 });
-                if(lookupProperties.length > 0) {
+                if (lookupProperties.length > 0) {
                     const service = ServicesConfiguration.configuration.serviceFactory.create(modelName);
                     const allitems = await service.__getAllFromCache();
                     const updated = [];
-                    allitems.forEach(element => { 
+                    allitems.forEach(element => {
                         const converted = element as unknown as SPItem;
-                        let needUpdate = false;                       
+                        let needUpdate = false;
                         lookupProperties.forEach(propertyName => {
-                            const fieldDescription = modelFields[propertyName];                
-                            if(fieldDescription.fieldType === FieldType.Lookup) {
-                                if(fieldDescription.modelName) {
+                            const fieldDescription = modelFields[propertyName];
+                            if (fieldDescription.fieldType === FieldType.Lookup) {
+                                if (fieldDescription.modelName) {
                                     // serch in internalLinks
                                     const link = converted.__getInternalLinks(propertyName);
-                                    if(link && link === oldId) {
+                                    if (link && link === oldId) {
                                         converted.__setInternalLinks(propertyName, newId);
                                         needUpdate = true;
                                     }
                                 }
-                                else if(converted[propertyName] === oldId){
+                                else if (converted[propertyName] === oldId) {
                                     // change field
                                     converted[propertyName] = newId;
                                     needUpdate = true;
                                 }
                             }
                             else if (fieldDescription.fieldType === FieldType.LookupMulti) {
-                                if(fieldDescription.modelName) {
+                                if (fieldDescription.modelName) {
                                     // search in internalLinks
                                     const links = converted.__getInternalLinks(propertyName);
-                                    if(links && isArray(links)) {
+                                    if (links && isArray(links)) {
                                         // find item
-                                        const lookupidx = findIndex(links, (id) => {return id === oldId;});
+                                        const lookupidx = findIndex(links, (id) => { return id === oldId; });
                                         // change id
-                                        if(lookupidx > -1) {
+                                        if (lookupidx > -1) {
                                             converted.__setInternalLinks(propertyName, newId);
                                             needUpdate = true;
                                         }
                                     }
                                 }
-                                else if(converted[propertyName] && isArray(converted[propertyName])){
+                                else if (converted[propertyName] && isArray(converted[propertyName])) {
                                     // find index
-                                    const lookupidx = findIndex(converted[propertyName], (id) => {return id === oldId;});
+                                    const lookupidx = findIndex(converted[propertyName], (id) => { return id === oldId; });
                                     // change field
                                     // change id
-                                    if(lookupidx > -1) {
+                                    if (lookupidx > -1) {
                                         converted[propertyName] = newId;
                                         needUpdate = true;
                                     }
                                 }
                             }
                         });
-                        if(needUpdate) {
+                        if (needUpdate) {
                             updated.push(converted);
                         }
                     });
-                    if(updated.length > 0) {
+                    if (updated.length > 0) {
                         await service.__updateCache(...updated);
                     }
                 }
             }
         }
-        
+
     }
 
-    
+
     private async updateWssIds(item: T, spItem: any): Promise<void> {
         // if taxonomy field, store wssid in db (add or update) --> service + this.init
         const fields = this.ItemFields;
         // serch for Taxonomy fields
         for (const propertyName in fields) {
-            if (fields.hasOwnProperty(propertyName)) {     
-                           
+            if (fields.hasOwnProperty(propertyName)) {
+
                 const fieldDescription: IFieldDescriptor = fields[propertyName];
-                if(fieldDescription.fieldType === FieldType.Taxonomy) {
+                if (fieldDescription.fieldType === FieldType.Taxonomy) {
                     let needUpdate = false;
                     // get wssid from item
                     const wssid = spItem[fieldDescription.fieldName] ? spItem[fieldDescription.fieldName].WssId : -1;
-                    if(wssid !== -1) {
+                    if (wssid !== -1) {
                         const id = item[propertyName].id;
                         // find corresponding object in service
                         const service = ServicesConfiguration.configuration.serviceFactory.create(fieldDescription.modelName);
                         const term = await service.__getFromCache(id);
-                        if(term instanceof TaxonomyTerm) {
-                        term.wssids = term.wssids || [];
-                            if(term.wssids.indexOf(wssid) === -1) {
+                        if (term instanceof TaxonomyTerm) {
+                            term.wssids = term.wssids || [];
+                            if (term.wssids.indexOf(wssid) === -1) {
                                 term.wssids.push(wssid);
                                 needUpdate = true;
                             }
                         }
-                        if(needUpdate) {
+                        if (needUpdate) {
                             await service.__updateCache(term);
                             // update initValues
-                            if(this.initialized) {
+                            if (this.initialized) {
                                 const idx = findIndex(this.initValues[fieldDescription.modelName], (t: any) => { return t.id === id; });
-                                if(idx !== -1) {
+                                if (idx !== -1) {
                                     this.initValues[fieldDescription.modelName][idx] = term;
                                 }
                             }
@@ -1502,45 +1502,45 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 }
                 else if (fieldDescription.fieldType === FieldType.TaxonomyMulti) {
                     const updated = [];
-                    const terms = spItem[fieldDescription.fieldName] ? spItem[fieldDescription.fieldName].results : [];     
-                    const service = ServicesConfiguration.configuration.serviceFactory.create(fieldDescription.modelName);              
-                    if(terms && terms.length > 0) {
+                    const terms = spItem[fieldDescription.fieldName] ? spItem[fieldDescription.fieldName].results : [];
+                    const service = ServicesConfiguration.configuration.serviceFactory.create(fieldDescription.modelName);
+                    if (terms && terms.length > 0) {
                         await Promise.all(terms.map(async (termitem) => {
                             const wssid = termitem.WssId;
                             const id = termitem.TermGuid;
                             // find corresponding object in allready updated
-                            let term = find(updated, (u) => {return u.id === id;});
-                            if(!term) {
+                            let term = find(updated, (u) => { return u.id === id; });
+                            if (!term) {
                                 term = await service.__getFromCache(id);
                             }
-                            if(term instanceof TaxonomyTerm) {                           
+                            if (term instanceof TaxonomyTerm) {
                                 term.wssids = term.wssids || [];
-                                if(term.wssids.indexOf(wssid) === -1) {
+                                if (term.wssids.indexOf(wssid) === -1) {
                                     term.wssids.push(wssid);
-                                    if(!find(updated, (u) => {return u.id === id;})) {
+                                    if (!find(updated, (u) => { return u.id === id; })) {
                                         updated.push(term);
                                     }
                                 }
                             }
                         }));
                     }
-                    if(updated.length > 0) {
+                    if (updated.length > 0) {
                         await service.__updateCache(...updated);
                         // update initValues
-                        if(this.initialized) {
+                        if (this.initialized) {
                             updated.forEach((u) => {
                                 const idx = findIndex(this.initValues[fieldDescription.modelName], (t: any) => { return t.id === u.id; });
-                                if(idx !== -1) {
+                                if (idx !== -1) {
                                     this.initValues[fieldDescription.modelName][idx] = u;
                                 }
-                            });      
-                        }                  
+                            });
+                        }
                     }
                 }
             }
         }
     }
-    
+
 
     private getCamlQuery(query: IQuery): CamlQuery {
         const result: CamlQuery = {
@@ -1552,7 +1552,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 ${query.limit !== undefined ? `<RowLimit>${query.limit}</RowLimit>` : ""}
             </View>`
         };
-        if(query.lastId !== undefined) {
+        if (query.lastId !== undefined) {
             result.ListItemCollectionPosition = {
                 "PagingInfo": "Paged=TRUE&p_ID=" + query.lastId
             };
@@ -1562,9 +1562,9 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
 
     private getOrderBy(query: IQuery): string {
         let result = "";
-        if(query.orderBy && query.orderBy.length > 0) {
-            result = 
-            result = `<OrderBy>
+        if (query.orderBy && query.orderBy.length > 0) {
+            result =
+                result = `<OrderBy>
                 ${query.orderBy.map(ob => this.getFieldRef(ob)).join('')}
             </OrderBy>`;
         }
@@ -1572,7 +1572,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
     }
     private getWhere(query: IQuery): string {
         let result = "";
-        if(query.test) {
+        if (query.test) {
             result = `<Where>
                 ${query.test.type === "predicate" ? this.getPredicate(query.test) : this.getLogicalSequence(query.test)}
             </Where>`;
@@ -1580,29 +1580,32 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         return result;
     }
     private getLogicalSequence(sequence: ILogicalSequence): string {
-        if(!sequence.children || sequence.children.length === 0) {
+
+        let cloneSequence = cloneDeep(sequence)
+
+        if (!cloneSequence.children || cloneSequence.children.length === 0) {
             return "";
         }
-        if(sequence.children.length === 1) {
-            if(sequence.children[0].type === "predicate") {
-                return this.getPredicate(sequence.children[0]);
+        if (cloneSequence.children.length === 1) {
+            if (cloneSequence.children[0].type === "predicate") {
+                return this.getPredicate(cloneSequence.children[0]);
             }
             else {
-                return this.getLogicalSequence(sequence.children[0]);
+                return this.getLogicalSequence(cloneSequence.children[0]);
             }
         }
         else {
             // first part
-            let result = `<${sequence.operator}>`;
-            if(sequence.children[0].type === "predicate") {
-                result += this.getPredicate(sequence.children[0]);
+            let result = `<${cloneSequence.operator}>`;
+            if (cloneSequence.children[0].type === "predicate") {
+                result += this.getPredicate(cloneSequence.children[0]);
             }
             else {
-                result += this.getLogicalSequence(sequence.children[0]);
+                result += this.getLogicalSequence(cloneSequence.children[0]);
             }
-            sequence.children.splice(0,1);
-            result += this.getLogicalSequence(sequence);
-            result += `</${sequence.operator}>`;
+            cloneSequence.children.splice(0, 1);
+            result += this.getLogicalSequence(cloneSequence);
+            result += `</${cloneSequence.operator}>`;
             return result;
         }
     }
@@ -1615,10 +1618,10 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 result = `<${predicate.operator}>
                     ${this.getFieldRef(predicate)}
                 </${predicate.operator}>`;
-                break;    
+                break;
             case TestOperator.In:
-                if(predicate.value && isArray(predicate.value) && predicate.value.length > 0) {
-                    if(predicate.value.length <= 500) {
+                if (predicate.value && isArray(predicate.value) && predicate.value.length > 0) {
+                    if (predicate.value.length <= 500) {
                         return `<${predicate.operator}>
                             ${this.getFieldRef(predicate)}
                             <Values>
@@ -1633,8 +1636,8 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                             children: []
                         };
                         const copy = predicate.value;
-                        while(copy.length) {
-                            const subValues = copy.splice(0,500);
+                        while (copy.length) {
+                            const subValues = copy.splice(0, 500);
                             transformed.children.push({
                                 type: "predicate",
                                 operator: TestOperator.In,
@@ -1656,7 +1659,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                     </${predicate.operator}>`;
                 }
 
-                break;    
+                break;
             default:
                 result = `<${predicate.operator}>
                     ${this.getFieldRef(predicate)}
@@ -1670,8 +1673,8 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         let result = "";
         const fields = this.ItemFields;
         const field = fields[obj.propertyName];
-        if(field) {    
-            result = `<FieldRef Name="${field.fieldName}"${obj.type === "predicate" && obj.lookupId ? " LookupId=\"TRUE\"" : ""}${obj.type === "predicate" && obj.includeTimeValue !== undefined ? (" IncludeTimeValue=\"" + (obj.includeTimeValue ? "TRUE" : "FALSE") + "\"") : ""}${obj.type === "orderby" && obj.ascending !== undefined && ! obj.ascending ? " Ascending=\"FALSE\"" : ""} />`;
+        if (field) {
+            result = `<FieldRef Name="${field.fieldName}"${obj.type === "predicate" && obj.lookupId ? " LookupId=\"TRUE\"" : ""}${obj.type === "predicate" && obj.includeTimeValue !== undefined ? (" IncludeTimeValue=\"" + (obj.includeTimeValue ? "TRUE" : "FALSE") + "\"") : ""}${obj.type === "orderby" && obj.ascending !== undefined && !obj.ascending ? " Ascending=\"FALSE\"" : ""} />`;
         }
         else {
             throw new Error("Field was not found : " + obj.propertyName);
@@ -1682,70 +1685,70 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         let result = "";
         const fields = this.ItemFields;
         const field = fields[propertyName];
-        if(field) {    
+        if (field) {
             let type = "";
             let value = "";
             switch (field.fieldType) {
                 case FieldType.Simple:
-                    if(typeof(fieldValue) === "number") {
-                        type = "Number";       
-                        value = fieldValue.toString();       
+                    if (typeof (fieldValue) === "number") {
+                        type = "Number";
+                        value = fieldValue.toString();
                     }
-                    else if(typeof(fieldValue) === "boolean") {
-                        type= "Boolean";
+                    else if (typeof (fieldValue) === "boolean") {
+                        type = "Boolean";
                         value = fieldValue ? "1" : "0";
-                    }          
+                    }
                     else {
-                        type="Text"; 
-                        value = fieldValue.toString(); 
-                    }                     
+                        type = "Text";
+                        value = fieldValue.toString();
+                    }
                     break;
                 case FieldType.Date:
                     type = "DateTime";
-                    if(fieldValue === QueryToken.Now || fieldValue === QueryToken.Today) {
+                    if (fieldValue === QueryToken.Now || fieldValue === QueryToken.Today) {
                         value = `<${fieldValue}/>`;
                     }
                     else {
                         value = fieldValue.toISOString().replace(/\.\d+Z/g, "Z");
                     }
-                    break;                
+                    break;
                 case FieldType.Json:
-                    type= "Text";
+                    type = "Text";
                     value = JSON.stringify(fieldValue);
-                    break;               
+                    break;
                 case FieldType.Lookup:
                 case FieldType.LookupMulti:
-                    type = lookupID ? "Integer" : "Lookup"; 
-                    value = fieldValue.toString();            
-                    break;               
+                    type = lookupID ? "Integer" : "Lookup";
+                    value = fieldValue.toString();
+                    break;
                 case FieldType.Taxonomy:
                 case FieldType.TaxonomyMulti:
                     type = lookupID ? "Integer" : "Text";
-                    value = fieldValue.toString();   
-                    break;               
+                    value = fieldValue.toString();
+                    break;
                 case FieldType.User:
                 case FieldType.UserMulti:
                     type = fieldValue === QueryToken.UserID ? "Integer" : "User";
-                    if(fieldValue === QueryToken.UserID) {
+                    if (fieldValue === QueryToken.UserID) {
                         value = `<${fieldValue}/>`;
                     }
-                    else {                        
-                        value = fieldValue.toString();   
+                    else {
+                        value = fieldValue.toString();
                     }
                     break;
                 default:
-                    if(typeof(fieldValue) === "number") {
-                        type = "Number";       
-                        value = fieldValue.toString();       
+                    if (typeof (fieldValue) === "number") {
+                        type = "Number";
+                        value = fieldValue.toString();
                     }
-                    else if(typeof(fieldValue) === "boolean") {
-                        type= "Boolean";
+                    else if (typeof (fieldValue) === "boolean") {
+                        type = "Boolean";
                         value = fieldValue ? "1" : "0";
-                    }          
+                    }
                     else {
-                        type="Text"; 
-                        value = fieldValue.toString(); 
-                    }        
+                        type = "Text";
+                        value = fieldValue.toString();
+                    }
                     break;
             }
             result = `<Value Type="${type}">${value}</Value>`;
