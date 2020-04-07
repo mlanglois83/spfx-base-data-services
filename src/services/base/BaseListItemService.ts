@@ -739,9 +739,9 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         if (temp) {
             await this.Init();
             result = this.getItemFromRest(temp);
-            return result;
+            await this.populateLookups([result], linkedFields);
         }
-        await this.populateLookups([result], linkedFields);
+
         return result;
     }
 

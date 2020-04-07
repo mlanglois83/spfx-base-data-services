@@ -101,7 +101,7 @@ export class UtilsService extends BaseService {
         return joined.buffer;
     }
 
-    
+
 
     /**
      * Escapes a string for use in a regex
@@ -148,29 +148,29 @@ export class UtilsService extends BaseService {
      */
     public static getCamlInQuery(fieldName: string, fieldType: string, values: Array<number | string>, isLookup = false): string {
         const copy = cloneDeep(values);
-        if(copy &&  copy.length > 0) {
+        if (copy && copy.length > 0) {
             const orClauses = [];
-            while(copy.length) {
-                const subValues = copy.splice(0,500);
-                orClauses.push(`<In><FieldRef LookupId="${isLookup ? "TRUE": "FALSE"}" Name="${fieldName}"></FieldRef><Values>${subValues.map((value) => { return `<Value Type="${fieldType}">${value}</Value>`; }).join('')}</Values></In>`);
+            while (copy.length) {
+                const subValues = copy.splice(0, 500);
+                orClauses.push(`<In><FieldRef LookupId="${isLookup ? "TRUE" : "FALSE"}" Name="${fieldName}"></FieldRef><Values>${subValues.map((value) => { return `<Value Type="${fieldType}">${value}</Value>`; }).join('')}</Values></In>`);
             }
             return UtilsService.buildCAMLQueryRecursive("Or", orClauses);
         }
         else {
-            return `<In><FieldRef LookupId="${isLookup ? "TRUE": "FALSE"}" Name="${fieldName}"></FieldRef><Values><Value Type="${fieldType}">-1</Value></Values></In>`;
+            return `<In><FieldRef LookupId="${isLookup ? "TRUE" : "FALSE"}" Name="${fieldName}"></FieldRef><Values><Value Type="${fieldType}">-1</Value></Values></In>`;
         }
     }
     public static divideArray<T>(source: Array<T>, segments: number): Array<Array<T>> {
         if (segments < 2) {
             return [source];
         }
-      
+
         const len = source.length;
         const out: Array<Array<T>> = [];
-      
+
         let i = 0;
         let size: number;
-      
+
         if (len % segments === 0) {
             size = Math.floor(len / segments);
             while (i < len) {
@@ -183,7 +183,7 @@ export class UtilsService extends BaseService {
                 i += size;
                 segments -= 1;
             }
-        }      
+        }
         return out;
     }
     public static async runPromisesInStacks<T>(promises: Promise<T>[], stackCount: number): Promise<T[]> {
@@ -194,20 +194,20 @@ export class UtilsService extends BaseService {
         }));
         results.forEach((r) => {
             result.push(...r);
-        });        
+        });
         return result;
     }
 
     public static async chainPromises<T>(promises: Promise<T>[]): Promise<T[]> {
         const result: T[] = [];
-        while(promises.length > 0) {
+        while (promises.length > 0) {
             const currentPromise = promises.shift();
             const currentResult = await currentPromise;
             result.push(currentResult);
         }
         return result;
     }
-    public static async runBatchesInStacks(batches: ODataBatch[], stackCount: number): Promise<void> {        
+    public static async runBatchesInStacks(batches: ODataBatch[], stackCount: number): Promise<void> {
         const segments = UtilsService.divideArray(batches, stackCount);
         await Promise.all(segments.map((s) => {
             return UtilsService.chainBatches(s);
@@ -215,7 +215,7 @@ export class UtilsService extends BaseService {
     }
 
     public static async chainBatches(batches: ODataBatch[]): Promise<void> {
-        while(batches.length > 0) {
+        while (batches.length > 0) {
             const currentBatch = batches.shift();
             await currentBatch.execute();
         }
@@ -223,20 +223,21 @@ export class UtilsService extends BaseService {
 
     public static getTermPathPartString(term: TaxonomyTerm, allTerms: Array<TaxonomyTerm>, level: number): string {
         const parts = term.path.split(";");
-        if(parts.length - level <= 1) {
+        if (parts.length - level <= 1) {
             return "";
         }
         else {
-            const subParts = parts.slice(0,level+1);
+            const subParts = parts.slice(0, level + 1);
             const currentPath = subParts.join(";");
-            const refTerm = find(allTerms, {path: currentPath});
+            const refTerm = find(allTerms, { path: currentPath });
             return refTerm.title;
         }
     }
 
+
     public static getTermFullPathString(term: TaxonomyTerm, allTerms: Array<TaxonomyTerm>, baseLevel = 0): string {
         const parts = term.path.split(";");
-        if(parts.length - baseLevel <= 1) {
+        if (parts.length - baseLevel <= 1) {
             return term.title;
         }
         else {
@@ -245,14 +246,20 @@ export class UtilsService extends BaseService {
             for (let index = 0; index < parts.length - 1; index++) {
                 const part = parts[index];
                 iterator.push(part);
-                if(index >= baseLevel){
+                if (index >= baseLevel) {
                     const currentPath = iterator.join(";");
-                    const refTerm = find(allTerms, {path: currentPath});
+                    const refTerm = find(allTerms, { path: currentPath });
+                    if (!refTerm) {
+                        return term.path.split(";").slice(baseLevel).join(" > ");
+                    }
                     resultParts.push(refTerm.title);
                 }
             }
             resultParts.push(term.title);
             return resultParts.join(" > ");
         }
+
+
+
     }
 }
