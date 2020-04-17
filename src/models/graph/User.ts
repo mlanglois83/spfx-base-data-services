@@ -23,12 +23,15 @@ export class User implements IBaseItem {
     * User is site admin
     */
     public isSiteAdmin = false;
+
+    public extendedProperties: Map<string, string>;
+
     /**
      * Get or Set User display name
      */
     public get displayName(): string {
         return this.title;
-    }    
+    }
     /**
      * Get or Set User display name
      */
@@ -40,12 +43,17 @@ export class User implements IBaseItem {
      * @param userObj - user object returned by graph api or sp
      */
     constructor(userObj?: any) {
+        this.extendedProperties = new Map<string, string>();
         if (userObj) {
             this.title = userObj.displayName ? userObj.displayName : (userObj.Title ? userObj.Title : "");
-            this.id = userObj.Id ? userObj.Id  : -1;
+            this.id = userObj.Id ? userObj.Id : -1;
             this.mail = userObj.mail ? userObj.mail : (userObj.Email ? userObj.Email : "");
-            this.userPrincipalName = userObj.userPrincipalName ? userObj.userPrincipalName : (userObj.UserPrincipalName ? userObj.UserPrincipalName : "");            
+            this.userPrincipalName = userObj.userPrincipalName ? userObj.userPrincipalName : (userObj.UserPrincipalName ? userObj.UserPrincipalName : "");
             this.isSiteAdmin = userObj.IsSiteAdmin === true;
+
+            for (let key of Object.keys(userObj)) {
+                this.extendedProperties.set(key, userObj[key]);
+            }
         }
     }
 

@@ -18,30 +18,39 @@ export class UserService extends BaseDataService<User> {
         super(User, "Users", cacheDuration);
     }
 
+    public async currentUser(extendedProperties: Array<string>): Promise<User> {
+        let result: User = null;
+        let me = await graph.me.select("displayName", "givenName", "jobTitle", "mail", "mobilePhone", "officeLocation", "preferredLanguage", "surname", "userPrincipalName", "id", ...extendedProperties).get();
+        if (me) {
+            result = new User(me);
+        }
+        return result;
+    }
+
     protected async get_Internal(query: IQuery): Promise<Array<User>> {
         let queryStr = (query.test as IPredicate).value;
         queryStr = queryStr.trim();
         let reverseFilter = queryStr;
         const parts = queryStr.split(" ");
         if (parts.length > 1) {
-        reverseFilter = parts[1].trim() + " " + parts[0].trim();
+            reverseFilter = parts[1].trim() + " " + parts[0].trim();
         }
 
         const [users, spUsers] = await Promise.all([graph.users
-        .filter(
-            `startswith(displayName,'${query}') or 
+            .filter(
+                `startswith(displayName,'${query}') or 
             startswith(displayName,'${reverseFilter}') or 
             startswith(givenName,'${query}') or 
             startswith(surname,'${query}') or 
             startswith(mail,'${query}') or 
             startswith(userPrincipalName,'${query}')`
-        )
-        .get(), sp.web.siteUsers.select("Id","UserPrincipalName","Email","Title","IsSiteAdmin").get()]);
-        
+            )
+            .get(), sp.web.siteUsers.select("Id", "UserPrincipalName", "Email", "Title", "IsSiteAdmin").get()]);
+
         return users.map((u) => {
-            const spuser = find(spUsers, (spu: any) => {return spu.UserPrincipalName === u.userPrincipalName;});
-            const result =  new User(u);
-            if(spuser) {
+            const spuser = find(spUsers, (spu: any) => { return spu.UserPrincipalName === u.userPrincipalName; });
+            const result = new User(u);
+            if (spuser) {
                 result.id = spuser.Id;
             }
             return result;
@@ -53,7 +62,7 @@ export class UserService extends BaseDataService<User> {
         console.log("[" + this.serviceName + ".addOrUpdateItem_Internal] - " + JSON.stringify(item));
         throw new Error("Not implemented");
     }
-    
+
     protected async addOrUpdateItems_Internal(items: Array<User>/*, onItemUpdated?: (oldItem: User, newItem: User) => void*/): Promise<Array<User>> {
         console.log("[" + this.serviceName + ".addOrUpdateItems_Internal] - " + JSON.stringify(items));
         throw new Error("Not implemented");
@@ -68,13 +77,13 @@ export class UserService extends BaseDataService<User> {
      * Retrieve all users (sp)
      */
     protected async getAll_Internal(): Promise<Array<User>> {
-        const spUsers  = await sp.web.siteUsers.select("Id","UserPrincipalName","Email","Title","IsSiteAdmin").get();
+        const spUsers = await sp.web.siteUsers.select("Id", "UserPrincipalName", "Email", "Title", "IsSiteAdmin").get();
         return spUsers.map(spu => new User(spu));
     }
 
     public async getItemById_Internal(id: number): Promise<User> {
-        const spu = await sp.web.siteUsers.getById(id).select("Id","UserPrincipalName","Email","Title","IsSiteAdmin").get();
-        if(spu)
+        const spu = await sp.web.siteUsers.getById(id).select("Id", "UserPrincipalName", "Email", "Title", "IsSiteAdmin").get();
+        if (spu)
             return new User(spu);
         return null;
     }
@@ -83,40 +92,40 @@ export class UserService extends BaseDataService<User> {
         const results: Array<User> = [];
         const batches = [];
         const copy = cloneDeep(ids);
-        while(copy.length > 0) {
-            const sub = copy.splice(0,100);
+        while (copy.length > 0) {
+            const sub = copy.splice(0, 100);
             const batch = sp.createBatch();
             sub.forEach((id) => {
-                sp.web.siteUsers.getById(id).select("Id","UserPrincipalName","Email","Title","IsSiteAdmin").inBatch(batch).get().then((spu) => {                
-                    if(spu) {
-                        const result= new User(spu);
+                sp.web.siteUsers.getById(id).select("Id", "UserPrincipalName", "Email", "Title", "IsSiteAdmin").inBatch(batch).get().then((spu) => {
+                    if (spu) {
+                        const result = new User(spu);
                         results.push(result);
                     }
-                    else {                        
+                    else {
                         console.log(`[${this.serviceName}] - user with id ${id} not found`);
                     }
                 });
             });
             batches.push(batch);
-        }  
+        }
         await UtilsService.runBatchesInStacks(batches, 3);
-        return results;    
+        return results;
     }
 
     public async linkToSpUser(user: User): Promise<User> {
-        if(user.id === -1) {
+        if (user.id === -1) {
             const result = await sp.web.ensureUser(user.userPrincipalName);
             user.id = result.data.Id;
             const dbresult = await this.dbService.addOrUpdateItem(user);
             user = dbresult;
         }
-        return user;        
+        return user;
     }
 
 
     public async getByDisplayName(displayName: string): Promise<Array<User>> {
-        let users = await this.get({test: {type: "predicate", propertyName: "displayName", operator: TestOperator.BeginsWith, value: displayName}});
-        if(users.length === 0) {
+        let users = await this.get({ test: { type: "predicate", propertyName: "displayName", operator: TestOperator.BeginsWith, value: displayName } });
+        if (users.length === 0) {
             users = await this.getAll();
 
             displayName = displayName.trim();
@@ -127,9 +136,9 @@ export class UserService extends BaseDataService<User> {
             }
             users = users.filter((user) => {
                 return user.displayName.indexOf(displayName) === 0 ||
-                user.displayName.indexOf(reverseFilter) === 0 ||
-                user.mail.indexOf(displayName) === 0 ||
-                user.userPrincipalName.indexOf(displayName) === 0;
+                    user.displayName.indexOf(reverseFilter) === 0 ||
+                    user.mail.indexOf(displayName) === 0 ||
+                    user.userPrincipalName.indexOf(displayName) === 0;
             });
         }
         return users;
