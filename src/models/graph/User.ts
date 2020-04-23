@@ -23,9 +23,6 @@ export class User implements IBaseItem {
     * User is site admin
     */
     public isSiteAdmin = false;
-
-    public extendedProperties: Map<string, string>;
-
     /**
      * Get or Set User display name
      */
@@ -43,7 +40,6 @@ export class User implements IBaseItem {
      * @param userObj - user object returned by graph api or sp
      */
     constructor(userObj?: any) {
-        this.extendedProperties = new Map<string, string>();
         if (userObj) {
             this.title = userObj.displayName ? userObj.displayName : (userObj.Title ? userObj.Title : "");
             this.id = userObj.Id ? userObj.Id : -1;
