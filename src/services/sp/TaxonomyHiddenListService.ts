@@ -1,6 +1,6 @@
 import { Constants } from "../../constants/index";
 import { TaxonomyHidden } from "../../models/";
-import { BaseListItemService } from "./BaseListItemService";
+import { BaseListItemService } from "../base/BaseListItemService";
 
 
 
