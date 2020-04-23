@@ -5,6 +5,11 @@ export interface IFieldDescriptor {
      * Internal name of SharePoint field
      */
     fieldName: string;
+
+    /**
+     * managed search property
+     */
+    searchName?: string;
     /**
      * Internal name of associated hidden field (TaxonomyMulti only)
      */
