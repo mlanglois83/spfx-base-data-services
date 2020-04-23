@@ -23,6 +23,8 @@ export class User implements IBaseItem {
     * User is site admin
     */
     public isSiteAdmin = false;
+
+    public extendedProperties: Map<string, string>;
     /**
      * Get or Set User display name
      */
@@ -47,7 +49,7 @@ export class User implements IBaseItem {
             this.userPrincipalName = userObj.userPrincipalName ? userObj.userPrincipalName : (userObj.UserPrincipalName ? userObj.UserPrincipalName : "");
             this.isSiteAdmin = userObj.IsSiteAdmin === true;
 
-            for (let key of Object.keys(userObj)) {
+            for (const key of Object.keys(userObj)) {
                 this.extendedProperties.set(key, userObj[key]);
             }
         }
