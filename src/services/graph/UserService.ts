@@ -2,6 +2,9 @@ import { BaseDataService, UtilsService } from "..";
 import { User, PictureSize, IQuery } from "../..";
 import { graph } from "@pnp/graph";
 import { sp } from "@pnp/sp";
+import "@pnp/sp/site-users";
+import "@pnp/graph/users";
+
 import { Text } from "@microsoft/sp-core-library";
 import { ServicesConfiguration } from "../../configuration/ServicesConfiguration";
 import { find, cloneDeep } from "@microsoft/sp-lodash-subset";
@@ -20,7 +23,7 @@ export class UserService extends BaseDataService<User> {
 
     public async currentUser(extendedProperties: Array<string>): Promise<User> {
         let result: User = null;
-        let me = await graph.me.select("displayName", "givenName", "jobTitle", "mail", "mobilePhone", "officeLocation", "preferredLanguage", "surname", "userPrincipalName", "id", ...extendedProperties).get();
+        const me = await graph.me.select("displayName", "givenName", "jobTitle", "mail", "mobilePhone", "officeLocation", "preferredLanguage", "surname", "userPrincipalName", "id", ...extendedProperties).get();
         if (me) {
             result = new User(me);
         }

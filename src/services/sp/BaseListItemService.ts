@@ -1,15 +1,23 @@
 import { ServicesConfiguration } from "../..";
 import { SPHttpClient } from '@microsoft/sp-http';
 import { cloneDeep, find, assign, findIndex } from "@microsoft/sp-lodash-subset";
-import { CamlQuery, List, sp } from "@pnp/sp";
+
+import { sp } from "@pnp/sp";
+import "@pnp/sp/webs";
+import "@pnp/sp/lists/web";
+import "@pnp/sp/fields";
+
+import { IList, ICamlQuery } from "@pnp/sp/lists";
+
 import { Constants, FieldType, TestOperator, QueryToken, LogicalOperator } from "../../constants/index";
 import { IBaseItem, IFieldDescriptor, IQuery, IPredicate, ILogicalSequence, IOrderBy } from "../../interfaces/index";
-import { BaseDataService } from "./BaseDataService";
+import { BaseDataService } from "../base/BaseDataService";
 import { UtilsService } from "..";
 import { SPItem, User, TaxonomyTerm, OfflineTransaction, SPFile } from "../../models";
 import { UserService } from "../graph/UserService";
 import { isArray, stringIsNullOrEmpty } from "@pnp/common";
-import { BaseDbService } from "./BaseDbService";
+import { BaseDbService } from "../base/BaseDbService";
+
 
 /**
  * 
@@ -39,7 +47,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
     /**
      * Associeted list (pnpjs)
      */
-    protected get list(): List {
+    protected get list(): IList {
         return sp.web.getList(this.listRelativeUrl);
     }
 
@@ -1542,8 +1550,8 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
     }
 
 
-    private getCamlQuery(query: IQuery): CamlQuery {
-        const result: CamlQuery = {
+    private getCamlQuery(query: IQuery): ICamlQuery {
+        const result: ICamlQuery = {
             ViewXml: `<View Scope="RecursiveAll">
                 <Query>
                     ${this.getWhere(query)}

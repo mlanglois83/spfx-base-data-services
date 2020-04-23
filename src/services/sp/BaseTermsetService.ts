@@ -2,7 +2,7 @@ import { taxonomy, ITermSet } from "@pnp/sp-taxonomy";
 import { UtilsService } from "../";
 import { Constants } from "../../constants/index";
 import { TaxonomyTerm } from "../../models";
-import { BaseDataService } from "./BaseDataService";
+import { BaseDataService } from "../base/BaseDataService";
 import { TaxonomyHiddenListService } from "../";
 import { find, cloneDeep } from "@microsoft/sp-lodash-subset";
 import { Text } from "@microsoft/sp-core-library";
@@ -27,7 +27,7 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
      */
     protected get termset(): ITermSet {
         if (this.termsetnameorid.match(/[A-z0-9]{8}-([A-z0-9]{4}-){3}[A-z0-9]{12}/)) {
-            if(this.isGlobal) {
+            if (this.isGlobal) {
                 return taxonomy.getDefaultSiteCollectionTermStore().getTermSetById(this.termsetnameorid);
             }
             else {
@@ -35,7 +35,7 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
             }
         }
         else {
-            if(this.isGlobal) {
+            if (this.isGlobal) {
                 return taxonomy.getDefaultSiteCollectionTermStore().getTermSetsByName(this.termsetnameorid, 1033).getByName(this.termsetnameorid);
             }
             else {
@@ -97,7 +97,7 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
     public async getItemById_Internal(id: string): Promise<T> {
         let result = null;
         const spterm = await this.termset.terms.getById(id);
-        if(spterm) {
+        if (spterm) {
             result = new this.itemType(spterm);
         }
         return result;
@@ -106,12 +106,12 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
         const results: Array<T> = [];
         const batches = [];
         const copy = cloneDeep(ids);
-        while(copy.length > 0) {
-            const sub = copy.splice(0,100);
+        while (copy.length > 0) {
+            const sub = copy.splice(0, 100);
             const batch = taxonomy.createBatch();
             sub.forEach((id) => {
-                this.termset.terms.getById(id).inBatch(batch).get().then((term)=> {
-                    if(term) {
+                this.termset.terms.getById(id).inBatch(batch).get().then((term) => {
+                    if (term) {
                         results.push(new this.itemType(term));
                     }
                     else {
@@ -121,22 +121,22 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
             });
             batches.push(batch);
         }
-        await UtilsService.runBatchesInStacks(batches, 3);        
+        await UtilsService.runBatchesInStacks(batches, 3);
         return results;
     }
 
-    protected async get_Internal(query: any): Promise<Array<T>> {        
+    protected async get_Internal(query: any): Promise<Array<T>> {
         console.log("[" + this.serviceName + ".get_Internal] - " + query.toString());
         throw new Error('Not Implemented');
     }
 
 
-    protected async addOrUpdateItem_Internal(item: T): Promise<T> {        
+    protected async addOrUpdateItem_Internal(item: T): Promise<T> {
         console.log("[" + this.serviceName + ".addOrUpdateItem_Internal] - " + JSON.stringify(item));
         throw new Error("Not implemented");
     }
 
-    protected async addOrUpdateItems_Internal(items: Array<T>/*, onItemUpdated?: (oldItem: T, newItem: T) => void*/): Promise<Array<T>> {        
+    protected async addOrUpdateItems_Internal(items: Array<T>/*, onItemUpdated?: (oldItem: T, newItem: T) => void*/): Promise<Array<T>> {
         console.log("[" + this.serviceName + ".addOrUpdateItems_Internal] - " + JSON.stringify(items));
         throw new Error("Not implemented");
     }

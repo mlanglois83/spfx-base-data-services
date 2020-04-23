@@ -1,11 +1,20 @@
-import { ChunkedFileUploadProgressData, Folder, sp, List } from "@pnp/sp";
+//import { ChunkedFileUploadProgressData, Folder, sp, List } from "@pnp/sp";
+import { sp } from "@pnp/sp";
+import "@pnp/sp/webs";
+import "@pnp/sp/lists/web";
+import "@pnp/sp/files";
+import "@pnp/sp/folders";
+
 import * as mime from "mime-types";
 import { UtilsService } from "../";
 import { IBaseItem } from "../../interfaces/index";
 import { SPFile } from "../../models";
-import { BaseDataService } from "./BaseDataService";
+import { BaseDataService } from "../base/BaseDataService";
 import { ServicesConfiguration } from "../..";
 import { cloneDeep } from "@microsoft/sp-lodash-subset";
+import { IList } from "@pnp/sp/lists";
+import { IFolder } from "@pnp/sp/folders";
+
 
 /**
  * Base service for sp files operations
@@ -16,7 +25,7 @@ export class BaseFileService<T extends IBaseItem> extends BaseDataService<T>{
     /**
      * Associeted list (pnpjs)
      */
-    protected get list(): List {
+    protected get list(): IList {
         return sp.web.getList(this.listRelativeUrl);
     }
 
@@ -48,7 +57,7 @@ export class BaseFileService<T extends IBaseItem> extends BaseDataService<T>{
     public async getItemById_Internal(id: string): Promise<T> {
         let result = null;
         const file = await sp.web.getFileByServerRelativeUrl(id).select('FileRef', 'FileLeafRef').get();
-        if(file) {
+        if (file) {
             result = this.createFileObject(file);
         }
         return result;
@@ -57,23 +66,23 @@ export class BaseFileService<T extends IBaseItem> extends BaseDataService<T>{
         const results: Array<T> = [];
         const batches = [];
         const copy = cloneDeep(ids);
-        while(copy.length > 0) {
-            const sub = copy.splice(0,100);
+        while (copy.length > 0) {
+            const sub = copy.splice(0, 100);
             const batch = sp.createBatch();
             sub.forEach((id) => {
-                sp.web.getFileByServerRelativeUrl(id).select('FileRef', 'FileLeafRef').get().then(async (item)=> {
-                    if(item) {                        
+                sp.web.getFileByServerRelativeUrl(id).select('FileRef', 'FileLeafRef').get().then(async (item) => {
+                    if (item) {
                         const fo = await this.createFileObject(item);
                         results.push(fo);
                     }
-                    else {                        
+                    else {
                         console.log(`[${this.serviceName}] - file with url ${id} not found`);
                     }
                 });
             });
             batches.push(batch);
-        }    
-        await UtilsService.runBatchesInStacks(batches, 3);    
+        }
+        await UtilsService.runBatchesInStacks(batches, 3);
         return results;
     }
 
@@ -117,7 +126,7 @@ export class BaseFileService<T extends IBaseItem> extends BaseDataService<T>{
     public async addOrUpdateItem_Internal(item: T): Promise<T> {
         if (item instanceof SPFile && item.content) {
             const folderUrl = UtilsService.getParentFolderUrl(item.serverRelativeUrl);
-            const folder: Folder = sp.web.getFolderByServerRelativeUrl(folderUrl);
+            const folder: IFolder = sp.web.getFolderByServerRelativeUrl(folderUrl);
             const exists = await this.folderExists(folderUrl);
             if (!exists) {
                 await sp.web.folders.add(folderUrl);
@@ -127,8 +136,9 @@ export class BaseFileService<T extends IBaseItem> extends BaseDataService<T>{
                 await folder.files.add(item.name, item.content, true);
             } else {
                 // large upload
-                await folder.files.addChunked(item.name, UtilsService.arrayBufferToBlob(item.content, item.mimeType), (data: ChunkedFileUploadProgressData) => {
+                await folder.files.addChunked(item.name, UtilsService.arrayBufferToBlob(item.content, item.mimeType), data => {
                     console.log("block:" + data.blockNumber + "/" + data.totalBlocks);
+
                 }, true);
             }
         }
@@ -140,13 +150,13 @@ export class BaseFileService<T extends IBaseItem> extends BaseDataService<T>{
         const operations = items.map((item) => {
             return this.addOrUpdateItem_Internal(item);
         });
-        operations.reduce((chain, operation) => {                  
-            return chain.then(() => {return operation;});                  
+        operations.reduce((chain, operation) => {
+            return chain.then(() => { return operation; });
         }, Promise.resolve()).then((item) => {
-            result.push(item);       
-            if(onItemUpdated) {
+            result.push(item);
+            if (onItemUpdated) {
                 onItemUpdated(item, item);
-            }     
+            }
         });
         // TODO : gestion d'erreurs
         return items;
@@ -156,14 +166,14 @@ export class BaseFileService<T extends IBaseItem> extends BaseDataService<T>{
         if (item instanceof SPFile) {
             await sp.web.getFileByServerRelativeUrl(item.serverRelativeUrl).recycle();
             const folderUrl = UtilsService.getParentFolderUrl(item.serverRelativeUrl);
-            const folder: Folder = sp.web.getFolderByServerRelativeUrl(folderUrl);
+            const folder: IFolder = sp.web.getFolderByServerRelativeUrl(folderUrl);
             const files = await folder.files.get();
             if (!files || files.length === 0) {
                 await folder.recycle();
             }
         }
     }
-    
+
     public async changeFolderInDb(oldFolderListRelativeUrl: string, newFolderListRelativeUrl: string): Promise<void> {
         const oldFolderRelativeUrl = this.listRelativeUrl + oldFolderListRelativeUrl;
         const newFolderRelativeUrl = this.listRelativeUrl + newFolderListRelativeUrl;
@@ -177,7 +187,7 @@ export class BaseFileService<T extends IBaseItem> extends BaseDataService<T>{
             return this.dbService.deleteItem(f);
         }));
         newFiles.forEach((file) => {
-            file.id = newFolderRelativeUrl + "/" + file.title;            
+            file.id = newFolderRelativeUrl + "/" + file.title;
         });
         await this.dbService.addOrUpdateItems(newFiles);
     }
