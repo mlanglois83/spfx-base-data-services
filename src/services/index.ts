@@ -13,5 +13,4 @@ export { SynchronizationService } from "./synchronization/SynchronizationService
 export { TransactionService } from "./synchronization/TransactionService";
 
 export { TaxonomyHiddenListService } from "./sp/TaxonomyHiddenListService";
-export { SearchService } from "./sp/SearchService";
 export { UserService } from "./graph/UserService";
