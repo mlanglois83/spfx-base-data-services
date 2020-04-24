@@ -49,6 +49,8 @@ export class User implements IBaseItem {
             this.userPrincipalName = userObj.userPrincipalName ? userObj.userPrincipalName : (userObj.UserPrincipalName ? userObj.UserPrincipalName : "");
             this.isSiteAdmin = userObj.IsSiteAdmin === true;
 
+            this.extendedProperties = new Map<string, string>();
+
             for (const key of Object.keys(userObj)) {
                 this.extendedProperties.set(key, userObj[key]);
             }
