@@ -1580,9 +1580,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         return result;
     }
     private getLogicalSequence(sequence: ILogicalSequence): string {
-
         const cloneSequence = cloneDeep(sequence);
-
         if (!cloneSequence.children || cloneSequence.children.length === 0) {
             return "";
         }
