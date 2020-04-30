@@ -1581,7 +1581,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
     }
     private getLogicalSequence(sequence: ILogicalSequence): string {
 
-        let cloneSequence = cloneDeep(sequence)
+        const cloneSequence = cloneDeep(sequence);
 
         if (!cloneSequence.children || cloneSequence.children.length === 0) {
             return "";
