@@ -4,7 +4,7 @@ import { BaseListItemService } from "../base/BaseListItemService";
 
 
 
-const cacheDuration = 10;
+const cacheDuration = 1440;
 
 /**
  * Service allowing to retrieve risks (online only)
