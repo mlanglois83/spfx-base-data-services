@@ -456,8 +456,71 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         });
     }
 
+    //avoid to call x time the lastmodified during 10 seconds
+    //
+
+
 
     /******************************************* Cache Management *************************************************/
+
+
+    /*******************************  store list last modified date***********************/
+    private lastModifiedDate = "lastResultClassLifeTime";
+
+
+
+    /*******************************  store last check from list last modified date***********************/
+    private lastModifiedDateCheck = "lastResultClassLifeTimeCheck";
+
+    protected set lastModifiedListCheck(newValue: Date) {
+        const cacheKey = this.getCacheKey(this.lastModifiedDateCheck);
+        window.sessionStorage.setItem(cacheKey, JSON.stringify(newValue));
+    }
+
+    protected get lastModifiedListCheck(): Date {
+
+        const cacheKey = this.getCacheKey(this.lastModifiedDateCheck);
+
+        const lastDataLoadString = window.sessionStorage.getItem(cacheKey);
+        let lastDataLoad: Date = null;
+
+        if (lastDataLoadString) {
+            lastDataLoad = new Date(JSON.parse(window.sessionStorage.getItem(cacheKey)));
+        }
+
+        return lastDataLoad;
+    }
+
+
+
+    protected async  needRefreshCache(key = "all"): Promise<boolean> {
+
+        //get parent need refresh information
+        let result: boolean = await super.needRefreshCache(key);
+
+        //if not need refresh cache, test, last modified list modified
+        if (!result) {
+
+            //check online
+            const isconnected = await UtilsService.CheckOnline();
+
+            if (isconnected) {
+
+                //get last cache date
+                const cachedDataDate = await super.getCachedData(key);
+                //if a date existe, check if renew necessary
+                //else load data
+                if (cachedDataDate) {
+
+                    const lastModifiedDate = await this.LastModfiedList();
+
+                    result = lastModifiedDate > cachedDataDate;
+                }
+            }
+        }
+        return result;
+    }
+
 
     /**
      * Cache has to be reloaded ?
@@ -467,42 +530,80 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
      * @type {boolean}
      * @memberof BaseListItemService
      */
-    protected async  needRefreshCache(key = "all"): Promise<boolean> {
-        let result: boolean = await super.needRefreshCache(key);
+    protected async  LastModfiedList(): Promise<Date> {
 
-        if (!result) {
+        //avoid fetchnig multiple same request as same time
+        let promise = this.getExistingPromise(this.lastModifiedDate);
+        if (promise) {
+            console.log(this.serviceName + " needRefreshCache : load allready called before, sharing promise");
+        }
+        else {
+            promise = new Promise<Date>(async (resolve, reject) => {
+                try {
 
-            const isconnected = await UtilsService.CheckOnline();
-            if (isconnected) {
+                    //get last modified date store in cache, if exists
+                    const cacheKey = this.getCacheKey(this.lastModifiedDate);
 
-                const cachedDataDate = await super.getCachedData(key);
-                if (cachedDataDate) {
+                    const lastDataLoadString = window.sessionStorage.getItem(cacheKey);
+                    let lastModifiedSave: Date = null;
 
-                    try {
-                        const response = await ServicesConfiguration.context.spHttpClient.get(`${ServicesConfiguration.context.pageContext.web.absoluteUrl}/_api/web/getList('${this.listRelativeUrl}')`,
-                            SPHttpClient.configurations.v1,
-                            {
-                                headers: {
-                                    'Accept': 'application/json;odata.metadata=minimal',
-                                    'Cache-Control': 'no-cache'
-                                }
-                            });
-
-                        const tempList = await response.json();
-                        const lastModifiedDate = new Date(tempList.LastItemUserModifiedDate ? tempList.LastItemUserModifiedDate : tempList.d.LastItemUserModifiedDate);
-                        result = lastModifiedDate > cachedDataDate;
-
-
-                    } catch (error) {
-                        console.error(error);
+                    if (lastDataLoadString) {
+                        lastModifiedSave = new Date(JSON.parse(window.sessionStorage.getItem(cacheKey)));
                     }
 
 
+                    //to avoid send x request during 20 seconds
+                    //get date when the last modified lsite date was checked
+                    const temp = this.lastModifiedListCheck;
+                    if (temp) {
+                        //add 20 seconds, cache duration
+                        temp.setSeconds(this.lastModifiedListCheck.getSeconds() + 20);
+                    }
+
+                    //if not previous result or last check is more than 20 seconds.
+                    if (!lastModifiedSave || (!temp || (temp < new Date()))) {
+                        try {
+                            //send request
+                            const response = await ServicesConfiguration.context.spHttpClient.get(`${ServicesConfiguration.context.pageContext.web.absoluteUrl}/_api/web/getList('${this.listRelativeUrl}')`,
+                                SPHttpClient.configurations.v1,
+                                {
+                                    headers: {
+                                        'Accept': 'application/json;odata.metadata=minimal',
+                                        'Cache-Control': 'no-cache'
+                                    }
+                                });
+
+
+
+                            //store date when last modified date list is checked
+                            this.lastModifiedListCheck = new Date();
+
+                            //get response 
+                            const tempList = await response.json();
+                            lastModifiedSave = new Date(tempList.LastItemUserModifiedDate ? tempList.LastItemUserModifiedDate : tempList.d.LastItemUserModifiedDate);
+                            //store last modified date list
+                            window.sessionStorage.setItem(cacheKey, JSON.stringify(lastModifiedSave));
+
+                        } catch (error) {
+                            console.error(error);
+                        }
+                    }
+
+                    this.removePromise(this.lastModifiedDate);
+                    resolve(lastModifiedSave);
+
+
+                } catch (error) {
+                    this.removePromise(this.lastModifiedDate);
+                    reject(error);
                 }
-            }
+            });
+            this.storePromise(promise, this.lastModifiedDate);
         }
 
-        return result;
+
+
+        return promise;
     }
     /**
      * Retrieve id of items to be reloaded
@@ -517,17 +618,9 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
             if (isconnected) {
 
                 try {
-                    const response = await ServicesConfiguration.context.spHttpClient.get(`${ServicesConfiguration.context.pageContext.web.absoluteUrl}/_api/web/getList('${this.listRelativeUrl}')`,
-                        SPHttpClient.configurations.v1,
-                        {
-                            headers: {
-                                'Accept': 'application/json;odata.metadata=minimal',
-                                'Cache-Control': 'no-cache'
-                            }
-                        });
 
-                    const tempList = await response.json();
-                    const lastModifiedDate = new Date(tempList.LastItemUserModifiedDate ? tempList.LastItemUserModifiedDate : tempList.d.LastItemUserModifiedDate);
+                    const lastModifiedDate = await this.LastModfiedList();
+
                     result = [];
                     ids.forEach((id) => {
                         const lastLoad = this.getIdLastLoad(id);
