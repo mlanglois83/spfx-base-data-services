@@ -22,6 +22,11 @@ export interface IConfiguration {
      * true : services can retrieve data when offline, false : every time a network call is performed
      */
     checkOnline: boolean;
+
+    /**
+    * empty : indicate a specific url to test online/offline instead of site root (creating 302 to default page). Fill this value avoid making to many request
+    */
+    onlineCheckPage: string;
     /**
      * SPFX component context
      */
