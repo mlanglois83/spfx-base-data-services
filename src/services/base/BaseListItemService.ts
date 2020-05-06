@@ -1716,7 +1716,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                         return `<${predicate.operator}>
                             ${this.getFieldRef(predicate)}
                             <Values>
-                                ${predicate.value.map(v => this.getValue(predicate.propertyName, v, predicate.lookupId)).join('')}
+                                ${predicate.value.map(v => this.getValue(predicate, v, predicate.lookupId)).join('')}
                             </Values>
                         </${predicate.operator}>`;
                     }
@@ -1745,7 +1745,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                     return `<${predicate.operator}>
                         ${this.getFieldRef(predicate)}
                         <Values>
-                            ${this.getValue(predicate.propertyName, -1, predicate.lookupId)}
+                            ${this.getValue(predicate, -1, predicate.lookupId)}
                         </Values>
                     </${predicate.operator}>`;
                 }
@@ -1754,7 +1754,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
             default:
                 result = `<${predicate.operator}>
                     ${this.getFieldRef(predicate)}
-                    ${this.getValue(predicate.propertyName, predicate.value, predicate.lookupId)}
+                    ${this.getValue(predicate, predicate.value, predicate.lookupId)}
                 </${predicate.operator}>`;
                 break;
         }
@@ -1765,17 +1765,17 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         const fields = this.ItemFields;
         const field = fields[obj.propertyName];
         if (field) {
-            result = `<FieldRef Name="${field.fieldName}"${obj.type === "predicate" && obj.lookupId ? " LookupId=\"TRUE\"" : ""}${obj.type === "predicate" && obj.includeTimeValue !== undefined ? (" IncludeTimeValue=\"" + (obj.includeTimeValue ? "TRUE" : "FALSE") + "\"") : ""}${obj.type === "orderby" && obj.ascending !== undefined && !obj.ascending ? " Ascending=\"FALSE\"" : ""} />`;
+            result = `<FieldRef Name="${field.fieldName}"${obj.type === "predicate" && obj.lookupId ? " LookupId=\"TRUE\"" : ""}${obj.type === "orderby" && obj.ascending !== undefined && !obj.ascending ? " Ascending=\"FALSE\"" : ""} />`;
         }
         else {
             throw new Error("Field was not found : " + obj.propertyName);
         }
         return result;
     }
-    private getValue(propertyName: string, fieldValue: any, lookupID?: boolean): string {
+    private getValue(obj: IPredicate, fieldValue: any, lookupID?: boolean): string {
         let result = "";
         const fields = this.ItemFields;
-        const field = fields[propertyName];
+        const field = fields[obj.propertyName];
         if (field) {
             let type = "";
             let value = "";
@@ -1842,10 +1842,10 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                     }
                     break;
             }
-            result = `<Value Type="${type}">${value}</Value>`;
+            result = `<Value Type="${type}" ${obj.type === "predicate" && obj.includeTimeValue !== undefined ? (" IncludeTimeValue=\"" + (obj.includeTimeValue ? "TRUE" : "FALSE") + "\"") : ""}>${value}</Value>`;
         }
         else {
-            throw new Error("Field was not found : " + propertyName);
+            throw new Error("Field was not found : " + obj.propertyName);
         }
         return result;
     }
