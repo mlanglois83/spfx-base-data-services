@@ -403,11 +403,18 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         }
         if (isconnected) {
             try {
+
+                const oldId = item.id;
                 itemResult = await this.addOrUpdateItem_Internal(item);
+                if (oldId < -1) { // created item allready stored in db
+                    this.dbService.deleteItem(item);
+                }
                 const converted = await this.convertItemToDbFormat(itemResult);
                 await this.dbService.addOrUpdateItem(converted);
                 this.UpdateIdsLastLoad(converted.id);
                 result = itemResult;
+
+
             } catch (error) {
                 console.error(error);
                 if (error.name === Constants.Errors.ItemVersionConfict) {
