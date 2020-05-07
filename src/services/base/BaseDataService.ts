@@ -257,7 +257,9 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                     if (reloadData) {
                         result = await this.get_Internal(query, linkedFields);
                         //check if data exist for this query in database
-                        const tmp = await this.dbService.get(query);
+                        let tmp = await this.dbService.get(query);
+                        tmp = this.filterItems(query, tmp);
+
                         //if data exists trash them 
                         if (tmp && tmp.length > 0) {
                             await Promise.all(tmp.map((dbItem) => { return this.dbService.deleteItem(dbItem); }));
