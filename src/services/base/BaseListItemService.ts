@@ -1453,7 +1453,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                                     const lookupidx = findIndex(links, (id) => { return id === oldId; });
                                     // change id
                                     if (lookupidx > -1) {
-                                        currentObject.__setInternalLinks(propertyName, newId);
+                                        currentObject.__setReplaceInternalLinks(propertyName, oldId, newId);
                                         needUpdate = true;
                                     }
                                 }
