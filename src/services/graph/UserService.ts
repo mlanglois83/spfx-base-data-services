@@ -37,16 +37,16 @@ export class UserService extends BaseDataService<User> {
         }
 
         const [users, spUsers] = await Promise.all([graph.users
-            .filter(
-                `startswith(displayName,'${query}') or 
+        .filter(
+            `startswith(displayName,'${queryStr}') or 
             startswith(displayName,'${reverseFilter}') or 
-            startswith(givenName,'${query}') or 
-            startswith(surname,'${query}') or 
-            startswith(mail,'${query}') or 
-            startswith(userPrincipalName,'${query}')`
-            )
-            .get(), sp.web.siteUsers.select("Id", "UserPrincipalName", "Email", "Title", "IsSiteAdmin").get()]);
-
+            startswith(givenName,'${queryStr}') or 
+            startswith(surname,'${queryStr}') or 
+            startswith(mail,'${queryStr}') or 
+            startswith(userPrincipalName,'${queryStr}')`
+        )
+        .get(), sp.web.siteUsers.select("Id","UserPrincipalName","Email","Title","IsSiteAdmin").get()]);
+        
         return users.map((u) => {
             const spuser = find(spUsers, (spu: any) => { return spu.UserPrincipalName === u.userPrincipalName; });
             const result = new User(u);
