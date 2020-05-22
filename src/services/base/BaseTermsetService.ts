@@ -161,9 +161,15 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
 
 
     private getOrderedChildTerms(term: T, allTerms: Array<T>): Array<T> {
-        //items.sort((a: T,b: T) => {return a.path.localeCompare(b.path);});
         const result = [];
-        const childterms = allTerms.filter((t) => { return t.path.indexOf(term.path + ";") == 0; });
+
+        //items.sort((a: T,b: T) => {return a.path.localeCompare(b.path);});
+
+        const childterms = allTerms.filter((t) => {
+
+            return t.path.indexOf(term.path + ";") == 0;
+
+        });
         const level = term.path.split(";").length;
         let directChilds = childterms.filter((ct) => { return ct.path.split(";").length === level + 1; });
         if (!stringIsNullOrEmpty(term.customSortOrder)) {
@@ -178,12 +184,27 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
             directChilds = terms;
         }
         directChilds.forEach((dc) => {
-            result.push(dc);
-            const dcchildren = this.getOrderedChildTerms(dc, childterms);
-            if (dcchildren.length > 0) {
-                result.push(...dcchildren);
+            if (dc) {
+                result.push(dc);
+                try {
+                    const dcchildren = this.getOrderedChildTerms(dc, childterms);
+                    if (dcchildren.length > 0) {
+                        result.push(...dcchildren);
+                    }
+                }
+                catch (error) {
+                    console.error(error);
+                    console.error(this.serviceName);
+                    console.error(dc);
+
+                    console.error(term);
+                    console.error(allTerms);
+
+                }
             }
         });
+
+
         return result;
     }
 
@@ -203,10 +224,19 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
             rootTerms = terms;
         }
         rootTerms.forEach((rt) => {
-            result.push(rt);
-            const rtchildren = this.getOrderedChildTerms(rt, items);
-            if (rtchildren.length > 0) {
-                result.push(...rtchildren);
+            if (rt) {
+                result.push(rt);
+                try {
+                    const rtchildren = this.getOrderedChildTerms(rt, items);
+                    if (rtchildren.length > 0) {
+                        result.push(...rtchildren);
+                    }
+                }
+                catch (error) {
+                    console.error(error);
+                    console.error(rt);
+                    console.error(this.serviceName);
+                }
             }
         });
         return result;
