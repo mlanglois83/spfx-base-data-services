@@ -563,7 +563,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
     ////////////////////////////// Queries ////////////////////////////////////
     private filterItems(query: IQuery, items: Array<T>): Array<T> {
         // filter items by test
-        const results = query.test ? items.filter((i) => { return this.getTestResult(query.test, i); }) : cloneDeep(items);
+        let results = query.test ? items.filter((i) => { return this.getTestResult(query.test, i); }) : cloneDeep(items);
         // order by
         if (query.orderBy) {
             results.sort(function (a, b) {
@@ -627,6 +627,16 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                 }
                 return 0;
             });
+        }
+        // Paged query
+        if(query.lastId) {
+            const idx = findIndex(results, (r) => {return r.id === query.lastId;});
+            if(idx > -1) {
+                results = results.slice(idx + 1);
+            }
+            else {
+                results= [];
+            }
         }
         // limit
         if (query.limit) {
