@@ -66,11 +66,13 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         else return null;
     }
 
+    ///add semaphore for store and remove
     protected storePromise(promise: Promise<any>, key = "all"): void {
         const pkey = this.serviceName + "-" + key;
         BaseDataService.promises[pkey] = promise;
     }
 
+    ///add semaphore
     protected removePromise(key = "all"): void {
         const pkey = this.serviceName + "-" + key;
         BaseDataService.promises[pkey] = undefined;
@@ -629,13 +631,13 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
             });
         }
         // Paged query
-        if(query.lastId) {
-            const idx = findIndex(results, (r) => {return r.id === query.lastId;});
-            if(idx > -1) {
+        if (query.lastId) {
+            const idx = findIndex(results, (r) => { return r.id === query.lastId; });
+            if (idx > -1) {
                 results = results.slice(idx + 1);
             }
             else {
-                results= [];
+                results = [];
             }
         }
         // limit
