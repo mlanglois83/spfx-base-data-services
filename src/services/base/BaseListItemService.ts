@@ -10,6 +10,7 @@ import { SPItem, User, TaxonomyTerm, OfflineTransaction, SPFile } from "../../mo
 import { UserService } from "../graph/UserService";
 import { isArray, stringIsNullOrEmpty } from "@pnp/common";
 import { BaseDbService } from "./BaseDbService";
+import { Semaphore } from "async-mutex";
 
 /**
  * 
@@ -490,9 +491,6 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
 
         return lastDataLoad;
     }
-
-
-
     protected async  needRefreshCache(key = "all"): Promise<boolean> {
 
         //get parent need refresh information
@@ -538,67 +536,79 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
             console.log(this.serviceName + " needRefreshCache : load allready called before, sharing promise");
         }
         else {
-            promise = new Promise<Date>(async (resolve, reject) => {
-                try {
 
-                    //get last modified date store in cache, if exists
-                    const cacheKey = this.getCacheKey(this.lastModifiedDate);
+            const semaphore = new Semaphore(1);
 
-                    const lastDataLoadString = window.sessionStorage.getItem(cacheKey);
-                    let lastModifiedSave: Date = null;
+            const [value, release] = await semaphore.acquire();
 
-                    if (lastDataLoadString) {
-                        lastModifiedSave = new Date(JSON.parse(window.sessionStorage.getItem(cacheKey)));
-                    }
+            try {
 
+                promise = new Promise<Date>(async (resolve, reject) => {
+                    try {
 
-                    //to avoid send x request during 20 seconds
-                    //get date when the last modified lsite date was checked
-                    const temp = this.lastModifiedListCheck;
-                    if (temp) {
-                        //add 20 seconds, cache duration
-                        temp.setSeconds(this.lastModifiedListCheck.getSeconds() + 20);
-                    }
+                        //get last modified date store in cache, if exists
+                        const cacheKey = this.getCacheKey(this.lastModifiedDate);
 
-                    //if not previous result or last check is more than 20 seconds.
-                    if (!lastModifiedSave || (!temp || (temp < new Date()))) {
-                        try {
-                            //send request
-                            const response = await ServicesConfiguration.context.spHttpClient.get(`${ServicesConfiguration.context.pageContext.web.absoluteUrl}/_api/web/getList('${this.listRelativeUrl}')`,
-                                SPHttpClient.configurations.v1,
-                                {
-                                    headers: {
-                                        'Accept': 'application/json;odata.metadata=minimal',
-                                        'Cache-Control': 'no-cache'
-                                    }
-                                });
+                        const lastDataLoadString = window.sessionStorage.getItem(cacheKey);
+                        let lastModifiedSave: Date = null;
 
-
-
-                            //store date when last modified date list is checked
-                            this.lastModifiedListCheck = new Date();
-
-                            //get response 
-                            const tempList = await response.json();
-                            lastModifiedSave = new Date(tempList.LastItemUserModifiedDate ? tempList.LastItemUserModifiedDate : tempList.d.LastItemUserModifiedDate);
-                            //store last modified date list
-                            window.sessionStorage.setItem(cacheKey, JSON.stringify(lastModifiedSave));
-
-                        } catch (error) {
-                            console.error(error);
+                        if (lastDataLoadString) {
+                            lastModifiedSave = new Date(JSON.parse(window.sessionStorage.getItem(cacheKey)));
                         }
+
+
+                        //to avoid send x request during 20 seconds
+                        //get date when the last modified lsite date was checked
+                        const temp = this.lastModifiedListCheck;
+                        if (temp) {
+                            //add 20 seconds, cache duration
+                            temp.setSeconds(this.lastModifiedListCheck.getSeconds() + 20);
+                        }
+
+                        //if not previous result or last check is more than 20 seconds.
+                        if (!lastModifiedSave || (!temp || (temp < new Date()))) {
+                            try {
+                                //send request
+                                const response = await ServicesConfiguration.context.spHttpClient.get(`${ServicesConfiguration.context.pageContext.web.absoluteUrl}/_api/web/getList('${this.listRelativeUrl}')`,
+                                    SPHttpClient.configurations.v1,
+                                    {
+                                        headers: {
+                                            'Accept': 'application/json;odata.metadata=minimal',
+                                            'Cache-Control': 'no-cache'
+                                        }
+                                    });
+
+                                //store date when last modified date list is checked
+                                this.lastModifiedListCheck = new Date();
+
+                                //get response 
+                                const tempList = await response.json();
+                                lastModifiedSave = new Date(tempList.LastItemUserModifiedDate ? tempList.LastItemUserModifiedDate : tempList.d.LastItemUserModifiedDate);
+                                //store last modified date list
+                                window.sessionStorage.setItem(cacheKey, JSON.stringify(lastModifiedSave));
+
+                            } catch (error) {
+                                console.error(error);
+                            }
+                        }
+
+                        await semaphore.acquire();
+                        this.removePromise(this.lastModifiedDate);
+                        resolve(lastModifiedSave);
+
+                    } catch (error) {
+                        await semaphore.acquire();
+                        this.removePromise(this.lastModifiedDate);
+                        reject(error);
                     }
-
-                    this.removePromise(this.lastModifiedDate);
-                    resolve(lastModifiedSave);
+                });
 
 
-                } catch (error) {
-                    this.removePromise(this.lastModifiedDate);
-                    reject(error);
-                }
-            });
-            this.storePromise(promise, this.lastModifiedDate);
+                this.storePromise(promise, this.lastModifiedDate);
+            } finally {
+                release();
+            }
+
         }
 
 
