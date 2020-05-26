@@ -30,4 +30,9 @@ export interface IFieldDescriptor {
      * Referenced item model type name for Lookup types only
      */
     refItemName?: string;
+
+    /**
+     * is an identifier
+     */
+    identifier?: boolean;
 }

@@ -23,6 +23,25 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
     public get ItemFields(): any {
         return {};
     }
+
+
+    public get Identifier(): Array<string> {
+
+        const fields = this.ItemFields;
+        const fieldNames = new Array<string>();
+
+        for (const key in fields) {
+            if (fields.hasOwnProperty(key)) {
+                const fieldDesc = fields[key];
+                if (fieldDesc.identifier) {
+                    fieldNames.push(key);
+                    break;
+                }
+            }
+        }
+        return fieldNames;
+    }
+
     /**
      * Stored promises to avoid multiple calls
      */
