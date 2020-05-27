@@ -23,6 +23,25 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
     public get ItemFields(): any {
         return {};
     }
+
+
+    public get Identifier(): Array<string> {
+
+        const fields = this.ItemFields;
+        const fieldNames = new Array<string>();
+
+        for (const key in fields) {
+            if (fields.hasOwnProperty(key)) {
+                const fieldDesc = fields[key];
+                if (fieldDesc.identifier) {
+                    fieldNames.push(key);
+                    break;
+                }
+            }
+        }
+        return fieldNames;
+    }
+
     /**
      * Stored promises to avoid multiple calls
      */
@@ -31,7 +50,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
     public get serviceName(): string {
         return this.constructor["name"];
     }
-    
+
     public get itemType(): (new (item?: any) => T) {
         return this.itemModelType;
     }
@@ -66,11 +85,13 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         else return null;
     }
 
+    ///add semaphore for store and remove
     protected storePromise(promise: Promise<any>, key = "all"): void {
         const pkey = this.serviceName + "-" + key;
         BaseDataService.promises[pkey] = promise;
     }
 
+    ///add semaphore
     protected removePromise(key = "all"): void {
         const pkey = this.serviceName + "-" + key;
         BaseDataService.promises[pkey] = undefined;
@@ -97,9 +118,9 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         const cacheKey = this.getCacheKey("ids");
         const idTableString = window.sessionStorage.getItem(cacheKey);
         let lastDataLoad: Date = null;
-        if(!stringIsNullOrEmpty(idTableString)) {
+        if (!stringIsNullOrEmpty(idTableString)) {
             const converted = JSON.parse(idTableString);
-            if(converted[id]) {
+            if (converted[id]) {
                 lastDataLoad = new Date(converted[id]);
             }
         }
@@ -143,7 +164,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         const expired = ids.filter((id) => {
             let result = true;
             const lastLoad = this.getIdLastLoad(id);
-            if(lastLoad) {
+            if (lastLoad) {
                 lastLoad.setMinutes(lastLoad.getMinutes() + this.cacheDuration);
                 const now = new Date();
                 //cache has expired
@@ -155,11 +176,11 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
     }
 
     protected UpdateIdsLastLoad(...ids: Array<number | string>): void {
-        if(this.cacheDuration !== -1) {            
+        if (this.cacheDuration !== -1) {
             const cacheKey = this.getCacheKey("ids");
             const initTableString = sessionStorage.getItem(cacheKey);
             let idTable;
-            if(!stringIsNullOrEmpty(initTableString)) {
+            if (!stringIsNullOrEmpty(initTableString)) {
                 idTable = JSON.parse(initTableString) || {};
             }
             else {
@@ -256,6 +277,15 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
 
                     if (reloadData) {
                         result = await this.get_Internal(query, linkedFields);
+                        //check if data exist for this query in database
+                        let tmp = await this.dbService.get(query);
+                        tmp = this.filterItems(query, tmp);
+
+                        //if data exists trash them 
+                        if (tmp && tmp.length > 0) {
+                            await Promise.all(tmp.map((dbItem) => { return this.dbService.deleteItem(dbItem); }));
+                        }
+
                         const convresult = await Promise.all(result.map((res) => {
                             return this.convertItemToDbFormat(res);
                         }));
@@ -294,7 +324,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         else {
             promise = new Promise<T>(async (resolve, reject) => {
                 try {
-                    let result: T;                    
+                    let result: T;
                     const deprecatedIds = await this.getExpiredIds(id);
                     let reloadData = deprecatedIds.length > 0;
                     //if refresh is needed, test offline/online
@@ -310,9 +340,9 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                     }
                     else {
                         const temp = await this.dbService.getItemById(id);
-                        if (temp) { 
+                        if (temp) {
                             const res = await this.mapItems([temp], linkedFields);
-                            result = res.shift(); 
+                            result = res.shift();
                         }
                     }
 
@@ -339,7 +369,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         }
         else {
             promise = new Promise<Array<T>>(async (resolve, reject) => {
-                if(ids.length > 0) {
+                if (ids.length > 0) {
                     try {
                         let results: Array<T>;
                         const deprecatedIds = await this.getExpiredIds(...ids);
@@ -351,8 +381,8 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
 
                         if (reloadData) {
                             const expired = await this.getItemsById_Internal(deprecatedIds, linkedFields);
-                            const tmpcached = await this.dbService.getItemsById(ids.filter((i) => {return deprecatedIds.indexOf(i) === -1;}));
-                            const cached = await this.mapItems(tmpcached,linkedFields);
+                            const tmpcached = await this.dbService.getItemsById(ids.filter((i) => { return deprecatedIds.indexOf(i) === -1; }));
+                            const cached = await this.mapItems(tmpcached, linkedFields);
                             results = expired.concat(cached);
                             const convresults = await Promise.all(results.map(async (res) => {
                                 return this.convertItemToDbFormat(res);
@@ -374,7 +404,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                 }
                 else {
                     this.removePromise(promiseKey);
-                        resolve([]);
+                    resolve([]);
                 }
             });
             this.storePromise(promise, promiseKey);
@@ -394,11 +424,18 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         }
         if (isconnected) {
             try {
+
+                const oldId = item.id;
                 itemResult = await this.addOrUpdateItem_Internal(item);
+                if (oldId < -1) { // created item allready stored in db
+                    this.dbService.deleteItem(item);
+                }
                 const converted = await this.convertItemToDbFormat(itemResult);
                 await this.dbService.addOrUpdateItem(converted);
                 this.UpdateIdsLastLoad(converted.id);
                 result = itemResult;
+
+
             } catch (error) {
                 console.error(error);
                 if (error.name === Constants.Errors.ItemVersionConfict) {
@@ -449,11 +486,11 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                 return res.error !== null || res.error !== undefined && res.error.name === Constants.Errors.ItemVersionConfict;
             });
             // find back items with version error
-            if(versionErrors.length > 0) {
+            if (versionErrors.length > 0) {
                 const spitems = await this.getItemsById_Internal(versionErrors.map(ve => ve.id));
                 spitems.forEach((retrieved) => {
-                    const idx = findIndex(versionErrors, {id: retrieved.id});
-                    if(idx > -1) {
+                    const idx = findIndex(versionErrors, { id: retrieved.id });
+                    if (idx > -1) {
                         versionErrors[idx] = retrieved;
                     }
                 });
@@ -463,8 +500,8 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                 await this.dbService.addOrUpdateItem(converted);
                 this.UpdateIdsLastLoad(converted.id);
             }
-            
-            
+
+
         }
         else {
             for (const item of items) {
@@ -481,11 +518,11 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                 ot.itemType = item.constructor["name"];
                 ot.title = TransactionType.AddOrUpdate;
                 await this.transactionService.addOrUpdateItem(ot);
-                if(onItemUpdated) {
+                if (onItemUpdated) {
                     onItemUpdated(copy, item);
                 }
             }
-            
+
         }
 
         return results;
@@ -519,14 +556,14 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
     }
 
 
-    protected async convertItemToDbFormat(item: T): Promise<T> {     
+    protected async convertItemToDbFormat(item: T): Promise<T> {
         return item;
     }
 
     public mapItems(items: Array<T>, linkedFields?: Array<string>): Promise<Array<T>> { // eslint-disable-line @typescript-eslint/no-unused-vars
         return Promise.resolve(items);
     }
-    
+
     public async updateLinkedTransactions(oldId: number | string, newId: number | string, nextTransactions: Array<OfflineTransaction>): Promise<Array<OfflineTransaction>> {
         return nextTransactions;
     }
@@ -549,68 +586,78 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         // filter items by test
         let results = query.test ? items.filter((i) => { return this.getTestResult(query.test, i); }) : cloneDeep(items);
         // order by
-        if(query.orderBy) {
-            results.sort(function(a, b){
+        if (query.orderBy) {
+            results.sort(function (a, b) {
                 for (const order of query.orderBy) {
                     const aKey = a[order.propertyName];
                     const bKey = b[order.propertyName];
-                    if(typeof(aKey) === "string" || typeof(bKey) === "string") {
-                        if(order.ascending === false) {
-                            if((aKey || "").localeCompare(bKey || "") < 0) {
+                    if (typeof (aKey) === "string" || typeof (bKey) === "string") {
+                        if (order.ascending === false) {
+                            if ((aKey || "").localeCompare(bKey || "") < 0) {
                                 return 1;
                             }
-                            if((aKey || "").localeCompare(bKey || "") > 0) {
+                            if ((aKey || "").localeCompare(bKey || "") > 0) {
                                 return -1;
                             }
                         }
                         else {
-                            if((aKey || "").localeCompare(bKey || "") < 0) {
+                            if ((aKey || "").localeCompare(bKey || "") < 0) {
                                 return -1;
                             }
-                            if((aKey || "").localeCompare(bKey || "") > 0) {
+                            if ((aKey || "").localeCompare(bKey || "") > 0) {
                                 return 1;
                             }
                         }
                     }
-                    else if(aKey.id && bKey.id) {
-                        if(order.ascending === false) {
-                            if((aKey.title || "").localeCompare(bKey.title || "") < 0) {
+                    else if (aKey.id && bKey.id) {
+                        if (order.ascending === false) {
+                            if ((aKey.title || "").localeCompare(bKey.title || "") < 0) {
                                 return 1;
                             }
-                            if((aKey.title || "").localeCompare(bKey.title || "") > 0) {
+                            if ((aKey.title || "").localeCompare(bKey.title || "") > 0) {
                                 return -1;
                             }
                         }
                         else {
-                            if((aKey.title || "").localeCompare(bKey.title || "") < 0) {
+                            if ((aKey.title || "").localeCompare(bKey.title || "") < 0) {
                                 return -1;
                             }
-                            if((aKey.title || "").localeCompare(bKey.title || "") > 0) {
+                            if ((aKey.title || "").localeCompare(bKey.title || "") > 0) {
                                 return 1;
                             }
                         }
                     }
                     else {
-                        if(order.ascending === false) {
-                            if(aKey < bKey) {
+                        if (order.ascending === false) {
+                            if (aKey < bKey) {
                                 return 1;
                             }
-                            if(aKey.title > bKey) {
+                            if (aKey.title > bKey) {
                                 return -1;
                             }
                         }
                         else {
-                            if(aKey < bKey) {
+                            if (aKey < bKey) {
                                 return -1;
                             }
-                            if(aKey.title > bKey) {
+                            if (aKey.title > bKey) {
                                 return 1;
                             }
                         }
                     }
                 }
                 return 0;
-              });
+            });
+        }
+        // Paged query
+        if (query.lastId) {
+            const idx = findIndex(results, (r) => { return r.id === query.lastId; });
+            if (idx > -1) {
+                results = results.slice(idx + 1);
+            }
+            else {
+                results = [];
+            }
         }
         // Paged query
         if(query.lastId) {
@@ -623,16 +670,16 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
             }
         }
         // limit
-        if(query.limit) {
+        if (query.limit) {
             results.splice(query.limit);
         }
         return results;
     }
     private getTestResult(testElement: IPredicate | ILogicalSequence, item: T): boolean {
         return (
-            testElement.type === "predicate" ? 
-            this.getPredicateResult(testElement, item) :
-            this.getSequenceResult(testElement, item)
+            testElement.type === "predicate" ?
+                this.getPredicateResult(testElement, item) :
+                this.getSequenceResult(testElement, item)
         );
     }
     private getPredicateResult(predicate: IPredicate, item: T): boolean {
@@ -640,51 +687,51 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         let value = item[predicate.propertyName];
         let refVal = predicate.value;
         // Dates
-        if(refVal === QueryToken.Now) {
+        if (refVal === QueryToken.Now) {
             refVal = new Date();
         }
-        else if(refVal === QueryToken.Today) {
+        else if (refVal === QueryToken.Today) {
             const now = new Date();
             refVal = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         }
-        if(refVal && refVal instanceof Date && !predicate.includeTimeValue) {
+        if (refVal && refVal instanceof Date && !predicate.includeTimeValue) {
             refVal = new Date(refVal.getFullYear(), refVal.getMonth(), refVal.getDate());
         }
-        if(value && value instanceof Date && !predicate.includeTimeValue) {
+        if (value && value instanceof Date && !predicate.includeTimeValue) {
             value = new Date(value.getFullYear(), value.getMonth(), value.getDate());
         }
         // Lookups
-        if(refVal === QueryToken.UserID) {
+        if (refVal === QueryToken.UserID) {
             refVal = ServicesConfiguration.configuration.currentUserId;
         }
-        if(predicate.lookupId) {
-            if(value && value.id && typeof(value.id) === "number") {
+        if (predicate.lookupId) {
+            if (value && value.id && typeof (value.id) === "number") {
                 value = value.id;
             }
         }
-        else if(value && value.id && typeof(value.id) === "number") {
+        else if (value && value.id && typeof (value.id) === "number") {
             value = value.title;
         }
-        
-        switch(predicate.operator) {
+
+        switch (predicate.operator) {
             case TestOperator.BeginsWith:
                 result = (
-                    value && typeof(value) === "string" && 
-                    refVal && typeof(refVal) === "string" ? 
-                    value.indexOf(refVal) === 0 : 
-                    false
+                    value && typeof (value) === "string" &&
+                        refVal && typeof (refVal) === "string" ?
+                        value.indexOf(refVal) === 0 :
+                        false
                 );
                 break;
             case TestOperator.Contains:
                 result = (
-                    value && typeof(value) === "string" && 
-                    refVal && typeof(refVal) === "string" ? 
-                    value.indexOf(refVal) !== -1 : 
-                    false
+                    value && typeof (value) === "string" &&
+                        refVal && typeof (refVal) === "string" ?
+                        value.indexOf(refVal) !== -1 :
+                        false
                 );
                 break;
             case TestOperator.Eq:
-                if(value instanceof TaxonomyTerm && predicate.lookupId) {
+                if (value instanceof TaxonomyTerm && predicate.lookupId) {
                     result = value.wssids.indexOf(refVal) !== -1;
                 }
                 else {
@@ -692,17 +739,17 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                 }
                 break;
             case TestOperator.Geq:
-                result = (typeof(value) === "string" && typeof(refVal) === "string") ?
+                result = (typeof (value) === "string" && typeof (refVal) === "string") ?
                     value.localeCompare(refVal) >= 0 :
                     value >= refVal;
                 break;
             case TestOperator.Gt:
-                result = (typeof(value) === "string" && typeof(refVal) === "string") ?
+                result = (typeof (value) === "string" && typeof (refVal) === "string") ?
                     value.localeCompare(refVal) > 0 :
                     value > refVal;
                 break;
             case TestOperator.In:
-                if(value instanceof TaxonomyTerm && predicate.lookupId) {
+                if (value instanceof TaxonomyTerm && predicate.lookupId) {
                     result = Array.isArray(refVal) && refVal.some(v => value.wssids.indexOf(v) !== -1);
                 }
                 else {
@@ -710,23 +757,23 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                 }
                 break;
             case TestOperator.Includes:
-                if(Array.isArray(value)) {
+                if (Array.isArray(value)) {
                     for (const lookup of value) {
-                        if(predicate.lookupId) {
-                            if(lookup && lookup.id) {
-                                if(typeof(lookup.id) === "number") {
+                        if (predicate.lookupId) {
+                            if (lookup && lookup.id) {
+                                if (typeof (lookup.id) === "number") {
                                     result = lookup === refVal;
                                 }
-                                else if(lookup instanceof TaxonomyTerm) {
+                                else if (lookup instanceof TaxonomyTerm) {
                                     result = lookup.wssids.indexOf(refVal) !== -1;
                                 }
 
                             }
                         }
-                        else if(lookup && lookup.id) {
+                        else if (lookup && lookup.id) {
                             result = lookup.title === refVal;
                         }
-                        if(result) {
+                        if (result) {
                             break;
                         }
                     }
@@ -735,70 +782,70 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
             case TestOperator.IsNotNull:
                 result = value !== null && value !== undefined && value !== "";
                 break;
-            case TestOperator.IsNull:                
+            case TestOperator.IsNull:
                 result = value === null || value === undefined || value === "";
                 break;
             case TestOperator.Leq:
-                result = (typeof(value) === "string" && typeof(refVal) === "string") ?
+                result = (typeof (value) === "string" && typeof (refVal) === "string") ?
                     value.localeCompare(refVal) <= 0 :
                     value <= refVal;
                 break;
             case TestOperator.Lt:
-                result = (typeof(value) === "string" && typeof(refVal) === "string") ?
+                result = (typeof (value) === "string" && typeof (refVal) === "string") ?
                     value.localeCompare(refVal) < 0 :
                     value < refVal;
                 break;
             case TestOperator.Neq:
-                if(value instanceof TaxonomyTerm && predicate.lookupId) {
+                if (value instanceof TaxonomyTerm && predicate.lookupId) {
                     result = value.wssids.indexOf(refVal) === -1;
                 }
                 else {
                     result = value !== refVal;
                 }
                 break;
-            case TestOperator.NotIncludes:                
-                if(Array.isArray(value)) {
+            case TestOperator.NotIncludes:
+                if (Array.isArray(value)) {
                     result = true;
                     for (const lookup of value) {
-                        if(predicate.lookupId) {
-                            if(lookup && lookup.id) {
-                                if(typeof(lookup.id) === "number") {
+                        if (predicate.lookupId) {
+                            if (lookup && lookup.id) {
+                                if (typeof (lookup.id) === "number") {
                                     result = lookup === refVal;
                                 }
-                                else if(lookup instanceof TaxonomyTerm) {
+                                else if (lookup instanceof TaxonomyTerm) {
                                     result = lookup.wssids.indexOf(refVal) !== -1;
                                 }
 
                             }
                         }
-                        else if(lookup && lookup.id) {
+                        else if (lookup && lookup.id) {
                             result = lookup.title === refVal;
                         }
-                        if(result) {
+                        if (result) {
                             break;
                         }
-                        if(!result) {
+                        if (!result) {
                             break;
                         }
                     }
                 }
                 break;
-            default: 
+            default:
                 break;
         }
         return result;
     }
-    
+
     private getSequenceResult(sequence: ILogicalSequence, item: T): boolean {
         // and : find first false, or : find first true
         let result = sequence.operator === LogicalOperator.And;
         for (const subTest of sequence.children) {
-            const tmp = subTest.type === "predicate" ? this.getPredicateResult(subTest, item) : this.getSequenceResult(subTest,item);
-            if(!tmp && sequence.operator === LogicalOperator.And) {
+            const tmp = subTest.type === "predicate" ? this.getPredicateResult(subTest, item) : this.getSequenceResult(subTest, item);
+            if (!tmp && sequence.operator === LogicalOperator.And) {
                 result = false;
                 break;
             }
-            else if(tmp && sequence.operator === LogicalOperator.Or) {
+            else if (tmp && sequence.operator === LogicalOperator.Or) {
                 result = true;
                 break;
             }

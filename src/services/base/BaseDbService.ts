@@ -8,7 +8,7 @@ import { ServicesConfiguration } from "../../configuration";
 import { Constants } from "../../constants";
 import { SPFile } from "../../models";
 
-
+import { Mutex } from 'async-mutex';
 
 /**
  * Base classe for indexedDB interraction using SP repository
@@ -31,7 +31,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
 
     protected getChunksRegexp(fileUrl): RegExp {
         const escapedUrl = UtilsService.escapeRegExp(fileUrl);
-        return new RegExp("^" + escapedUrl + "_chunk_\\d+$","g");
+        return new RegExp("^" + escapedUrl + "_chunk_\\d+$", "g");
     }
 
     protected async getAllKeysInternal<TKey extends string | number>(store: ObjectStore<T, TKey>): Promise<Array<TKey>> {
@@ -49,20 +49,33 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
         return result;
     }
 
+    private static mutex = new Mutex();
+
     protected async getNextAvailableKey(): Promise<number> {
         let result: number;
-        await this.OpenDb();
-        const tx = this.db.transaction(this.tableName, 'readonly');
-        const store = tx.objectStore<T, number>(this.tableName);
-        const keys = await this.getAllKeysInternal(store);
-        if (keys.length > 0) {
-            const minKey = Math.min(...keys);
-            result = Math.min(-2, minKey - 1);
+
+
+        const release = await BaseDbService.mutex.acquire();
+        try {
+            await this.OpenDb();
+            const tx = this.db.transaction(this.tableName, 'readonly');
+            const store = tx.objectStore<T, number>(this.tableName);
+            const keys = await this.getAllKeysInternal(store);
+            if (keys.length > 0) {
+                const minKey = Math.min(...keys);
+                result = Math.min(-2, minKey - 1);
+            }
+            else {
+                result = -2;
+            }
+            await tx.complete;
+        } finally {
+            release();
         }
-        else {
-            result = -2;
-        }
-        await tx.complete;
+
+
+
+
         return result;
     }
 
@@ -108,7 +121,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                 const chunkkeys = keys.filter((k) => {
                     const match = k.match(chunkRegex);
                     return match && match.length > 0;
-                });                
+                });
                 await Promise.all(chunkkeys.map((k) => {
                     return store.delete(k);
                 }));
@@ -139,9 +152,9 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
 
         } catch (error) {
             console.error(error.message + " - " + error.Name);
-            try {                
+            try {
                 tx.abort();
-            } catch { 
+            } catch {
                 // error allready thrown
             }
             item.error = error;
@@ -161,7 +174,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                 const chunkkeys = keys.filter((k) => {
                     const match = k.match(chunkRegex);
                     return match && match.length > 0;
-                }); 
+                });
                 deleteKeys.push(...chunkkeys);
             }
             await Promise.all(deleteKeys.map((k) => {
@@ -170,9 +183,9 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
             await tx.complete;
         } catch (error) {
             console.error(error.message + " - " + error.Name);
-            try {                
+            try {
                 tx.abort();
-            } catch { 
+            } catch {
                 // error allready thrown
             }
             throw error;
@@ -208,9 +221,9 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                     const chunkkeys = keys.filter((k) => {
                         const match = k.match(chunkRegex);
                         return match && match.length > 0;
-                    });           
+                    });
                     await Promise.all(chunkkeys.map((k) => {
-                        return store.delete(k); 
+                        return store.delete(k);
                     }));
                     // add chunked file
                     let idx = 0;
@@ -234,17 +247,17 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                 else {
                     await store.put(assign({}, item)); // store simple object with data only 
                 }
-                if(onItemUpdated) {
-                    onItemUpdated(newItems[itemIdx] ,item);
+                if (onItemUpdated) {
+                    onItemUpdated(newItems[itemIdx], item);
                 }
             }));
             await tx.complete;
             return copy;
         } catch (error) {
             console.error(error.message + " - " + error.Name);
-            try {                
+            try {
                 tx.abort();
-            } catch { 
+            } catch {
                 // error allready thrown
             }
             throw error;
@@ -270,7 +283,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                     const chunkparts = (/^.*_chunk_\d+$/g).test(item.serverRelativeUrl);
                     if (!chunkparts) {
                         // verify if there are other parts
-                        const chunkRegex = this.getChunksRegexp(item.serverRelativeUrl);                        
+                        const chunkRegex = this.getChunksRegexp(item.serverRelativeUrl);
                         const chunks = rows.filter((chunkedrow) => {
                             const match = chunkedrow.id.match(chunkRegex);
                             return match && match.length > 0;
@@ -287,14 +300,14 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                 else {
                     result.push(resultItem);
                 }
-            });            
+            });
             await transaction.complete;
             return result;
         } catch (error) {
             console.error(error.message + " - " + error.Name);
-            try {                
+            try {
                 transaction.abort();
-            } catch { 
+            } catch {
                 // error allready thrown
             }
             throw error;
@@ -324,9 +337,9 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
             await tx.complete;
         } catch (error) {
             console.error(error.message + " - " + error.Name);
-            try {                
+            try {
                 tx.abort();
-            } catch { 
+            } catch {
                 // error allready thrown
             }
             throw error;
@@ -348,7 +361,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                     if (!chunkparts) {
                         const allRows = await store.getAll();
                         // verify if there are other parts
-                        const chunkRegex = this.getChunksRegexp(result.serverRelativeUrl);                          
+                        const chunkRegex = this.getChunksRegexp(result.serverRelativeUrl);
                         const chunks = allRows.filter((chunkedrow) => {
                             const match = chunkedrow.id.match(chunkRegex);
                             return match && match.length > 0;
@@ -377,6 +390,6 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
         const results: Array<T> = await Promise.all(ids.map((id) => {
             return this.getItemById(id);
         }));
-        return results.filter(r=>{ return r !== null && r !== undefined; });
+        return results.filter(r => { return r !== null && r !== undefined; });
     }
 }

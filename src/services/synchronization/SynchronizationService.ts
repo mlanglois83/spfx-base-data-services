@@ -29,8 +29,8 @@ export class SynchronizationService extends BaseService {
      * @param key - unique callback key
      */
     public static unregisterItemSynchronizedCallback(key: string): void {
-        if(SynchronizationService.itemSynchroCallbacks[key]) {
-            delete(SynchronizationService.itemSynchroCallbacks[key]);
+        if (SynchronizationService.itemSynchroCallbacks[key]) {
+            delete (SynchronizationService.itemSynchroCallbacks[key]);
         }
     }
     /**
@@ -46,8 +46,8 @@ export class SynchronizationService extends BaseService {
      * @param key - unique callback key
      */
     public static unregisterSynchronizationCallback(key: string): void {
-        if(SynchronizationService.synchroCallbacks[key]) {
-            delete(SynchronizationService.synchroCallbacks[key]);
+        if (SynchronizationService.synchroCallbacks[key]) {
+            delete (SynchronizationService.synchroCallbacks[key]);
         }
     }
 
@@ -90,77 +90,86 @@ export class SynchronizationService extends BaseService {
             switch (transaction.title) {
                 case TransactionType.AddOrUpdate:
                     const oldId = item.id;
-                    const isAdd = typeof (oldId) === "number" && oldId < 0;       
+                    const isAdd = typeof (oldId) === "number" && oldId < 0;
                     const tmp = await dataService.mapItems([item]);
                     const dbItem = tmp.shift();
                     const updatedItem = await dataService.addOrUpdateItem(dbItem);
 
                     // handle id and version changed
                     if (isAdd && !updatedItem.error) {
-                        
+
                         let nextTransactions: Array<OfflineTransaction> = [];
                         // next transactions on this item
                         if (index < transactions.length - 1) {
                             nextTransactions = await Promise.all(transactions.slice(index + 1).map(async (updatedTr) => {
-                                if(updatedTr.itemType === transaction.itemType &&
-                                (updatedTr.itemData as IBaseItem).id === oldId) {
+
+                                if (updatedTr.itemType === transaction.itemType && (updatedTr.itemData as IBaseItem).id === oldId) {
                                     (updatedTr.itemData as IBaseItem).id = updatedItem.id;
                                     (updatedTr.itemData as IBaseItem).version = updatedItem.version;
+
+                                    const identifiers = dataService.Identifier;
+                                    if (identifiers) {
+                                        for (const identifier of identifiers) {
+
+                                            (updatedTr.itemData as IBaseItem)[identifier] = updatedItem[identifier];
+                                        }
+                                    }
+
                                     await this.transactionService.addOrUpdateItem(updatedTr);
                                 }
-                                return updatedTr;                            
+                                return updatedTr;
                             }));
                         }
                         if (dataService.updateLinkedTransactions) {
                             nextTransactions = await dataService.updateLinkedTransactions(oldId, updatedItem.id, nextTransactions);
                         }
-                        if(index < transactions.length - 1) {
+                        if (index < transactions.length - 1) {
                             transactions.splice(index + 1, transactions.length - index - 1, ...nextTransactions);
                         }
 
                     }
                     // update version on next transactions (avoid errors)
-                    else if(!updatedItem.error) {
+                    else if (!updatedItem.error) {
                         let nextTransactions: Array<OfflineTransaction> = [];
                         // next transactions on this item
                         if (index < transactions.length - 1) {
                             nextTransactions = await Promise.all(transactions.slice(index + 1).map(async (updatedTr) => {
-                                if(updatedTr.itemType === transaction.itemType &&
-                                (updatedTr.itemData as IBaseItem).id === item.id) {
+                                if (updatedTr.itemType === transaction.itemType &&
+                                    (updatedTr.itemData as IBaseItem).id === item.id) {
                                     (updatedTr.itemData as IBaseItem).version = updatedItem.version;
                                     await this.transactionService.addOrUpdateItem(updatedTr);
                                 }
-                                return updatedTr;                            
+                                return updatedTr;
                             }));
                         }
-                        if(index < transactions.length - 1) {
+                        if (index < transactions.length - 1) {
                             transactions.splice(index + 1, transactions.length - index - 1, ...nextTransactions);
                         }
                     }
-                    if(updatedItem.error) {
+                    if (updatedItem.error) {
                         errors.push(this.formatError(transaction, updatedItem.error.message));
-                        if(updatedItem.error.name === Constants.Errors.ItemVersionConfict){
+                        if (updatedItem.error.name === Constants.Errors.ItemVersionConfict) {
                             await this.transactionService.deleteItem(transaction);
                         }
                     }
                     else {
                         await this.transactionService.deleteItem(transaction);
                     }
-                    SynchronizationService.emitItemSynchronized({item: updatedItem, oldId: (isAdd ? oldId: undefined), operation: TransactionType.AddOrUpdate});
+                    SynchronizationService.emitItemSynchronized({ item: updatedItem, oldId: (isAdd ? oldId : undefined), operation: TransactionType.AddOrUpdate });
                     break;
                 case TransactionType.Delete:
                     try {
                         await dataService.deleteItem(item);
                         await this.transactionService.deleteItem(transaction);
-                        SynchronizationService.emitItemSynchronized({item: item,operation: TransactionType.Delete});
+                        SynchronizationService.emitItemSynchronized({ item: item, operation: TransactionType.Delete });
                     } catch (error) {
                         errors.push(this.formatError(transaction, error.message));
                     }
                     break;
             }
-        }        
-        
-        SynchronizationService.emitSynchronizationEnded({errors: errors});
+        }
+
+        SynchronizationService.emitSynchronizationEnded({ errors: errors });
         //return errors list
         return errors;
     }
@@ -171,10 +180,10 @@ export class SynchronizationService extends BaseService {
         const item = assign(new itemType(), transaction.itemData);
         switch (transaction.title) {
             case TransactionType.AddOrUpdate:
-                if(item instanceof SPFile) {
+                if (item instanceof SPFile) {
                     operationLabel = ServicesConfiguration.configuration.translations.UploadLabel;
                 }
-                else if(item.id < 0) {
+                else if (item.id < 0) {
                     operationLabel = ServicesConfiguration.configuration.translations.AddLabel;
                 }
                 else {
@@ -182,11 +191,11 @@ export class SynchronizationService extends BaseService {
                 }
                 break;
             case TransactionType.Delete:
-                operationLabel = ServicesConfiguration.configuration.translations.DeleteLabel;                
+                operationLabel = ServicesConfiguration.configuration.translations.DeleteLabel;
                 break;
             default: break;
         }
-        const itemTypeLabel = ServicesConfiguration.configuration.translations.typeTranslations[transaction.itemType] ? ServicesConfiguration.configuration.translations.typeTranslations[transaction.itemType]: transaction.itemType;
+        const itemTypeLabel = ServicesConfiguration.configuration.translations.typeTranslations[transaction.itemType] ? ServicesConfiguration.configuration.translations.typeTranslations[transaction.itemType] : transaction.itemType;
         return Text.format(ServicesConfiguration.configuration.translations.SynchronisationErrorFormat, itemTypeLabel, operationLabel, item.title, item.id, message);
     }
 

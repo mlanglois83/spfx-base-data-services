@@ -1,6 +1,7 @@
 
 import { IBaseItem } from "../../interfaces";
 import { Decorators } from "../../decorators";
+import { findIndex } from "@microsoft/sp-lodash-subset";
 
 const spField = Decorators.spField;
 
@@ -15,7 +16,7 @@ export abstract class SPItem implements IBaseItem {
 
     public __getInternalLinks(propertyName: string): any {
         let result = null;
-        if(this.__internalLinks) {
+        if (this.__internalLinks) {
             result = this.__internalLinks[propertyName];
         }
         return result;
@@ -24,32 +25,44 @@ export abstract class SPItem implements IBaseItem {
         this.__internalLinks = this.__internalLinks || {};
         this.__internalLinks[propertyName] = value;
     }
+
+
+    public __setReplaceInternalLinks(propertyName: string, oldValue: any, newValue: any): void {
+        const links = this.__getInternalLinks(propertyName) || [];
+
+        const lookupidx = findIndex(links, (id) => { return id === oldValue; });
+        if (lookupidx > -1) {
+            links[lookupidx] = newValue;
+        }
+    }
+
+
     public __deleteInternalLinks(propertyName: string): void {
-        if(this.__internalLinks) {
+        if (this.__internalLinks) {
             delete this.__internalLinks[propertyName];
         }
     }
-    
+
     public __clearEmptyInternalLinks(): void {
-        if(this.__internalLinks && Object.keys(this.__internalLinks).length === 0) { 
+        if (this.__internalLinks && Object.keys(this.__internalLinks).length === 0) {
             delete this.__internalLinks;
-        }       
+        }
     }
 
     /**
      * Item id
      */
-    @spField({fieldName: "ID", defaultValue: -1 })
+    @spField({ fieldName: "ID", defaultValue: -1 })
     public id = -1;
     /**
      * Item title
      */
-    @spField({fieldName: "Title", defaultValue: "" })
+    @spField({ fieldName: "Title", defaultValue: "" })
     public title: string;
     /**
      * Version number
      */
-    @spField({fieldName: "OData__UIVersionString"})
+    @spField({ fieldName: "OData__UIVersionString" })
     public version?: number;
     /**
      * Last update error

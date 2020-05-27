@@ -23,7 +23,7 @@ export class UtilsService extends BaseService {
 
 
         try {
-            const response = await fetch(ServicesConfiguration.context.pageContext.web.absoluteUrl, { method: 'HEAD', mode: 'no-cors' }); // head method not cached
+            const response = await fetch(ServicesConfiguration.context.pageContext.web.absoluteUrl + ServicesConfiguration.configuration.onlineCheckPage, { method: 'HEAD', mode: 'no-cors' }); // head method not cached
             result = (response && (response.ok || response.type === 'opaque'));
         }
         catch (ex) {

@@ -33,6 +33,7 @@ export class ServicesConfiguration {
         dbVersion: 1,
         lastConnectionCheckResult: false,
         checkOnline: false,
+        onlineCheckPage: "",
         context: null,
         serviceFactory: null,
         tableNames: [],
