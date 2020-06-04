@@ -539,7 +539,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
 
             const semaphore = new Semaphore(1);
 
-            const [value, release] = await semaphore.acquire();
+            const [value, release] = await semaphore.acquire(); // eslint-disable-line @typescript-eslint/no-unused-vars
 
             try {
 
