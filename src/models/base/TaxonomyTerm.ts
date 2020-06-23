@@ -1,4 +1,4 @@
-import { IBaseItem } from "../../interfaces";
+import { IBaseItem } from "../../interfaces/index";
 
 /**
  * Base object for sharepoint taxonomy term abstraction objects
@@ -29,6 +29,10 @@ export class TaxonomyTerm implements IBaseItem {
      */
     public customSortOrder?: string;
     /**
+     * Term description
+     */
+    public description: string;
+    /**
      * Term associated custom properties
      */
     public customProperties: any;
@@ -38,9 +42,10 @@ export class TaxonomyTerm implements IBaseItem {
      */
     constructor(term? : any) {
         if (term != undefined) {
-            this.title = term.Name != undefined ? term.Name : "";
-            this.id = term.Id != undefined ? term.Id.replace(/\/Guid\(([^)]+)\)\//g, "$1") : "";
-            this.path = term.PathOfTerm != undefined ? term.PathOfTerm : "";
+            this.title = term.Name ? term.Name : "";
+            this.description = term.Description ? term.Description : "";
+            this.id = term.Id ? term.Id.replace(/\/Guid\(([^)]+)\)\//g, "$1") : "";
+            this.path = term.PathOfTerm ? term.PathOfTerm : "";
             this.customSortOrder = term.CustomSortOrder;
             this.customProperties = term.CustomProperties;
             this.isDeprecated = term.IsDeprecated;
