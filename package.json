@@ -2,6 +2,24 @@
   "name": "spfx-base-data-services",
   "description": "A set of tools to create powerfull dataservices on spfx applications",
   "version": "1.0.48",
+  "author": {
+    "name": "Matthieu LANGLOIS",
+    "email": "matthieu.langlois@gmail.com"
+  },
+  "contributors": [
+    {
+      "name": "Matthieu CHUZEVILLE"
+    }
+  ],
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/mlanglois83/spfx-base-data-services/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mlanglois83/spfx-base-data-services.git"
+  },
+  "homepage": "https://github.com/mlanglois83/spfx-base-data-services",
   "private": false,
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
