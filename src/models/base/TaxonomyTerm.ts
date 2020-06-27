@@ -1,4 +1,5 @@
 import { IBaseItem } from "../../interfaces/index";
+import { stringIsNullOrEmpty } from "@pnp/common";
 
 /**
  * Base object for sharepoint taxonomy term abstraction objects
@@ -50,6 +51,23 @@ export class TaxonomyTerm implements IBaseItem {
             this.customProperties = term.CustomProperties;
             this.isDeprecated = term.IsDeprecated;
         }
+    }
+    public isParentOf(term: TaxonomyTerm): boolean {
+        return (
+            term && 
+            !stringIsNullOrEmpty(this.path) && 
+            !stringIsNullOrEmpty(term.path) &&
+            this.path.split(";").length + 1 === term.path.split(";").length &&
+            term.path.indexOf(this.path) === 0
+        );
+    }
+    public contains(term: TaxonomyTerm): boolean {
+        return (
+            term && 
+            !stringIsNullOrEmpty(this.path) && 
+            !stringIsNullOrEmpty(term.path) &&
+            term.path.indexOf(this.path) === 0
+        );
     }
 
 }
