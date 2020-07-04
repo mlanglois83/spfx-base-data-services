@@ -1,7 +1,7 @@
 {
   "name": "spfx-base-data-services",
   "description": "A set of tools to create powerfull dataservices on spfx applications",
-  "version": "1.1.42",
+  "version": "1.1.43",
   "author": {
     "name": "Matthieu LANGLOIS",
     "email": "matthieu.langlois@gmail.com"
@@ -26,8 +26,8 @@
   "homepage": "https://github.com/mlanglois83/spfx-base-data-services",
   "badges": [
     {
-      "href":"https://lgtm.com/projects/g/mlanglois83/spfx-base-data-services/alerts/",
-      "description":"Total alerts",
+      "href": "https://lgtm.com/projects/g/mlanglois83/spfx-base-data-services/alerts/",
+      "description": "Total alerts",
       "url": "https://img.shields.io/lgtm/alerts/g/mlanglois83/spfx-base-data-services.svg?logo=lgtm&logoWidth=18"
     },
     {
