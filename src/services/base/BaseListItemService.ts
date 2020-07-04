@@ -278,7 +278,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 break;
             case FieldType.Taxonomy:
                 const wssid: number = spitem[fieldDescriptor.fieldName] ? spitem[fieldDescriptor.fieldName].WssId : -1;
-                if (id !== -1) {
+                if (wssid !== -1) {
                     const tterms = this.getServiceInitValues(fieldDescriptor.modelName);
                     converted[propertyName] = this.getTaxonomyTermByWssId(wssid, tterms);
                 }
@@ -538,8 +538,8 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         else {
 
             const semaphore = new Semaphore(1);
-
-            const [value, release] = await semaphore.acquire(); // eslint-disable-line @typescript-eslint/no-unused-vars
+            
+            const semacq = await semaphore.acquire();
 
             try {
 
@@ -606,7 +606,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
 
                 this.storePromise(promise, this.lastModifiedDate);
             } finally {
-                release();
+                semacq[1](); // release
             }
 
         }
@@ -1666,8 +1666,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
     private getOrderBy(query: IQuery): string {
         let result = "";
         if (query.orderBy && query.orderBy.length > 0) {
-            result =
-                result = `<OrderBy>
+            result = `<OrderBy>
                 ${query.orderBy.map(ob => this.getFieldRef(ob)).join('')}
             </OrderBy>`;
         }

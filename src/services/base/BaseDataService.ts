@@ -217,7 +217,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         else {
             promise = new Promise<Array<T>>(async (resolve, reject) => {
                 try {
-                    let result = new Array<T>();
+                    let result: Array<T>;
 
                     //has to refresh cache
                     let reloadData = await this.needRefreshCache();
@@ -267,7 +267,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         else {
             promise = new Promise<Array<T>>(async (resolve, reject) => {
                 try {
-                    let result = new Array<T>();
+                    let result: Array<T>;
                     //has to refresh cache
                     let reloadData = await this.needRefreshCache(keyCached);
                     //if refresh is needed, test offline/online
@@ -758,25 +758,24 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                 break;
             case TestOperator.Includes:
                 if (Array.isArray(value)) {
-                    for (const lookup of value) {
+                    result = value.some((lookup) => {
+                        let test = false;
                         if (predicate.lookupId) {
                             if (lookup && lookup.id) {
                                 if (typeof (lookup.id) === "number") {
-                                    result = lookup === refVal;
+                                    test = lookup === refVal;
                                 }
                                 else if (lookup instanceof TaxonomyTerm) {
-                                    result = lookup.wssids.indexOf(refVal) !== -1;
+                                    test = lookup.wssids.indexOf(refVal) !== -1;
                                 }
 
                             }
                         }
                         else if (lookup && lookup.id) {
-                            result = lookup.title === refVal;
+                            test = lookup.title === refVal;
                         }
-                        if (result) {
-                            break;
-                        }
-                    }
+                        return test;
+                    });
                 }
                 break;
             case TestOperator.IsNotNull:
@@ -805,29 +804,24 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                 break;
             case TestOperator.NotIncludes:
                 if (Array.isArray(value)) {
-                    result = true;
-                    for (const lookup of value) {
+                    result = !value.some((lookup) => {
+                        let test = false;
                         if (predicate.lookupId) {
                             if (lookup && lookup.id) {
                                 if (typeof (lookup.id) === "number") {
-                                    result = lookup === refVal;
+                                    test = lookup === refVal;
                                 }
                                 else if (lookup instanceof TaxonomyTerm) {
-                                    result = lookup.wssids.indexOf(refVal) !== -1;
+                                    test = lookup.wssids.indexOf(refVal) !== -1;
                                 }
 
                             }
                         }
                         else if (lookup && lookup.id) {
-                            result = lookup.title === refVal;
+                            test = lookup.title === refVal;
                         }
-                        if (result) {
-                            break;
-                        }
-                        if (!result) {
-                            break;
-                        }
-                    }
+                        return test;
+                    });
                 }
                 break;
             default:
