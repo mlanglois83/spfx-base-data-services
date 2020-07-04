@@ -1,18 +1,35 @@
 
+[![Total alerts](https://img.shields.io/lgtm/alerts/g/mlanglois83/spfx-base-data-services.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/mlanglois83/spfx-base-data-services/alerts/)
+[![Language grade: JavaScript](https://img.shields.io/lgtm/grade/javascript/g/mlanglois83/spfx-base-data-services.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/mlanglois83/spfx-base-data-services/context:javascript)
+
 # spfx-base-data-services
 
 ## Contents
 
-- [Description](#description)
-- [Installation](#installation)
-- [Project integration](#project-integration)
-  - [Initialization](#initialization)
-  - [Packaging the solution](#packaging-the-solution)
-- [Implementation](#implementation)
-  - [Service Factory](#service-factory)
-  - [SharePoint List](#sharepoint-list)
-    - [List item model](#list-item-model)
-    - [List service](#list-service)
+- [spfx-base-data-services](#spfx-base-data-services)
+  - [Contents](#contents)
+  - [Description](#description)
+  - [Installation](#installation)
+  - [Project integration](#project-integration)
+    - [Initialization](#initialization)
+    - [Packaging the solution](#packaging-the-solution)
+  - [Implementation](#implementation)
+    - [Service Factory](#service-factory)
+    - [SharePoint List](#sharepoint-list)
+      - [List item model](#list-item-model)
+      - [List service](#list-service)
+    - [Taxonomy Term set](#taxonomy-term-set)
+      - [Taxonomy term model](#taxonomy-term-model)
+      - [Term set service](#term-set-service)
+    - [Library](#library)
+      - [Library service](#library-service)
+      - [File model](#file-model)
+    - [Extending Services](#extending-services)
+    - [Overriding default services methods](#overriding-default-services-methods)
+    - [Creating a custom service](#creating-a-custom-service)
+    - [Synchronization events](#synchronization-events)
+  - [Using a service](#using-a-service)
+  - [Classes and interfaces description](#classes-and-interfaces-description)
 
 ## Description
 
