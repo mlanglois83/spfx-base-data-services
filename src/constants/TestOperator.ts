@@ -11,5 +11,6 @@ export enum TestOperator {
     Leq = "Leq",
     Lt = "Lt",
     Neq = "Neq",
-    NotIncludes = "NotIncludes"
+    NotIncludes = "NotIncludes",
+    FreeRequest = "FreeRequest"
 }

@@ -84,11 +84,10 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
 
         let spterms: ITerm[];
         let ts: any;
-        this.termset.terms.inBatch(batch).get().then((results) => {
-            spterms = results;
-
+        this.termset.terms.select("Name", "Description", "Id", "PathOfTerm", "CustomSortOrder", "CustomProperties", "IsDeprecated").inBatch(batch).get().then((results) => {
+            spterms = results;   
         });
-        this.termset.inBatch(batch).get().then((result) => {
+        this.termset.select("CustomSortOrder").inBatch(batch).get().then((result) => {
             ts = result;
         });
 
@@ -109,7 +108,7 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
 
     public async getItemById_Internal(id: string): Promise<T> {
         let result = null;
-        const spterm = await this.termset.terms.getById(id);
+        const spterm = await this.termset.terms.getById(id).select("Name", "Description", "Id", "PathOfTerm", "CustomSortOrder", "CustomProperties", "IsDeprecated");
         if (spterm) {
             result = new this.itemType(spterm);
         }
@@ -123,7 +122,7 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
             const sub = copy.splice(0, 100);
             const batch = taxonomy.createBatch();
             sub.forEach((id) => {
-                this.termset.terms.getById(id).inBatch(batch).get().then((term) => {
+                this.termset.terms.getById(id).select("Name", "Description", "Id", "PathOfTerm", "CustomSortOrder", "CustomProperties", "IsDeprecated").inBatch(batch).get().then((term) => {
                     if (term) {
                         results.push(new this.itemType(term));
                     }

@@ -42,7 +42,7 @@ gulp.task('build', function() {
     return tsProject.src()
         .pipe(sourcemaps.init())
         .pipe(tsProject())
-        .pipe(sourcemaps.write('.'))
+        .pipe(sourcemaps.write('.', {includeContent: false, sourceRoot:"."}))
         .pipe(gulp.dest('dist'));
 });
 

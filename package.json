@@ -59,7 +59,7 @@
     "gulp-typescript": "^6.0.0-alpha.1",
     "tslint": "^6.0.0",
     "typedoc": "^0.16.11",
-    "typescript": "^3.8.2"
+    "typescript": "^3.9.6"
   },
   "eslintConfig": {
     "parser": "@typescript-eslint/parser",
