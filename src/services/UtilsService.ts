@@ -84,7 +84,7 @@ export class UtilsService extends BaseService {
     }
 
     /**
-     * Concatenatee array buffers
+     * Concatenate array buffers
      * @param arrays - array buffers to concatenate
      */
     public static concatArrayBuffers(...arrays: ArrayBuffer[]): ArrayBuffer {
@@ -223,18 +223,26 @@ export class UtilsService extends BaseService {
 
     public static getTermPathPartString(term: TaxonomyTerm, allTerms: Array<TaxonomyTerm>, level: number): string {
         const parts = term.path.split(";");
-        if (parts.length - level <= 1) {
+        if (parts.length - level < 1) {
             return "";
+        }
+        else if (parts.length - level === 1){
+            return term.title;
         }
         else {
             const subParts = parts.slice(0, level + 1);
             const currentPath = subParts.join(";");
             const refTerm = find(allTerms, { path: currentPath });
-            return refTerm.title;
+            if(refTerm) {
+                return refTerm.title;
+            }
+            else {
+                return parts[level];
+            }
         }
     }
-
-
+    
+    
     public static getTermFullPathString(term: TaxonomyTerm, allTerms: Array<TaxonomyTerm>, baseLevel = 0): string {
         const parts = term.path.split(";");
         if (parts.length - baseLevel <= 1) {
@@ -258,8 +266,11 @@ export class UtilsService extends BaseService {
             resultParts.push(term.title);
             return resultParts.join(" > ");
         }
+    }
 
-
-
+    public static async isUrlInCache(url: string, cacheKey: string): Promise<boolean> {
+        const cache = await caches.open(cacheKey);
+        const response = await cache.match(url);
+        return response !== undefined && response !== null;
     }
 }
