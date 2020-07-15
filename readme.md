@@ -1,7 +1,7 @@
 
-![npm](https://img.shields.io/npm/dw/spfx-base-data-services)
-![npm](https://img.shields.io/npm/v/spfx-base-data-services)
-![GitHub package.json version (branch)](https://img.shields.io/github/package-json/v/mlanglois83/spfx-base-data-services/V1.1)
+[![npm](https://img.shields.io/npm/dw/spfx-base-data-services)](https://www.npmjs.com/package/spfx-base-data-services)
+[![npm](https://img.shields.io/npm/v/spfx-base-data-services)](https://www.npmjs.com/package/spfx-base-data-services)
+[![GitHub package.json version (branch)](https://img.shields.io/github/package-json/v/mlanglois83/spfx-base-data-services/V1.1)](https://github.com/mlanglois83/spfx-base-data-services)
 [![Total alerts](https://img.shields.io/lgtm/alerts/g/mlanglois83/spfx-base-data-services.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/mlanglois83/spfx-base-data-services/alerts/)
 [![Language grade: JavaScript](https://img.shields.io/lgtm/grade/javascript/g/mlanglois83/spfx-base-data-services.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/mlanglois83/spfx-base-data-services/context:javascript)
 
