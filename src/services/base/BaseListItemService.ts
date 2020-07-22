@@ -1046,7 +1046,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 for (const item of sub) {
                     const currentIdx = idx;
                     const converted = await this.getSPRestItem(item);
-                    this.list.items.getById(item.id as number).select(...selectFields).inBatch(batch).update(converted, entityTypeFullName).then(async () => {
+                    this.list.items.getById(item.id as number).select(...selectFields).inBatch(batch).update(converted, '*', entityTypeFullName).then(async () => {
                         resultItems.push(item);
 
                     }).catch((error) => {
