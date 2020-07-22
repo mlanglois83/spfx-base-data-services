@@ -967,6 +967,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         });
 
         await this.initFields();
+        const entityTypeFullName = await this.list.getListItemEntityTypeFullName();
         const selectFields = this.getOdataCommonFieldNames();
         // creation batch
         if (itemsToAdd.length > 0) {
@@ -979,7 +980,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                     const currentIdx = idx;
                     const itemId = item.id;
                     const converted = await this.getSPRestItem(item);
-                    this.list.items.select(...selectFields).inBatch(batch).add(converted).then(async (addResult) => {
+                    this.list.items.select(...selectFields).inBatch(batch).add(converted, entityTypeFullName).then(async (addResult) => {
                         await this.populateCommonFields(item, addResult.data);
                         await this.updateWssIds(item, addResult.data);
                         if (itemId < -1) {
@@ -1045,7 +1046,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 for (const item of sub) {
                     const currentIdx = idx;
                     const converted = await this.getSPRestItem(item);
-                    this.list.items.getById(item.id as number).select(...selectFields).inBatch(batch).update(converted).then(async () => {
+                    this.list.items.getById(item.id as number).select(...selectFields).inBatch(batch).update(converted, entityTypeFullName).then(async () => {
                         resultItems.push(item);
 
                     }).catch((error) => {
