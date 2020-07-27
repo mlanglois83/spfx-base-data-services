@@ -24,6 +24,9 @@ export class User implements IBaseItem {
     */
     public isSiteAdmin = false;
 
+    public firstName: string;
+    public lastName: string;
+
     public extendedProperties: Map<string, any>;
     /**
      * Get or Set User display name
@@ -37,6 +40,8 @@ export class User implements IBaseItem {
     public set displayName(val: string) {
         this.title = val;
     }
+
+
     /**
      * Instancate an user object
      * @param userObj - user object returned by graph api or sp
@@ -48,6 +53,9 @@ export class User implements IBaseItem {
             this.mail = userObj.mail ? userObj.mail : (userObj.Email ? userObj.Email : "");
             this.userPrincipalName = userObj.userPrincipalName ? userObj.userPrincipalName : (userObj.UserPrincipalName ? userObj.UserPrincipalName : "");
             this.isSiteAdmin = userObj.IsSiteAdmin === true;
+
+            this.firstName = userObj.givenName;
+            this.lastName = userObj.surname;
 
             this.extendedProperties = new Map<string, any>();
 
