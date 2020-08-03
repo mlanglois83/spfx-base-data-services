@@ -592,57 +592,37 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                     const aKey = a[order.propertyName];
                     const bKey = b[order.propertyName];
                     if (typeof (aKey) === "string" || typeof (bKey) === "string") {
-                        if (order.ascending === false) {
-                            if ((aKey || "").localeCompare(bKey || "") < 0) {
-                                return 1;
-                            }
-                            if ((aKey || "").localeCompare(bKey || "") > 0) {
-                                return -1;
-                            }
+                        if ((aKey || "").localeCompare(bKey || "") < 0) {
+                            return order.ascending ? -1 : 1;
                         }
-                        else {
-                            if ((aKey || "").localeCompare(bKey || "") < 0) {
-                                return -1;
-                            }
-                            if ((aKey || "").localeCompare(bKey || "") > 0) {
-                                return 1;
-                            }
+                        if ((aKey || "").localeCompare(bKey || "") > 0) {
+                            return order.ascending ? 1 : -1;
+                        }
+                    }
+                    else if(aKey instanceof Date || bKey instanceof Date) {
+                        const aval = aKey && aKey.getTime ? aKey.getTime() : 0;
+                        const bval = bKey && aKey.getTime ? bKey.getTime() : 0;
+                        if (aval < bval) {
+                            return order.ascending ? -1 : 1;
+                        }
+                        if (aval > bval) {
+                            return order.ascending ? 1 : -1;
                         }
                     }
                     else if (aKey.id && bKey.id) {
-                        if (order.ascending === false) {
-                            if ((aKey.title || "").localeCompare(bKey.title || "") < 0) {
-                                return 1;
-                            }
-                            if ((aKey.title || "").localeCompare(bKey.title || "") > 0) {
-                                return -1;
-                            }
+                        if ((aKey.title || "").localeCompare(bKey.title || "") < 0) {
+                            return order.ascending ? -1 : 1;
                         }
-                        else {
-                            if ((aKey.title || "").localeCompare(bKey.title || "") < 0) {
-                                return -1;
-                            }
-                            if ((aKey.title || "").localeCompare(bKey.title || "") > 0) {
-                                return 1;
-                            }
+                        if ((aKey.title || "").localeCompare(bKey.title || "") > 0) {
+                            return order.ascending ? 1 : -1;
                         }
                     }
                     else {
-                        if (order.ascending === false) {
-                            if (aKey < bKey) {
-                                return 1;
-                            }
-                            if (aKey.title > bKey) {
-                                return -1;
-                            }
+                        if (aKey < bKey) {
+                            return order.ascending ? -1 : 1;
                         }
-                        else {
-                            if (aKey < bKey) {
-                                return -1;
-                            }
-                            if (aKey.title > bKey) {
-                                return 1;
-                            }
+                        if (aKey > bKey) {
+                            return order.ascending ? 1 : -1;
                         }
                     }
                 }
