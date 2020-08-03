@@ -601,7 +601,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                     }
                     else if(aKey instanceof Date || bKey instanceof Date) {
                         const aval = aKey && aKey.getTime ? aKey.getTime() : 0;
-                        const bval = bKey && aKey.getTime ? bKey.getTime() : 0;
+                        const bval = bKey && bKey.getTime ? bKey.getTime() : 0;
                         if (aval < bval) {
                             return order.ascending ? -1 : 1;
                         }
