@@ -4,6 +4,7 @@ export { BaseDataService } from "./base/BaseDataService";
 export { BaseDbService } from "./base/BaseDbService";
 export { BaseFileService } from "./base/BaseFileService";
 export { BaseListItemService } from "./base/BaseListItemService";
+export { BaseRestService } from "./base/BaseRestService";
 export { BaseTermsetService } from "./base/BaseTermsetService";
 export { BaseService } from "./base/BaseService";
 

@@ -47,4 +47,8 @@ export interface IConfiguration {
      * Current user id
      */
     currentUserId: number;
+    /**
+     * Id of Azure AD app registered to get authentication token
+     */
+    aadAppId?: string;
 }

@@ -5,7 +5,6 @@ export interface IFieldDescriptor {
      * Internal name of SharePoint field
      */
     fieldName: string;
-
     /**
      * managed search property
      */
@@ -30,7 +29,6 @@ export interface IFieldDescriptor {
      * Referenced item model type name for Lookup types only
      */
     refItemName?: string;
-
     /**
      * is an identifier
      */

@@ -1,10 +1,11 @@
-import { IFieldDescriptor } from "../interfaces";
+import { IFieldDescriptor, IRestServiceDescriptor } from "../interfaces";
 
 
 export namespace Decorators {
     /**
      * Decorator function used for SPItem derived models fields
      * @param declaration - field declaration for binding
+     * @deprecated use field instead
      */
     export function spField(declaration: IFieldDescriptor): (target: any, propertyKey: string) => void {
         return (target: any, propertyKey: string): void => {
@@ -18,6 +19,19 @@ export namespace Decorators {
             }
             // Second key : model field name
             target.constructor.Fields[target.constructor["name"]][propertyKey] = declaration;
+        };
+    }
+    /**
+     * Decorator function used for models fields
+     * @param declaration - field declaration for binding
+     */
+    export function field (declaration: IFieldDescriptor): (target: any, propertyKey: string) => void { 
+        return spField(declaration);
+    }
+
+    export function restService(declaration: IRestServiceDescriptor): (target: any) => void { 
+        return (target: any): void => {
+            target.serviceProps = declaration;            
         };
     }
 } 
