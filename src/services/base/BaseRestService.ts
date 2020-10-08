@@ -1188,7 +1188,7 @@ export class BaseRestService<T extends IBaseItem> extends BaseDataService<T>{
 
     private async executeRequest(url: string, method: string, data?: any): Promise<any> {
         const req = await this.initRequest(method, data);
-        const response = await fetch(`${this.serviceUrl}${this.Bindings.addOrUpdateItems.url}`, req);
+        const response = await fetch(url, req);
             if(response.ok) {                    
                 return response.json();                    
             }
