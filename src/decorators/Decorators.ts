@@ -7,8 +7,16 @@ export namespace Decorators {
      * @param declaration - field declaration for binding
      * @deprecated use field instead
      */
-    export function spField(declaration: IFieldDescriptor): (target: any, propertyKey: string) => void {
+    export function spField(declaration?: IFieldDescriptor): (target: any, propertyKey: string) => void {
         return (target: any, propertyKey: string): void => {
+            if(!declaration){
+                declaration = {
+                    fieldName: propertyKey
+                };
+            }
+            if(!declaration.fieldName) {
+                declaration.fieldName = propertyKey;
+            }
             // constructs a static dictionnary on SPItem class
             if(!target.constructor.Fields) {
                 target.constructor.Fields = {};
@@ -25,7 +33,7 @@ export namespace Decorators {
      * Decorator function used for models fields
      * @param declaration - field declaration for binding
      */
-    export function field (declaration: IFieldDescriptor): (target: any, propertyKey: string) => void { 
+    export function field (declaration?: IFieldDescriptor): (target: any, propertyKey: string) => void { 
         return spField(declaration);
     }
 

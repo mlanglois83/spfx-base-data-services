@@ -4,7 +4,7 @@ export interface IFieldDescriptor {
     /**
      * Internal name of SharePoint field
      */
-    fieldName: string;
+    fieldName?: string;
     /**
      * managed search property
      */

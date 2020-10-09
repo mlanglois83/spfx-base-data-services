@@ -132,9 +132,11 @@ export class BaseRestService<T extends IBaseItem> extends BaseDataService<T>{
         const converted = destItem as unknown as RestItem;
         fieldDescriptor.fieldType = fieldDescriptor.fieldType || FieldType.Simple;
         switch (fieldDescriptor.fieldType) {
-            case FieldType.Simple:     
-            case FieldType.Date:
+            case FieldType.Simple:                
                 converted[propertyName] = restItem[fieldDescriptor.fieldName] !== null && restItem[fieldDescriptor.fieldName] !== undefined ? restItem[fieldDescriptor.fieldName] : fieldDescriptor.defaultValue;
+                break;
+            case FieldType.Date:
+                converted[propertyName] = restItem[fieldDescriptor.fieldName] ? new Date(restItem[fieldDescriptor.fieldName]) : fieldDescriptor.defaultValue;
                 break;
             case FieldType.Lookup:
                 const lookupId: number = restItem[fieldDescriptor.fieldName] ? restItem[fieldDescriptor.fieldName] : -1;
@@ -172,18 +174,18 @@ export class BaseRestService<T extends IBaseItem> extends BaseDataService<T>{
                 }
                 break;
             case FieldType.User:
-                const id: number = restItem[fieldDescriptor.fieldName] ? restItem[fieldDescriptor.fieldName] : -1;
-                if (id !== -1) {
+                const upn: string = restItem[fieldDescriptor.fieldName];
+                if (!stringIsNullOrEmpty(upn)) {
                     if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                         // get values from init values
                         const users = this.getServiceInitValues(fieldDescriptor.modelName);
-                        const existing = find(users, (user) => {
-                            return user.id === id;
+                        const existing = find(users, (user: User) => {
+                            return !stringIsNullOrEmpty(user.userPrincipalName) && user.userPrincipalName.toLowerCase() === upn.toLowerCase();
                         });
                         converted[propertyName] = existing ? existing : fieldDescriptor.defaultValue;
                     }
                     else {
-                        converted[propertyName] = id;
+                        converted[propertyName] = upn;
                     }
                 }
                 else {
@@ -191,24 +193,26 @@ export class BaseRestService<T extends IBaseItem> extends BaseDataService<T>{
                 }
                 break;
             case FieldType.UserMulti:
-                const ids: Array<number> = restItem[fieldDescriptor.fieldName] ? restItem[fieldDescriptor.fieldName] : [];
-                if (ids.length > 0) {
+                const upns: Array<string> = restItem[fieldDescriptor.fieldName] ? restItem[fieldDescriptor.fieldName] : [];
+                if (upns.length > 0) {
                     if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                         // get values from init values
                         const val = [];
                         const users = this.getServiceInitValues(fieldDescriptor.modelName);
-                        ids.forEach(umid => {
-                            const existing = find(users, (user) => {
-                                return user.id === umid;
-                            });
-                            if (existing) {
-                                val.push(existing);
-                            }
+                        upns.forEach(umupn => {
+                            if(!stringIsNullOrEmpty(umupn)) {
+                                const existing = find(users, (user: User) => {
+                                    return !stringIsNullOrEmpty(user.userPrincipalName) && user.userPrincipalName.toLowerCase() === umupn.toLowerCase();
+                                });
+                                if (existing) {
+                                    val.push(existing);
+                                }
+                            }                            
                         });
                         converted[propertyName] = val;
                     }
                     else {
-                        converted[propertyName] = ids;
+                        converted[propertyName] = upns;
                     }
                 }
                 else {
@@ -365,7 +369,7 @@ export class BaseRestService<T extends IBaseItem> extends BaseDataService<T>{
 
     /********************** SP Fields conversion helpers *****************************/
     
-    private async convertSingleUserFieldValue(value: User): Promise<number> {
+    private async convertSingleUserFieldValue(value: User): Promise<string> {
         let result: any = null;
         if (value) {
             if (value.id <= 0) {
@@ -373,7 +377,7 @@ export class BaseRestService<T extends IBaseItem> extends BaseDataService<T>{
                 value = await userService.linkToSpUser(value);
 
             }
-            result = value.id;
+            result = value.userPrincipalName;
         }
         return result;
     }
