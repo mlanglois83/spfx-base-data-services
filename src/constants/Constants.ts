@@ -11,6 +11,16 @@ export const Constants = {
         version: "OData__UIVersionString"
     },
     /**
+     * Common rest item fields
+     */
+    commonRestFields: {
+        created: "created",
+        modified: "modified",
+        author: "creator",
+        editor: "modifiedby",
+        version: "version"
+    },
+    /**
      *  Error codes
      */  
     Errors: {

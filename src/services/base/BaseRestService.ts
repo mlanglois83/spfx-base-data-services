@@ -158,7 +158,7 @@ export class BaseRestService<T extends IBaseItem> extends BaseDataService<T>{
 
                 break;
             case FieldType.LookupMulti:
-                const lookupIds: Array<number> = restItem[fieldDescriptor.fieldName] ? restItem[fieldDescriptor.fieldName] : [];
+                const lookupIds: Array<number> = restItem[fieldDescriptor.fieldName] ? restItem[fieldDescriptor.fieldName].map(ri => ri.id) : [];
                 if (lookupIds.length > 0) {
                     if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                         // LOOKUPS --> links
@@ -303,11 +303,11 @@ export class BaseRestService<T extends IBaseItem> extends BaseDataService<T>{
                     const links = converted.__getInternalLinks(propertyName);
                     const firstLookupVal = itemValue[0];
                     if (typeof (firstLookupVal) === "number") {
-                        destItem[fieldDescriptor.fieldName] = itemValue;
+                        destItem[fieldDescriptor.fieldName] = itemValue.map(v=>{return {id: v};});
                     }
                     else {
                         if (links && links.length > 0) {
-                            destItem[fieldDescriptor.fieldName] = links;
+                            destItem[fieldDescriptor.fieldName] = links.map(l=>{return {id: l};});
                         }
                         else {
                             destItem[fieldDescriptor.fieldName] = [];
@@ -811,17 +811,17 @@ export class BaseRestService<T extends IBaseItem> extends BaseDataService<T>{
             // update id
             item.id = restItem.Id;
         }
-        if (restItem[Constants.commonFields.version]) {
-            item.version = parseFloat(restItem[Constants.commonFields.version]);
+        if (restItem[Constants.commonRestFields.version] !== undefined) {
+            item.version = restItem[Constants.commonRestFields.version];
         }
         const fields = this.ItemFields;
         await Promise.all(Object.keys(fields).filter((propertyName) => {
             if (fields.hasOwnProperty(propertyName)) {
                 const fieldName = fields[propertyName].fieldName;
-                return (fieldName === Constants.commonFields.author ||
-                    fieldName === Constants.commonFields.created ||
-                    fieldName === Constants.commonFields.editor ||
-                    fieldName === Constants.commonFields.modified);
+                return (fieldName === Constants.commonRestFields.author ||
+                    fieldName === Constants.commonRestFields.created ||
+                    fieldName === Constants.commonRestFields.editor ||
+                    fieldName === Constants.commonRestFields.modified);
             }
         }).map(async (prop) => {
             const fieldName = fields[prop].fieldName;
@@ -830,15 +830,15 @@ export class BaseRestService<T extends IBaseItem> extends BaseDataService<T>{
                     item[prop] = new Date(restItem[fieldName]);
                     break;
                 case FieldType.User:
-                    const id = restItem[fieldName];
+                    const upn = restItem[fieldName];
                     let user = null;
                     if (this.initialized) {
                         const users = this.getServiceInitValues(User["name"]);
-                        user = find(users, (u) => { return u.id === id; });
+                        user = find(users, (u) => { return u.userPrincipalName === upn; });
                     }
                     else {
                         const userService: UserService = new UserService();
-                        user = await userService.getItemById(id);
+                        user = await userService.getByDisplayName(upn);
                     }
                     item[prop] = user;
                     break;

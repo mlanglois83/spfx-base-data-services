@@ -10,11 +10,11 @@ export abstract class RestItem extends BaseItem {
     /**
      * Item id
      */
-    @field({ fieldName: "Id", defaultValue: -1 })
+    @field({ defaultValue: -1 })
     public id = -1;
     /**
      * Version number
      */
-    @field({ fieldName: "Version" })
+    @field()
     public version?: number;
 }

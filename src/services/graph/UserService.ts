@@ -7,6 +7,7 @@ import { ServicesConfiguration } from "../../configuration/ServicesConfiguration
 import { find, cloneDeep } from "@microsoft/sp-lodash-subset";
 import { TestOperator } from "../../constants";
 import { IPredicate } from "../../interfaces";
+import { stringIsNullOrEmpty } from "@pnp/common";
 
 const standardUserCacheDuration = 10;
 export class UserService extends BaseDataService<User> {
@@ -78,7 +79,7 @@ export class UserService extends BaseDataService<User> {
      */
     protected async getAll_Internal(): Promise<Array<User>> {
         const spUsers = await sp.web.siteUsers.select("Id", "UserPrincipalName", "Email", "Title", "IsSiteAdmin").get();
-        return spUsers.map(spu => new User(spu));
+        return spUsers.filter(u => !stringIsNullOrEmpty(u.UserPrincipalName)).map(spu => new User(spu));
     }
 
     public async getItemById_Internal(id: number): Promise<User> {
