@@ -1167,7 +1167,7 @@ export class BaseRestService<T extends IBaseItem> extends BaseDataService<T>{
             logicalOperator: predicate.operator,
             propertyName: predicate.propertyName,
             value: predicate.value,
-            includeTimeValue: predicate.value,
+            includeTimeValue: predicate.includeTimeValue,
             lookupId: predicate.lookupId
         };
     }
