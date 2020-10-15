@@ -1179,15 +1179,30 @@ export class BaseRestService<T extends IBaseItem> extends BaseDataService<T>{
             throw Error("Error while getting authentication token");
         }
         const headers = {
-            'Accept': 'application/json', 'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': "*", 'Access-Control-Allow-Headers': "*",
+            'Accept': 'application/json', 
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': "*", 
+            'Access-Control-Allow-Headers': "*",
             'authorization': `Bearer ${token}`
           };
           if (data != null) {
             const postData: string = JSON.stringify(data);
-            return { method: method, body: postData, mode: 'cors', headers: headers };
+            return { 
+                method: method, 
+                body: postData, 
+                mode: 'cors', 
+                headers: headers, 
+                referrer: ServicesConfiguration.context.pageContext.web.absoluteUrl, 
+                referrerPolicy: "no-referrer-when-downgrade" 
+            };
           }
-          return { method: method, mode: 'cors', headers: headers };
+          return { 
+              method: method, 
+              mode: 'cors', 
+              headers: headers, 
+              referrer: ServicesConfiguration.context.pageContext.web.absoluteUrl, 
+              referrerPolicy: "no-referrer-when-downgrade" 
+            };
     }   
 
     private async executeRequest(url: string, method: string, data?: any): Promise<any> {
