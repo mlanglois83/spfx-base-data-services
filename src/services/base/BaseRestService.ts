@@ -219,8 +219,9 @@ export class BaseRestService<T extends IBaseItem> extends BaseDataService<T>{
                     converted[propertyName] = fieldDescriptor.defaultValue;
                 }
                 break;
-            case FieldType.Taxonomy:
-                const termid: string = restItem[fieldDescriptor.fieldName] && restItem[fieldDescriptor.fieldName].length > 0 ? restItem[fieldDescriptor.fieldName][0].id : null;
+            case FieldType.Taxonomy:                
+                const conJsonId = !stringIsNullOrEmpty(restItem[fieldDescriptor.fieldName]) ? JSON.parse(restItem[fieldDescriptor.fieldName]) : null;
+                const termid: string = conJsonId && conJsonId.length > 0 ? conJsonId[0].id : null;
                 if (!stringIsNullOrEmpty(termid)) {
                     const tterms = this.getServiceInitValues(fieldDescriptor.modelName);
                     const existing = find(tterms, (term) => {
@@ -233,7 +234,8 @@ export class BaseRestService<T extends IBaseItem> extends BaseDataService<T>{
                 }
                 break;
             case FieldType.TaxonomyMulti:
-                const tmterms = restItem[fieldDescriptor.fieldName] ? restItem[fieldDescriptor.fieldName] : [];
+                const conJsonIds = !stringIsNullOrEmpty(restItem[fieldDescriptor.fieldName]) ? JSON.parse(restItem[fieldDescriptor.fieldName]) : null;
+                const tmterms = conJsonIds ? conJsonIds : [];
                 if (tmterms.length > 0) {
                     // get values from init values
                     const val = [];
@@ -276,11 +278,12 @@ export class BaseRestService<T extends IBaseItem> extends BaseDataService<T>{
         switch (fieldDescriptor.fieldType) {
             case FieldType.Simple:
             case FieldType.Date:
-                if (fieldDescriptor.fieldName !== Constants.commonFields.author &&
-                    fieldDescriptor.fieldName !== Constants.commonFields.created &&
-                    fieldDescriptor.fieldName !== Constants.commonFields.editor &&
-                    fieldDescriptor.fieldName !== Constants.commonFields.modified &&
-                    fieldDescriptor.fieldName !== Constants.commonFields.version) {
+                if (fieldDescriptor.fieldName !== Constants.commonRestFields.author &&
+                    fieldDescriptor.fieldName !== Constants.commonRestFields.created &&
+                    fieldDescriptor.fieldName !== Constants.commonRestFields.editor &&
+                    fieldDescriptor.fieldName !== Constants.commonRestFields.modified &&
+                    fieldDescriptor.fieldName !== Constants.commonRestFields.version &&
+                    (fieldDescriptor.fieldName !== Constants.commonRestFields.id || itemValue > 0)) {
                     destItem[fieldDescriptor.fieldName] = itemValue;
                 }
                 break;
@@ -349,11 +352,11 @@ export class BaseRestService<T extends IBaseItem> extends BaseDataService<T>{
                 }
                 break;
             case FieldType.Taxonomy:
-                destItem[fieldDescriptor.fieldName] = itemValue ? [{id: itemValue.id}] : null;
+                destItem[fieldDescriptor.fieldName] = itemValue ? JSON.stringify([{id: itemValue.id}]) : null;
                 break;
             case FieldType.TaxonomyMulti:
                 if (itemValue && isArray(itemValue) && itemValue.length > 0) {
-                    destItem[fieldDescriptor.fieldName] = itemValue.map((t) => {return {id: t.id};});
+                    destItem[fieldDescriptor.fieldName] = JSON.stringify(itemValue.map((t) => {return {id: t.id};}));
                 }
                 else {
                     destItem[fieldDescriptor.fieldName] = null;
@@ -633,7 +636,7 @@ export class BaseRestService<T extends IBaseItem> extends BaseDataService<T>{
         if (item.id < 0) {
             const converted = await this.getRestItem(item);            
             const addResult = await this.executeRequest(`${this.serviceUrl}${this.Bindings.addOrUpdateItem.url}`, this.Bindings.addOrUpdateItem.method, converted);
-            await this.populateCommonFields(result, addResult.data);
+            await this.populateCommonFields(result, addResult);
             if (item.id < -1) {
                 await this.updateLinksInDb(Number(item.id), Number(result.id));
             }         
@@ -642,7 +645,7 @@ export class BaseRestService<T extends IBaseItem> extends BaseDataService<T>{
             // check version (cannot update if newer)
             if (item.version) {                
                 const existing = await this.executeRequest(`${this.serviceUrl}${this.Bindings.getItemById.url}/${item.id}`, this.Bindings.getItemById.method);
-                if (parseFloat(existing[Constants.commonFields.version]) > item.version) {
+                if (parseFloat(existing[Constants.commonRestFields.version]) > item.version) {
                     const error = new Error(ServicesConfiguration.configuration.translations.versionHigherErrorMessage);
                     error.name = Constants.Errors.ItemVersionConfict;
                     throw error;
@@ -737,7 +740,7 @@ export class BaseRestService<T extends IBaseItem> extends BaseDataService<T>{
                     for (const subitem of sub) {                        
                         const currentIdx = idx;
                         const existing = find(versionitems, i => { return i.id === subitem.id; });
-                        if (parseFloat(existing[Constants.commonFields.version]) > subitem.version) {
+                        if (parseFloat(existing[Constants.commonRestFields.version]) > subitem.version) {
                             const error = new Error(ServicesConfiguration.configuration.translations.versionHigherErrorMessage);
                             error.name = Constants.Errors.ItemVersionConfict;
                             subitem.error = error;
@@ -809,7 +812,7 @@ export class BaseRestService<T extends IBaseItem> extends BaseDataService<T>{
     protected async populateCommonFields(item, restItem): Promise<void> {
         if (item.id < 0) {
             // update id
-            item.id = restItem.Id;
+            item.id = restItem[Constants.commonRestFields.id];
         }
         if (restItem[Constants.commonRestFields.version] !== undefined) {
             item.version = restItem[Constants.commonRestFields.version];

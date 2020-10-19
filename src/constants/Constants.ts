@@ -18,7 +18,8 @@ export const Constants = {
         modified: "modified",
         author: "creator",
         editor: "modifiedby",
-        version: "version"
+        version: "version",
+        id: "id"
     },
     /**
      *  Error codes
