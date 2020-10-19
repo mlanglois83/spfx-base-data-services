@@ -220,7 +220,7 @@ export class BaseRestService<T extends IBaseItem> extends BaseDataService<T>{
                 }
                 break;
             case FieldType.Taxonomy:
-                const termid: string = restItem[fieldDescriptor.fieldName] ? restItem[fieldDescriptor.fieldName] : null;
+                const termid: string = restItem[fieldDescriptor.fieldName] && restItem[fieldDescriptor.fieldName].length > 0 ? restItem[fieldDescriptor.fieldName][0].id : null;
                 if (!stringIsNullOrEmpty(termid)) {
                     const tterms = this.getServiceInitValues(fieldDescriptor.modelName);
                     const existing = find(tterms, (term) => {
@@ -240,7 +240,7 @@ export class BaseRestService<T extends IBaseItem> extends BaseDataService<T>{
                     const allterms = this.getServiceInitValues(fieldDescriptor.modelName);
                     tmterms.forEach(tmterm => {
                         const existing = find(allterms, (term) => {
-                            return term.id === tmterm;
+                            return term.id === tmterm.id;
                         });
                         if (existing) {
                             val.push(existing);
@@ -349,11 +349,11 @@ export class BaseRestService<T extends IBaseItem> extends BaseDataService<T>{
                 }
                 break;
             case FieldType.Taxonomy:
-                destItem[fieldDescriptor.fieldName] = itemValue ? itemValue.id : null;
+                destItem[fieldDescriptor.fieldName] = itemValue ? [{id: itemValue.id}] : null;
                 break;
             case FieldType.TaxonomyMulti:
                 if (itemValue && isArray(itemValue) && itemValue.length > 0) {
-                    destItem[fieldDescriptor.fieldName] = itemValue.map(t => t.id);
+                    destItem[fieldDescriptor.fieldName] = itemValue.map((t) => {return {id: t.id};});
                 }
                 else {
                     destItem[fieldDescriptor.fieldName] = null;
