@@ -7,6 +7,10 @@ export interface IBaseItem {
      */
     id: number | string;
     /**
+     * Item unique identifier
+     */
+    uniqueId?: string;
+    /**
      * Item title
      */
     title: string;

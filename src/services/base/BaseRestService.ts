@@ -278,7 +278,8 @@ export class BaseRestService<T extends IBaseItem> extends BaseDataService<T>{
         switch (fieldDescriptor.fieldType) {
             case FieldType.Simple:
             case FieldType.Date:
-                if (fieldDescriptor.fieldName !== Constants.commonRestFields.author &&
+                if (fieldDescriptor.fieldName !== Constants.commonRestFields.uniqueid &&
+                    fieldDescriptor.fieldName !== Constants.commonRestFields.author &&
                     fieldDescriptor.fieldName !== Constants.commonRestFields.created &&
                     fieldDescriptor.fieldName !== Constants.commonRestFields.editor &&
                     fieldDescriptor.fieldName !== Constants.commonRestFields.modified &&
@@ -809,10 +810,11 @@ export class BaseRestService<T extends IBaseItem> extends BaseDataService<T>{
 
     /************************** Query filters ***************************/
  
-    protected async populateCommonFields(item, restItem): Promise<void> {
+    protected async populateCommonFields(item: T, restItem): Promise<void> {
         if (item.id < 0) {
-            // update id
+            // update ids
             item.id = restItem[Constants.commonRestFields.id];
+            item.uniqueId = restItem[Constants.commonRestFields.uniqueid];
         }
         if (restItem[Constants.commonRestFields.version] !== undefined) {
             item.version = restItem[Constants.commonRestFields.version];

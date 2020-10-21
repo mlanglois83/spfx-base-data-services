@@ -17,4 +17,6 @@ export abstract class RestItem extends BaseItem {
      */
     @field()
     public version?: number;
+    @field({fieldName: "uniqueid"})
+    public uniqueId?: string;
 }

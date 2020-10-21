@@ -19,7 +19,8 @@ export const Constants = {
         author: "creator",
         editor: "modifiedby",
         version: "version",
-        id: "id"
+        id: "id",
+        uniqueid: "uniqueid"
     },
     /**
      *  Error codes
