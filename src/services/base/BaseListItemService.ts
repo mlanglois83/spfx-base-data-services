@@ -966,7 +966,8 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
             return (item.version === undefined || item.version === null) && item.id > 0;
         });
 
-        await this.initFields();
+        await this.initFields();        
+        const entityTypeFullName = await this.list.getListItemEntityTypeFullName();
         const selectFields = this.getOdataCommonFieldNames();
         // creation batch
         if (itemsToAdd.length > 0) {
@@ -979,7 +980,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                     const currentIdx = idx;
                     const itemId = item.id;
                     const converted = await this.getSPRestItem(item);
-                    this.list.items.select(...selectFields).inBatch(batch).add(converted).then(async (addResult) => {
+                    this.list.items.select(...selectFields).inBatch(batch).add(converted, entityTypeFullName).then(async (addResult) => {
                         await this.populateCommonFields(item, addResult.data);
                         await this.updateWssIds(item, addResult.data);
                         if (itemId < -1) {
