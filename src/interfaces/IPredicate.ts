@@ -4,7 +4,7 @@ export interface IPredicate {
     type: "predicate";
     operator: TestOperator;
     propertyName: string;
-    value: any;
+    value?: any;
     lookupId?: boolean;
     includeTimeValue?: boolean;
 }

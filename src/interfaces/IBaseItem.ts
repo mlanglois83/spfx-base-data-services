@@ -13,7 +13,7 @@ export interface IBaseItem {
     /**
      * Item title
      */
-    title: string;
+    title?: string;
     /**
      * Item version
      */

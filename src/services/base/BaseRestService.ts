@@ -1,7 +1,7 @@
 import { ServicesConfiguration } from "../..";
 import { cloneDeep, find, assign, findIndex } from "@microsoft/sp-lodash-subset";
 import { Constants, FieldType, TestOperator } from "../../constants/index";
-import { IBaseItem, IFieldDescriptor, IQuery, ILogicalSequence, IRestQuery, IRestLogicalSequence, IEndPointBindings, IPredicate, IRestPredicate } from "../../interfaces/index";
+import { IFieldDescriptor, IQuery, ILogicalSequence, IRestQuery, IRestLogicalSequence, IEndPointBindings, IPredicate, IRestPredicate } from "../../interfaces/index";
 import { BaseDataService } from "./BaseDataService";
 import { UtilsService } from "..";
 import { RestItem, User, OfflineTransaction } from "../../models";
@@ -13,7 +13,7 @@ import { isArray, stringIsNullOrEmpty } from "@pnp/common";
  * 
  * Base service for sp list items operations
  */
-export class BaseRestService<T extends IBaseItem> extends BaseDataService<T>{
+export class BaseRestService<T extends RestItem> extends BaseDataService<T>{
 
     /***************************** Fields and properties **************************************/
     protected initValues: any = {};
@@ -24,10 +24,16 @@ export class BaseRestService<T extends IBaseItem> extends BaseDataService<T>{
 
     public get ItemFields(): any {
         const result = {};
-        assign(result, this.itemType["Fields"][RestItem["name"]]);
         if (this.itemType["Fields"][this.itemType["name"]]) {
             assign(result, this.itemType["Fields"][this.itemType["name"]]);
         }
+        let parentType = this.itemType; 
+        do {
+            parentType = Object.getPrototypeOf(parentType);
+            if(this.itemType["Fields"][parentType["name"]]) {
+                assign(result, this.itemType["Fields"][parentType["name"]]);
+            }
+        } while(parentType["name"] !== RestItem["name"]);
         return result;
     }
 

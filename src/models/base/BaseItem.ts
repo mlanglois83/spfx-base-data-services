@@ -52,7 +52,7 @@ export abstract class BaseItem implements IBaseItem {
     /**
      * Item title
      */
-    public title: string;
+    public title?: string;
     /**
      * Version number
      */

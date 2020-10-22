@@ -3,7 +3,7 @@ import { SPHttpClient } from '@microsoft/sp-http';
 import { cloneDeep, find, assign, findIndex } from "@microsoft/sp-lodash-subset";
 import { CamlQuery, List, sp } from "@pnp/sp";
 import { Constants, FieldType, TestOperator, QueryToken, LogicalOperator } from "../../constants/index";
-import { IBaseItem, IFieldDescriptor, IQuery, IPredicate, ILogicalSequence, IOrderBy } from "../../interfaces/index";
+import { IFieldDescriptor, IQuery, IPredicate, ILogicalSequence, IOrderBy } from "../../interfaces/index";
 import { BaseDataService } from "./BaseDataService";
 import { UtilsService } from "..";
 import { SPItem, User, TaxonomyTerm, OfflineTransaction, SPFile } from "../../models";
@@ -16,7 +16,7 @@ import { Semaphore } from "async-mutex";
  * 
  * Base service for sp list items operations
  */
-export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>{
+export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
 
     /***************************** Fields and properties **************************************/
     protected listRelativeUrl: string;
@@ -28,10 +28,16 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
 
     public get ItemFields(): any {
         const result = {};
-        assign(result, this.itemType["Fields"][SPItem["name"]]);
         if (this.itemType["Fields"][this.itemType["name"]]) {
             assign(result, this.itemType["Fields"][this.itemType["name"]]);
         }
+        let parentType = this.itemType; 
+        do {
+            parentType = Object.getPrototypeOf(parentType);
+            if(this.itemType["Fields"][parentType["name"]]) {
+                assign(result, this.itemType["Fields"][parentType["name"]]);
+            }
+        } while(parentType["name"] !== SPItem["name"]);
         return result;
     }
 
