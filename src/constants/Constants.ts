@@ -8,7 +8,8 @@ export const Constants = {
         author: "Author",
         editor: "Editor",
         attachments: "AttachmentFiles",
-        version: "OData__UIVersionString"
+        version: "OData__UIVersionString",
+        id: "ID"
     },
     /**
      * Common rest item fields

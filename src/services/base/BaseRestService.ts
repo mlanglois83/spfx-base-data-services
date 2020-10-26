@@ -20,21 +20,25 @@ export class BaseRestService<T extends RestItem> extends BaseDataService<T>{
 
     protected baseServiceUrl: string;
 
-    /* AttachmentService */
-
+    private _itemFields = null;
     public get ItemFields(): any {
-        const result = {};
-        if (this.itemType["Fields"][this.itemType["name"]]) {
-            assign(result, this.itemType["Fields"][this.itemType["name"]]);
+        if(this._itemFields) {
+            return this._itemFields;
         }
-        let parentType = this.itemType; 
-        do {
-            parentType = Object.getPrototypeOf(parentType);
-            if(this.itemType["Fields"][parentType["name"]]) {
-                assign(result, this.itemType["Fields"][parentType["name"]]);
+        else {
+            this._itemFields = {};
+            if (this.itemType["Fields"][this.itemType["name"]]) {
+                assign(this._itemFields, this.itemType["Fields"][this.itemType["name"]]);
             }
-        } while(parentType["name"] !== RestItem["name"]);
-        return result;
+            let parentType = this.itemType; 
+            do {
+                parentType = Object.getPrototypeOf(parentType);
+                if(this.itemType["Fields"][parentType["name"]]) {
+                    assign(this._itemFields, this.itemType["Fields"][parentType["name"]]);
+                }
+            } while(parentType["name"] !== RestItem["name"]);
+        }
+        return this._itemFields;
     }
 
     public get Bindings(): IEndPointBindings {
@@ -281,97 +285,100 @@ export class BaseRestService<T extends RestItem> extends BaseDataService<T>{
         const converted = item as unknown as RestItem;
         const itemValue = converted[propertyName];
         fieldDescriptor.fieldType = fieldDescriptor.fieldType || FieldType.Simple;
-        switch (fieldDescriptor.fieldType) {
-            case FieldType.Simple:
-            case FieldType.Date:
-                if (fieldDescriptor.fieldName !== Constants.commonRestFields.uniqueid &&
-                    fieldDescriptor.fieldName !== Constants.commonRestFields.author &&
-                    fieldDescriptor.fieldName !== Constants.commonRestFields.created &&
-                    fieldDescriptor.fieldName !== Constants.commonRestFields.editor &&
-                    fieldDescriptor.fieldName !== Constants.commonRestFields.modified &&
-                    fieldDescriptor.fieldName !== Constants.commonRestFields.version &&
-                    (fieldDescriptor.fieldName !== Constants.commonRestFields.id || itemValue > 0)) {
+        
+        if (fieldDescriptor.fieldName !== Constants.commonRestFields.uniqueid &&
+            fieldDescriptor.fieldName !== Constants.commonRestFields.created &&
+            fieldDescriptor.fieldName !== Constants.commonRestFields.author &&
+            fieldDescriptor.fieldName !== Constants.commonRestFields.editor &&
+            fieldDescriptor.fieldName !== Constants.commonRestFields.modified &&
+            fieldDescriptor.fieldName !== Constants.commonRestFields.version &&
+            (fieldDescriptor.fieldName !== Constants.commonRestFields.id || itemValue > 0)) 
+        {
+            switch (fieldDescriptor.fieldType) {
+                case FieldType.Simple:
+                case FieldType.Date:
                     destItem[fieldDescriptor.fieldName] = itemValue;
-                }
-                break;
-            case FieldType.Lookup:
-                const link = converted.__getInternalLinks(propertyName);
-                if (itemValue) {
-                    if (typeof (itemValue) === "number") {
-                        destItem[fieldDescriptor.fieldName] = itemValue > 0 ? itemValue : null;
-                    }
-                    else {
-                        destItem[fieldDescriptor.fieldName] = link && link > 0 ? link : null;
-                    }
-                }
-                else {
-                    destItem[fieldDescriptor.fieldName] = null;
-                }
-                break;
-            case FieldType.LookupMulti:
-                if (itemValue && isArray(itemValue) && itemValue.length > 0) {
-                    const links = converted.__getInternalLinks(propertyName);
-                    const firstLookupVal = itemValue[0];
-                    if (typeof (firstLookupVal) === "number") {
-                        destItem[fieldDescriptor.fieldName] = itemValue.map(v=>{return {id: v};});
-                    }
-                    else {
-                        if (links && links.length > 0) {
-                            destItem[fieldDescriptor.fieldName] = links.map(l=>{return {id: l};});
+                    break;
+                case FieldType.Lookup:
+                    const link = converted.__getInternalLinks(propertyName);
+                    if (itemValue) {
+                        if (typeof (itemValue) === "number") {
+                            destItem[fieldDescriptor.fieldName] = itemValue > 0 ? itemValue : null;
                         }
                         else {
-                            destItem[fieldDescriptor.fieldName] = [];
+                            destItem[fieldDescriptor.fieldName] = link && link > 0 ? link : null;
                         }
                     }
-                }
-                else {
-                    destItem[fieldDescriptor.fieldName] = [];
-                }
-                break;
-            case FieldType.User:
-                if (itemValue) {
-                    if (typeof (itemValue) === "number") {
-                        destItem[fieldDescriptor.fieldName] = itemValue > 0 ? itemValue : null;
+                    else {
+                        destItem[fieldDescriptor.fieldName] = null;
+                    }
+                    break;
+                case FieldType.LookupMulti:
+                    // dont send
+                    /*if (itemValue && isArray(itemValue) && itemValue.length > 0) {
+                        const links = converted.__getInternalLinks(propertyName);
+                        const firstLookupVal = itemValue[0];
+                        if (typeof (firstLookupVal) === "number") {
+                            destItem[fieldDescriptor.fieldName] = itemValue.map(v=>{return {id: v};});
+                        }
+                        else {
+                            if (links && links.length > 0) {
+                                destItem[fieldDescriptor.fieldName] = links.map(l=>{return {id: l};});
+                            }
+                            else {
+                                destItem[fieldDescriptor.fieldName] = [];
+                            }
+                        }
                     }
                     else {
-                        destItem[fieldDescriptor.fieldName] = await this.convertSingleUserFieldValue(itemValue);
-                    }
-                }
-                else {
-                    destItem[fieldDescriptor.fieldName] = null;
-                }
-                break;
-            case FieldType.UserMulti:
-                if (itemValue && isArray(itemValue) && itemValue.length > 0) {
-                    const firstUserVal = itemValue[0];
-                    if (typeof (firstUserVal) === "number") {
-                        destItem[fieldDescriptor.fieldName] = itemValue;
+                        destItem[fieldDescriptor.fieldName] = [];
+                    }*/
+                    break;
+                case FieldType.User:
+                    if (itemValue) {
+                        if (typeof (itemValue) === "number") {
+                            destItem[fieldDescriptor.fieldName] = itemValue > 0 ? itemValue : null;
+                        }
+                        else {
+                            destItem[fieldDescriptor.fieldName] = await this.convertSingleUserFieldValue(itemValue);
+                        }
                     }
                     else {
-                        const userIds = await Promise.all(itemValue.map((user) => {
-                            return this.convertSingleUserFieldValue(user);
-                        }));
-                        destItem[fieldDescriptor.fieldName] = userIds;
+                        destItem[fieldDescriptor.fieldName] = null;
                     }
-                }
-                else {
-                    destItem[fieldDescriptor.fieldName] = [];
-                }
-                break;
-            case FieldType.Taxonomy:
-                destItem[fieldDescriptor.fieldName] = itemValue ? JSON.stringify([{id: itemValue.id}]) : null;
-                break;
-            case FieldType.TaxonomyMulti:
-                if (itemValue && isArray(itemValue) && itemValue.length > 0) {
-                    destItem[fieldDescriptor.fieldName] = JSON.stringify(itemValue.map((t) => {return {id: t.id};}));
-                }
-                else {
-                    destItem[fieldDescriptor.fieldName] = null;
-                }
-                break;
-            case FieldType.Json:
-                destItem[fieldDescriptor.fieldName] = itemValue ? JSON.stringify(itemValue) : null;
-                break;
+                    break;
+                case FieldType.UserMulti:
+                    if (itemValue && isArray(itemValue) && itemValue.length > 0) {
+                        const firstUserVal = itemValue[0];
+                        if (typeof (firstUserVal) === "number") {
+                            destItem[fieldDescriptor.fieldName] = itemValue;
+                        }
+                        else {
+                            const userIds = await Promise.all(itemValue.map((user) => {
+                                return this.convertSingleUserFieldValue(user);
+                            }));
+                            destItem[fieldDescriptor.fieldName] = userIds;
+                        }
+                    }
+                    else {
+                        destItem[fieldDescriptor.fieldName] = [];
+                    }
+                    break;
+                case FieldType.Taxonomy:
+                    destItem[fieldDescriptor.fieldName] = itemValue ? JSON.stringify([{id: itemValue.id}]) : null;
+                    break;
+                case FieldType.TaxonomyMulti:
+                    if (itemValue && isArray(itemValue) && itemValue.length > 0) {
+                        destItem[fieldDescriptor.fieldName] = JSON.stringify(itemValue.map((t) => {return {id: t.id};}));
+                    }
+                    else {
+                        destItem[fieldDescriptor.fieldName] = null;
+                    }
+                    break;
+                case FieldType.Json:
+                    destItem[fieldDescriptor.fieldName] = itemValue ? JSON.stringify(itemValue) : null;
+                    break;
+            }
         }
     }
 
@@ -675,9 +682,11 @@ export class BaseRestService<T extends RestItem> extends BaseDataService<T>{
         return result;
     }
 
-    /*
-    * TODO
-    */
+    /**
+     * Add or update items in batch
+     * @param items Array of model type to be added or updated
+     * @param onItemUpdated callback function called when an item has been added or updated
+     */
     protected async addOrUpdateItems_Internal(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void): Promise<Array<T>> {
         const result = cloneDeep(items);
         const itemsToAdd = result.filter((item) => {
@@ -1174,9 +1183,10 @@ export class BaseRestService<T extends RestItem> extends BaseDataService<T>{
         return result;
     }
     private getRestPredicate(predicate: IPredicate): IRestPredicate {
+        
         return {
             logicalOperator: predicate.operator,
-            propertyName: predicate.propertyName,
+            propertyName: this.ItemFields[predicate.propertyName].fieldName,
             value: predicate.value,
             includeTimeValue: predicate.includeTimeValue,
             lookupId: predicate.lookupId
