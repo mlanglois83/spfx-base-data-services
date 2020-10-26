@@ -1226,7 +1226,7 @@ export class BaseRestService<T extends RestItem> extends BaseDataService<T>{
             };
     }   
 
-    private async executeRequest(url: string, method: string, data?: any): Promise<any> {
+    protected async executeRequest(url: string, method: string, data?: any): Promise<any> {
         const req = await this.initRequest(method, data);
         const response = await fetch(url, req);
             if(response.ok) {                    
