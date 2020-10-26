@@ -123,12 +123,12 @@ export class BaseRestService<T extends RestItem> extends BaseDataService<T>{
 
     }
     
-    private getServiceInitValues(modelName: string): any {
+    protected getServiceInitValues(modelName: string): any {
         return this.initValues[modelName];
     }
 
     /****************************** get item methods ***********************************/
-    private getItemFromRest(restItem: any): T {
+    protected getItemFromRest(restItem: any): T {
         const item = new this.itemType();
         Object.keys(this.ItemFields).map((propertyName) => {
             const fieldDescription = this.ItemFields[propertyName];
@@ -270,7 +270,7 @@ export class BaseRestService<T extends RestItem> extends BaseDataService<T>{
         }
     }
     /****************************** Send item methods ***********************************/
-    private async getRestItem(item: T): Promise<any> {
+    protected async getRestItem(item: T): Promise<any> {
         const restItem = {};
         await Promise.all(Object.keys(this.ItemFields).map(async (propertyName) => {
             const fieldDescription = this.ItemFields[propertyName];
@@ -420,7 +420,7 @@ export class BaseRestService<T extends RestItem> extends BaseDataService<T>{
         return result;
     }
 
-    private async populateLookups(items: Array<T>, loadLookups?: Array<string>): Promise<void> {
+    protected async populateLookups(items: Array<T>, loadLookups?: Array<string>): Promise<void> {
         // get lookup fields
         const lookupFields = this.linkedLookupFields(loadLookups);
         // init values and retrieve all ids by model
@@ -523,7 +523,7 @@ export class BaseRestService<T extends RestItem> extends BaseDataService<T>{
         }
     }
 
-    private updateInternalLinks(item: T, loadLookups?: Array<string>): void {
+    protected updateInternalLinks(item: T, loadLookups?: Array<string>): void {
         const converted = item as unknown as BaseItem;
         const lookupFields = this.linkedLookupFields();
         for (const propertyName in lookupFields) {
@@ -1073,7 +1073,7 @@ export class BaseRestService<T extends RestItem> extends BaseDataService<T>{
         return nextTransactions;
     }
 
-    private async updateLinksInDb(oldId: number, newId: number): Promise<void> {
+    protected async updateLinksInDb(oldId: number, newId: number): Promise<void> {
         const allFields = assign({}, this.itemType["Fields"]);
         delete allFields[RestItem["name"]];
         delete allFields[this.itemType["name"]];
@@ -1146,7 +1146,7 @@ export class BaseRestService<T extends RestItem> extends BaseDataService<T>{
         }
     }
 
-    private getRestQuery(query: IQuery): IRestQuery {
+    protected getRestQuery(query: IQuery): IRestQuery {
         const result: IRestQuery = {
             lastId: query.lastId as number,
             limit: query.limit,
