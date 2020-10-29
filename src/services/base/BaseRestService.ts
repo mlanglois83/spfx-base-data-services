@@ -1,7 +1,7 @@
 import { ServicesConfiguration } from "../..";
 import { cloneDeep, find, assign, findIndex } from "@microsoft/sp-lodash-subset";
 import { Constants, FieldType, TestOperator } from "../../constants/index";
-import { IFieldDescriptor, IQuery, ILogicalSequence, IRestQuery, IRestLogicalSequence, IEndPointBindings, IPredicate, IRestPredicate } from "../../interfaces/index";
+import { IFieldDescriptor, IQuery, ILogicalSequence, IRestQuery, IRestLogicalSequence, IEndPointBindings, IPredicate, IRestPredicate, IBaseItem } from "../../interfaces/index";
 import { BaseDataService } from "./BaseDataService";
 import { UtilsService } from "..";
 import { RestItem, User, OfflineTransaction } from "../../models";
@@ -75,6 +75,14 @@ export class BaseRestService<T extends RestItem> extends BaseDataService<T>{
         return;
     }
 
+    private services = {};
+    protected getService(modelName: string): BaseDataService<IBaseItem> {
+        if(!this.services[modelName]) {
+            this.services[modelName] = ServicesConfiguration.configuration.serviceFactory.create(modelName);
+        }
+        return this.services[modelName];
+    } 
+
     public async Init(): Promise<void> {
         if (!this.initPromise) {
             this.initPromise = new Promise<void>(async (resolve, reject) => {
@@ -92,7 +100,6 @@ export class BaseRestService<T extends RestItem> extends BaseDataService<T>{
                         for (const key in fields) {
                             if (fields.hasOwnProperty(key)) {
                                 const fieldDescription = fields[key];
-                                // REM MLS : lookup removed from preload
                                 if (fieldDescription.modelName &&
                                     models.indexOf(fieldDescription.modelName) === -1 &&
                                     fieldDescription.fieldType !== FieldType.Lookup &&
@@ -103,7 +110,7 @@ export class BaseRestService<T extends RestItem> extends BaseDataService<T>{
                         }
                         await Promise.all(models.map(async (modelName) => {
                             if (!this.initValues[modelName]) {
-                                const service = ServicesConfiguration.configuration.serviceFactory.create(modelName);
+                                const service = this.getService(modelName);
                                 const values = await service.getAll();
                                 this.initValues[modelName] = values;
                             }
@@ -128,17 +135,19 @@ export class BaseRestService<T extends RestItem> extends BaseDataService<T>{
     }
 
     /****************************** get item methods ***********************************/
-    protected getItemFromRest(restItem: any): T {
+    protected async getItemFromRest(restItem: any): Promise<T> {
         const item = new this.itemType();
-        Object.keys(this.ItemFields).map((propertyName) => {
-            const fieldDescription = this.ItemFields[propertyName];
-            this.setFieldValue(restItem, item, propertyName, fieldDescription);
-        });
+        for (const propertyName in this.ItemFields) {
+            if (Object.prototype.hasOwnProperty.call(this.ItemFields, propertyName)) {
+                const fieldDescription = this.ItemFields[propertyName];
+                await this.setFieldValue(restItem, item, propertyName, fieldDescription);
+            }
+        }
         return item;
     }
 
     // TODO : test
-    private setFieldValue(restItem: any, destItem: T, propertyName: string, fieldDescriptor: IFieldDescriptor): void {
+    private async setFieldValue(restItem: any, destItem: T, propertyName: string, fieldDescriptor: IFieldDescriptor): Promise<void> {
         const converted = destItem as unknown as RestItem;
         fieldDescriptor.fieldType = fieldDescriptor.fieldType || FieldType.Simple;
         switch (fieldDescriptor.fieldType) {
@@ -149,39 +158,78 @@ export class BaseRestService<T extends RestItem> extends BaseDataService<T>{
                 converted[propertyName] = restItem[fieldDescriptor.fieldName] ? new Date(restItem[fieldDescriptor.fieldName]) : fieldDescriptor.defaultValue;
                 break;
             case FieldType.Lookup:
-                const lookupId: number = restItem[fieldDescriptor.fieldName] ? restItem[fieldDescriptor.fieldName] : -1;
-                if (lookupId !== -1) {
-                    if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                        // LOOKUPS --> links
-                        converted.__setInternalLinks(propertyName, lookupId);
+                if(fieldDescriptor.containsFullObject && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                    const obj = restItem[fieldDescriptor.fieldName] ? restItem[fieldDescriptor.fieldName] : null;
+                    if(obj) {
+                        // get service
+                        const tmpservice = this.getService(fieldDescriptor.modelName);
+                        const conv = await tmpservice.persistItemData(obj);
+                        if(conv) {
+                            converted[propertyName] = conv;
+                        }
+                        else {
+                            converted[propertyName] = fieldDescriptor.defaultValue;
+                        }
+                        
+                    }
+                    else {
                         converted[propertyName] = fieldDescriptor.defaultValue;
+                    }                    
+                }
+                else {
+                    const lookupId: number = restItem[fieldDescriptor.fieldName] ? restItem[fieldDescriptor.fieldName] : -1;
+                    if (lookupId !== -1) {
+                        if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                            // LOOKUPS --> links
+                            converted.__setInternalLinks(propertyName, lookupId);
+                            converted[propertyName] = fieldDescriptor.defaultValue;
+
+                        }
+                        else {
+                            converted[propertyName] = lookupId;
+                        }
 
                     }
                     else {
-                        converted[propertyName] = lookupId;
+                        converted[propertyName] = fieldDescriptor.defaultValue;
                     }
-
                 }
-                else {
-                    converted[propertyName] = fieldDescriptor.defaultValue;
-                }
-
                 break;
             case FieldType.LookupMulti:
-                const lookupIds: Array<number> = restItem[fieldDescriptor.fieldName] ? restItem[fieldDescriptor.fieldName].map(ri => ri.id) : [];
-                if (lookupIds.length > 0) {
-                    if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                        // LOOKUPS --> links
-                        converted.__setInternalLinks(propertyName, lookupIds);
-                        converted[propertyName] = fieldDescriptor.defaultValue;
+                if(fieldDescriptor.containsFullObject && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                    const convertedObjects = [];
+                    const values = restItem[fieldDescriptor.fieldName] ? restItem[fieldDescriptor.fieldName] : [];
+                    if(values.length > 0) {
+                        // get service
+                        const tmpservice = this.getService(fieldDescriptor.modelName);
+                        for (const obj of values) {
+                            const conv = await tmpservice.persistItemData(obj);
+                            if(conv) {
+                                convertedObjects.push(conv);
+                            }
+                        }     
+                        converted[propertyName] = convertedObjects;
                     }
                     else {
-                        converted[propertyName] = lookupIds;
-                    }
+                        converted[propertyName] = fieldDescriptor.defaultValue;
+                    }                    
                 }
                 else {
-                    converted[propertyName] = fieldDescriptor.defaultValue;
-                }
+                    const lookupIds: Array<number> = restItem[fieldDescriptor.fieldName] ? restItem[fieldDescriptor.fieldName].map(ri => ri.id) : [];
+                    if (lookupIds.length > 0) {
+                        if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                            // LOOKUPS --> links
+                            converted.__setInternalLinks(propertyName, lookupIds);
+                            converted[propertyName] = fieldDescriptor.defaultValue;
+                        }
+                        else {
+                            converted[propertyName] = lookupIds;
+                        }
+                    }
+                    else {
+                        converted[propertyName] = fieldDescriptor.defaultValue;
+                    }
+                }                
                 break;
             case FieldType.User:
                 const upn: string = restItem[fieldDescriptor.fieldName];
@@ -428,46 +476,48 @@ export class BaseRestService<T extends RestItem> extends BaseDataService<T>{
         for (const key in lookupFields) {
             if (lookupFields.hasOwnProperty(key)) {
                 const fieldDesc = lookupFields[key] as IFieldDescriptor;
-                allIds[fieldDesc.modelName] = allIds[fieldDesc.modelName] || [];
-                const ids = allIds[fieldDesc.modelName];
-                items.forEach((item: T) => {
-                    const converted = item as unknown as BaseItem;
-                    const links = converted.__getInternalLinks(key);
-                    //init value 
-                    if (fieldDesc.fieldType === FieldType.Lookup || fieldDesc.fieldType === FieldType.LookupMulti) {
-                        converted[key] = fieldDesc.defaultValue;
-                    }
-                    if (fieldDesc.fieldType === FieldType.Lookup &&
-                        // lookup has value
-                        links &&
-                        links !== -1 &&
-                        // not allready loaded (local cache)
-                        (!this.initValues[fieldDesc.modelName]
-                            ||
-                            !find(this.initValues[fieldDesc.modelName], { id: links })
-                        ) &&
-                        // not allready in load list
-                        ids.indexOf(links) === -1
-                    ) {
+                if(!fieldDesc.containsFullObject) {
+                    allIds[fieldDesc.modelName] = allIds[fieldDesc.modelName] || [];
+                    const ids = allIds[fieldDesc.modelName];
+                    items.forEach((item: T) => {
+                        const converted = item as unknown as BaseItem;
+                        const links = converted.__getInternalLinks(key);
+                        //init value 
+                        if (fieldDesc.fieldType === FieldType.Lookup || fieldDesc.fieldType === FieldType.LookupMulti) {
+                            converted[key] = fieldDesc.defaultValue;
+                        }
+                        if (fieldDesc.fieldType === FieldType.Lookup &&
+                            // lookup has value
+                            links &&
+                            links !== -1 &&
+                            // not allready loaded (local cache)
+                            (!this.initValues[fieldDesc.modelName]
+                                ||
+                                !find(this.initValues[fieldDesc.modelName], { id: links })
+                            ) &&
+                            // not allready in load list
+                            ids.indexOf(links) === -1
+                        ) {
 
-                        ids.push(links);
-                    }
-                    else if (fieldDesc.fieldType === FieldType.LookupMulti &&
-                        links &&
-                        links.length > 0) {
-                        links.forEach((id) => {
-                            if (// not allready loaded (local cache)
-                                (!this.initValues[fieldDesc.modelName]
-                                    ||
-                                    !find(this.initValues[fieldDesc.modelName], { id: id })
-                                ) &&
-                                // not allready in load list
-                                ids.indexOf(id) === -1) {
-                                ids.push(id);
-                            }
-                        });
-                    }
-                });
+                            ids.push(links);
+                        }
+                        else if (fieldDesc.fieldType === FieldType.LookupMulti &&
+                            links &&
+                            links.length > 0) {
+                            links.forEach((id) => {
+                                if (// not allready loaded (local cache)
+                                    (!this.initValues[fieldDesc.modelName]
+                                        ||
+                                        !find(this.initValues[fieldDesc.modelName], { id: id })
+                                    ) &&
+                                    // not allready in load list
+                                    ids.indexOf(id) === -1) {
+                                    ids.push(id);
+                                }
+                            });
+                        }
+                    });
+                }
             }
         }
         // Init queries       
@@ -476,7 +526,7 @@ export class BaseRestService<T extends RestItem> extends BaseDataService<T>{
             if (allIds.hasOwnProperty(modelName)) {
                 const ids = allIds[modelName];
                 if (ids && ids.length > 0) {
-                    const service = ServicesConfiguration.configuration.serviceFactory.create(modelName) as BaseDataService<BaseItem>;
+                    const service = this.getService(modelName) as BaseDataService<BaseItem>;
                     promises.push(service.getItemsById(ids));
                 }
             }
@@ -562,9 +612,9 @@ export class BaseRestService<T extends RestItem> extends BaseDataService<T>{
         const items = await this.executeRequest(`${this.serviceUrl}${this.Bindings.get.url}`, this.Bindings.get.method, restQuery);
         if (items && items.length > 0) {
             await this.Init();
-            results = items.map((r) => {
+            results = await Promise.all(items.map((r) => {
                 return this.getItemFromRest(r);
-            });            
+            }));            
         }
         await this.populateLookups(results, linkedFields);
         return results;
@@ -579,7 +629,7 @@ export class BaseRestService<T extends RestItem> extends BaseDataService<T>{
         const temp = await this.executeRequest(`${this.serviceUrl}${this.Bindings.getItemById.url}/${id}`, this.Bindings.getItemById.method);
         if (temp) {
             await this.Init();
-            result = this.getItemFromRest(temp);
+            result = await this.getItemFromRest(temp);
             await this.populateLookups([result], linkedFields);
         }
         return result;
@@ -623,9 +673,9 @@ export class BaseRestService<T extends RestItem> extends BaseDataService<T>{
         const items = await this.executeRequest(`${this.serviceUrl}${this.Bindings.getAll.url}`, this.Bindings.getAll.method);
         if (items && items.length > 0) {
             await this.Init();
-            results = items.map((r) => {
+            results = await Promise.all(items.map((r) => {
                 return this.getItemFromRest(r);
-            });
+            }));
         }
         await this.populateLookups(results, linkedFields);
         return results;
@@ -674,9 +724,6 @@ export class BaseRestService<T extends RestItem> extends BaseDataService<T>{
                 const converted = await this.getRestItem(item);
                 const updateResult = await this.executeRequest(`${this.serviceUrl}${this.Bindings.addOrUpdateItem.url}`, this.Bindings.addOrUpdateItem.method, converted);                                   
                 await this.populateCommonFields(result, updateResult);
-                if (item.id < -1) {
-                    await this.updateLinksInDb(Number(item.id), Number(result.id));
-                }
             }
         }
         return result;
@@ -821,6 +868,16 @@ export class BaseRestService<T extends RestItem> extends BaseDataService<T>{
      */
     protected async deleteItem_Internal(item: T): Promise<void> {
         return this.executeRequest(`${this.serviceUrl}${this.Bindings.deleteItem.url}/${item.id}`, this.Bindings.deleteItem.method);
+    }
+
+    protected async persistItemData_internal(data: any, linkedFields?: Array<string>): Promise<T> {
+        let result = null;
+        if (data) {
+            await this.Init();
+            result = await this.getItemFromRest(data);
+            await this.populateLookups([result], linkedFields);
+        }
+        return result;
     }
 
     /************************** Query filters ***************************/
@@ -1007,7 +1064,7 @@ export class BaseRestService<T extends RestItem> extends BaseDataService<T>{
         nextTransactions.forEach(transaction => {
             let currentObject = null;
             let needUpdate = false;
-            const service = ServicesConfiguration.configuration.serviceFactory.create(transaction.itemType);
+            const service = this.getService(transaction.itemType);
             const fields = service.ItemFields;
             // search for lookup fields
             for (const propertyName in fields) {
@@ -1075,8 +1132,11 @@ export class BaseRestService<T extends RestItem> extends BaseDataService<T>{
 
     protected async updateLinksInDb(oldId: number, newId: number): Promise<void> {
         const allFields = assign({}, this.itemType["Fields"]);
-        delete allFields[RestItem["name"]];
-        delete allFields[this.itemType["name"]];
+        let parentType = this.itemType;
+        do {
+            delete allFields[parentType["name"] ];
+            parentType = Object.getPrototypeOf(parentType);
+        } while(parentType["name"] !== BaseItem["name"]);
         for (const modelName in allFields) {
             if (allFields.hasOwnProperty(modelName)) {
                 const modelFields = allFields[modelName];
@@ -1085,7 +1145,7 @@ export class BaseRestService<T extends RestItem> extends BaseDataService<T>{
                         modelFields[prop].refItemName === this.itemType["name"] || modelFields[prop].modelName === this.itemType["name"]);
                 });
                 if (lookupProperties.length > 0) {
-                    const service = ServicesConfiguration.configuration.serviceFactory.create(modelName);
+                    const service = this.getService(modelName);
                     const allitems = await service.__getAllFromCache();
                     const updated = [];
                     allitems.forEach(element => {

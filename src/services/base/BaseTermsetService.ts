@@ -158,6 +158,14 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
         throw new Error("Not implemented");
     }
 
+    protected async persistItemData_internal(data: any): Promise<T> {
+        let result = null;
+        if (data) {
+            result = new this.itemType(data);
+        }
+        return result;
+    }
+
 
     private getOrderedChildTerms(term: T, allTerms: Array<T>): Array<T> {
         //items.sort((a: T,b: T) => {return a.path.localeCompare(b.path);});

@@ -74,6 +74,14 @@ export class UserService extends BaseDataService<User> {
         throw new Error("Not implemented");
     }
 
+    protected async persistItemData_internal(data: any): Promise<User> {
+        let result = null;
+        if (data) {
+            result = new User(data);
+        }
+        return result;
+    }
+
     /**
      * Retrieve all users (sp)
      */

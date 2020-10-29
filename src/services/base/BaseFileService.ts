@@ -163,6 +163,10 @@ export class BaseFileService<T extends IBaseItem> extends BaseDataService<T>{
             }
         }
     }
+
+    public persistItemData_internal(data: any): Promise<T> {
+        return this.createFileObject(data);
+    }
     
     public async changeFolderInDb(oldFolderListRelativeUrl: string, newFolderListRelativeUrl: string): Promise<void> {
         const oldFolderRelativeUrl = this.listRelativeUrl + oldFolderListRelativeUrl;

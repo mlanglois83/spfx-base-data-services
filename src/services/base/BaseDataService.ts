@@ -555,6 +555,15 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         return null;
     }
 
+    public async persistItemData(data: any, linkedFields?: Array<string>): Promise<T> {
+        const result = await this.persistItemData_internal(data, linkedFields);
+        const convresult = await this.convertItemToDbFormat(result);
+        await this.dbService.addOrUpdateItem(convresult);
+        this.UpdateIdsLastLoad(convresult.id);  
+        return result;
+    }
+
+    protected abstract persistItemData_internal(data: any, linkedFields?: Array<string>): Promise<T>;
 
     protected async convertItemToDbFormat(item: T): Promise<T> {
         return item;

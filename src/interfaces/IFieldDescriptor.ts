@@ -33,4 +33,8 @@ export interface IFieldDescriptor {
      * is an identifier
      */
     identifier?: boolean;
+    /**
+     * contains object data (lookups only)
+     */
+    containsFullObject?: boolean;
 }

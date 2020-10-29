@@ -3,10 +3,10 @@ import { SPHttpClient } from '@microsoft/sp-http';
 import { cloneDeep, find, assign, findIndex } from "@microsoft/sp-lodash-subset";
 import { CamlQuery, List, sp } from "@pnp/sp";
 import { Constants, FieldType, TestOperator, QueryToken, LogicalOperator } from "../../constants/index";
-import { IFieldDescriptor, IQuery, IPredicate, ILogicalSequence, IOrderBy } from "../../interfaces/index";
+import { IFieldDescriptor, IQuery, IPredicate, ILogicalSequence, IOrderBy, IBaseItem } from "../../interfaces/index";
 import { BaseDataService } from "./BaseDataService";
 import { UtilsService } from "..";
-import { SPItem, User, TaxonomyTerm, OfflineTransaction, SPFile } from "../../models";
+import { SPItem, User, TaxonomyTerm, OfflineTransaction, SPFile, BaseItem } from "../../models";
 import { UserService } from "../graph/UserService";
 import { isArray, stringIsNullOrEmpty } from "@pnp/common";
 import { BaseDbService } from "./BaseDbService";
@@ -74,6 +74,14 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
 
     /***************************** External sources init and access **************************************/
 
+    private services = {};
+    protected getService(modelName: string): BaseDataService<IBaseItem> {
+        if(!this.services[modelName]) {
+            this.services[modelName] = ServicesConfiguration.configuration.serviceFactory.create(modelName);
+        }
+        return this.services[modelName];
+    } 
+
     private initialized = false;
     protected get isInitialized(): boolean {
         return this.initialized;
@@ -112,7 +120,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                         }
                         await Promise.all(models.map(async (modelName) => {
                             if (!this.initValues[modelName]) {
-                                const service = ServicesConfiguration.configuration.serviceFactory.create(modelName);
+                                const service = this.getService(modelName);
                                 const values = await service.getAll();
                                 this.initValues[modelName] = values;
                             }
@@ -182,17 +190,19 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
     }
 
     /****************************** get item methods ***********************************/
-    private getItemFromRest(spitem: any): T {
+    protected async getItemFromRest(spitem: any): Promise<T> {
         const item = new this.itemType();
-        Object.keys(this.ItemFields).map((propertyName) => {
-            const fieldDescription = this.ItemFields[propertyName];
-            this.setFieldValue(spitem, item, propertyName, fieldDescription);
-        });
+        for (const propertyName in this.ItemFields) {
+            if (Object.prototype.hasOwnProperty.call(this.ItemFields, propertyName)) {
+                const fieldDescription = this.ItemFields[propertyName];
+                await this.setFieldValue(spitem, item, propertyName, fieldDescription);
+            }
+        }
         return item;
     }
 
-    private setFieldValue(spitem: any, destItem: T, propertyName: string, fieldDescriptor: IFieldDescriptor): void {
-        const converted = destItem as unknown as SPItem;
+    private async setFieldValue(spitem: any, destItem: T, propertyName: string, fieldDescriptor: IFieldDescriptor): Promise<void> {
+        const converted = destItem as unknown as BaseItem;
         fieldDescriptor.fieldType = fieldDescriptor.fieldType || FieldType.Simple;
         switch (fieldDescriptor.fieldType) {
             case FieldType.Simple:
@@ -210,23 +220,64 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                 converted[propertyName] = spitem[fieldDescriptor.fieldName] ? new Date(spitem[fieldDescriptor.fieldName]) : fieldDescriptor.defaultValue;
                 break;
             case FieldType.Lookup:
-                const lookupId: number = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"] : -1;
-                if (lookupId !== -1) {
-                    if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                        // LOOKUPS --> links
-                        converted.__setInternalLinks(propertyName, lookupId);
-                        converted[propertyName] = fieldDescriptor.defaultValue;
-
+                if(fieldDescriptor.containsFullObject && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                    // TODO: check format
+                    const obj = spitem[fieldDescriptor.fieldName] ? spitem[fieldDescriptor.fieldName] : null;
+                    if(obj) {
+                        // get service
+                        const tmpservice = this.getService(fieldDescriptor.modelName);
+                        const conv = await tmpservice.persistItemData(obj);
+                        if(conv) {
+                            converted[propertyName] = conv;
+                        }
+                        else {
+                            converted[propertyName] = fieldDescriptor.defaultValue;
+                        }
+                        
                     }
                     else {
-                        converted[propertyName] = lookupId;
-                    }
-
+                        converted[propertyName] = fieldDescriptor.defaultValue;
+                    }                    
                 }
                 else {
-                    converted[propertyName] = fieldDescriptor.defaultValue;
-                }
+                    if(fieldDescriptor.containsFullObject && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                        // TODO : check format
+                        const convertedObjects = [];
+                        const values = spitem[fieldDescriptor.fieldName] ? spitem[fieldDescriptor.fieldName] : [];
+                        if(values.length > 0) {
+                            // get service
+                            const tmpservice = this.getService(fieldDescriptor.modelName);
+                            for (const obj of values) {
+                                const conv = await tmpservice.persistItemData(obj);
+                                if(conv) {
+                                    convertedObjects.push(conv);
+                                }
+                            }     
+                            converted[propertyName] = convertedObjects;
+                        }
+                        else {
+                            converted[propertyName] = fieldDescriptor.defaultValue;
+                        }                    
+                    }
+                    else {
+                        const lookupId: number = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"] : -1;
+                        if (lookupId !== -1) {
+                            if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                                // LOOKUPS --> links
+                                converted.__setInternalLinks(propertyName, lookupId);
+                                converted[propertyName] = fieldDescriptor.defaultValue;
 
+                            }
+                            else {
+                                converted[propertyName] = lookupId;
+                            }
+
+                        }
+                        else {
+                            converted[propertyName] = fieldDescriptor.defaultValue;
+                        }
+                    }
+                }
                 break;
             case FieldType.LookupMulti:
                 const lookupIds: Array<number> = spitem[fieldDescriptor.fieldName + "Id"] ? (spitem[fieldDescriptor.fieldName + "Id"].results ? spitem[fieldDescriptor.fieldName + "Id"].results : spitem[fieldDescriptor.fieldName + "Id"]) : [];
@@ -316,7 +367,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         }
     }
     /****************************** Send item methods ***********************************/
-    private async getSPRestItem(item: T): Promise<any> {
+    protected async getSPRestItem(item: T): Promise<any> {
         const spitem = {};
         await Promise.all(Object.keys(this.ItemFields).map(async (propertyName) => {
             const fieldDescription = this.ItemFields[propertyName];
@@ -325,7 +376,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         return spitem;
     }
     private async setRestFieldValue(item: T, destItem: any, propertyName: string, fieldDescriptor: IFieldDescriptor): Promise<void> {
-        const converted = item as unknown as SPItem;
+        const converted = item as unknown as BaseItem;
         const itemValue = converted[propertyName];
         fieldDescriptor.fieldType = fieldDescriptor.fieldType || FieldType.Simple;
         
@@ -694,55 +745,57 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         for (const key in lookupFields) {
             if (lookupFields.hasOwnProperty(key)) {
                 const fieldDesc = lookupFields[key] as IFieldDescriptor;
-                allIds[fieldDesc.modelName] = allIds[fieldDesc.modelName] || [];
-                const ids = allIds[fieldDesc.modelName];
-                items.forEach((item: T) => {
-                    const converted = item as unknown as SPItem;
-                    const links = converted.__getInternalLinks(key);
-                    //init value 
-                    if (fieldDesc.fieldType === FieldType.Lookup || fieldDesc.fieldType === FieldType.LookupMulti) {
-                        converted[key] = fieldDesc.defaultValue;
-                    }
-                    if (fieldDesc.fieldType === FieldType.Lookup &&
-                        // lookup has value
-                        links &&
-                        links !== -1 &&
-                        // not allready loaded (local cache)
-                        (!this.initValues[fieldDesc.modelName]
-                            ||
-                            !find(this.initValues[fieldDesc.modelName], { id: links })
-                        ) &&
-                        // not allready in load list
-                        ids.indexOf(links) === -1
-                    ) {
+                if(!fieldDesc.containsFullObject) {
+                    allIds[fieldDesc.modelName] = allIds[fieldDesc.modelName] || [];
+                    const ids = allIds[fieldDesc.modelName];
+                    items.forEach((item: T) => {
+                        const converted = item as unknown as BaseItem;
+                        const links = converted.__getInternalLinks(key);
+                        //init value 
+                        if (fieldDesc.fieldType === FieldType.Lookup || fieldDesc.fieldType === FieldType.LookupMulti) {
+                            converted[key] = fieldDesc.defaultValue;
+                        }
+                        if (fieldDesc.fieldType === FieldType.Lookup &&
+                            // lookup has value
+                            links &&
+                            links !== -1 &&
+                            // not allready loaded (local cache)
+                            (!this.initValues[fieldDesc.modelName]
+                                ||
+                                !find(this.initValues[fieldDesc.modelName], { id: links })
+                            ) &&
+                            // not allready in load list
+                            ids.indexOf(links) === -1
+                        ) {
 
-                        ids.push(links);
-                    }
-                    else if (fieldDesc.fieldType === FieldType.LookupMulti &&
-                        links &&
-                        links.length > 0) {
-                        links.forEach((id) => {
-                            if (// not allready loaded (local cache)
-                                (!this.initValues[fieldDesc.modelName]
-                                    ||
-                                    !find(this.initValues[fieldDesc.modelName], { id: id })
-                                ) &&
-                                // not allready in load list
-                                ids.indexOf(id) === -1) {
-                                ids.push(id);
-                            }
-                        });
-                    }
-                });
+                            ids.push(links);
+                        }
+                        else if (fieldDesc.fieldType === FieldType.LookupMulti &&
+                            links &&
+                            links.length > 0) {
+                            links.forEach((id) => {
+                                if (// not allready loaded (local cache)
+                                    (!this.initValues[fieldDesc.modelName]
+                                        ||
+                                        !find(this.initValues[fieldDesc.modelName], { id: id })
+                                    ) &&
+                                    // not allready in load list
+                                    ids.indexOf(id) === -1) {
+                                    ids.push(id);
+                                }
+                            });
+                        }
+                    });
+                }
             }
         }
         // Init queries       
-        const promises: Array<Promise<SPItem[]>> = [];
+        const promises: Array<Promise<BaseItem[]>> = [];
         for (const modelName in allIds) {
             if (allIds.hasOwnProperty(modelName)) {
                 const ids = allIds[modelName];
                 if (ids && ids.length > 0) {
-                    const service = ServicesConfiguration.configuration.serviceFactory.create(modelName) as BaseDataService<SPItem>;
+                    const service = this.getService(modelName) as BaseDataService<BaseItem>;
                     promises.push(service.getItemsById(ids));
                 }
             }
@@ -762,7 +815,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                 const fieldDesc = lookupFields[propertyName] as IFieldDescriptor;
                 const refCol = this.initValues[fieldDesc.modelName];
                 items.forEach((item: T) => {
-                    const converted = item as unknown as SPItem;
+                    const converted = item as unknown as BaseItem;
                     const links = converted.__getInternalLinks(propertyName);
                     if (fieldDesc.fieldType === FieldType.Lookup &&
                         links &&
@@ -790,7 +843,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
     }
 
     private updateInternalLinks(item: T, loadLookups?: Array<string>): void {
-        const converted = item as unknown as SPItem;
+        const converted = item as unknown as BaseItem;
         const lookupFields = this.linkedLookupFields();
         for (const propertyName in lookupFields) {
             if (lookupFields.hasOwnProperty(propertyName)) {
@@ -833,9 +886,9 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         const items = await itemsQuery.getItemsByCAMLQuery(spQuery);
         if (items && items.length > 0) {
             await this.Init();
-            results = items.map((r) => {
+            results = await Promise.all(items.map((r) => {
                 return this.getItemFromRest(r);
-            });
+            }));
         }
         await this.populateLookups(results, linkedFields);
         return results;
@@ -855,7 +908,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         const temp = await itemsQuery.get();
         if (temp) {
             await this.Init();
-            result = this.getItemFromRest(temp);
+            result = await this.getItemFromRest(temp);
             await this.populateLookups([result], linkedFields);
         }
 
@@ -905,9 +958,9 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         const items = await itemsQuery.getAll();
         if (items && items.length > 0) {
             await this.Init();
-            results = items.map((r) => {
+            results = await Promise.all(items.map((r) => {
                 return this.getItemFromRest(r);
-            });
+            }));
         }
         await this.populateLookups(results, linkedFields);
         return results;
@@ -1114,6 +1167,16 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         await this.list.items.getById(item.id as number).recycle();
     }
 
+    protected async persistItemData_internal(data: any, linkedFields?: Array<string>): Promise<T> {
+        let result = null;
+        if (data) {
+            await this.Init();
+            result = await this.getItemFromRest(data);
+            await this.populateLookups([result], linkedFields);
+        }
+        return result;
+    }
+
     private async getAttachmentContent(attachment: SPFile): Promise<void> {
         const content = await sp.web.getFileByServerRelativeUrl(attachment.serverRelativeUrl).getBuffer();
         attachment.content = content;
@@ -1286,9 +1349,9 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
      * @param item - full provisionned item
      */
     protected async convertItemToDbFormat(item: T): Promise<T> {
-        const converted = item as unknown as SPItem;
+        const converted = item as unknown as BaseItem;
         const result: T = cloneDeep(item);
-        const convertedResult = result as unknown as SPItem;
+        const convertedResult = result as unknown as BaseItem;
         for (const propertyName in this.ItemFields) {
             if (this.ItemFields.hasOwnProperty(propertyName)) {
                 const fieldDescriptor = this.ItemFields[propertyName];
@@ -1357,9 +1420,9 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         if (items && items.length > 0) {
             await this.Init();
             for (const item of items) {
-                const converted = item as unknown as SPItem;
+                const converted = item as unknown as BaseItem;
                 const result: T = cloneDeep(item);
-                const convertedResult = result as unknown as SPItem;
+                const convertedResult = result as unknown as BaseItem;
                 if (item) {
                     for (const propertyName in this.ItemFields) {
                         if (this.ItemFields.hasOwnProperty(propertyName)) {
@@ -1441,7 +1504,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         nextTransactions.forEach(transaction => {
             let currentObject = null;
             let needUpdate = false;
-            const service = ServicesConfiguration.configuration.serviceFactory.create(transaction.itemType);
+            const service = this.getService(transaction.itemType);
             const fields = service.ItemFields;
             // search for lookup fields
             for (const propertyName in fields) {
@@ -1509,8 +1572,11 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
 
     private async updateLinksInDb(oldId: number, newId: number): Promise<void> {
         const allFields = assign({}, this.itemType["Fields"]);
-        delete allFields[SPItem["name"]];
-        delete allFields[this.itemType["name"]];
+        let parentType = this.itemType;
+        do {
+            delete allFields[parentType["name"] ];
+            parentType = Object.getPrototypeOf(parentType);
+        } while(parentType["name"] !== BaseItem["name"]);
         for (const modelName in allFields) {
             if (allFields.hasOwnProperty(modelName)) {
                 const modelFields = allFields[modelName];
@@ -1519,11 +1585,11 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                         modelFields[prop].refItemName === this.itemType["name"] || modelFields[prop].modelName === this.itemType["name"]);
                 });
                 if (lookupProperties.length > 0) {
-                    const service = ServicesConfiguration.configuration.serviceFactory.create(modelName);
+                    const service = this.getService(modelName);
                     const allitems = await service.__getAllFromCache();
                     const updated = [];
                     allitems.forEach(element => {
-                        const converted = element as unknown as SPItem;
+                        const converted = element as unknown as BaseItem;
                         let needUpdate = false;
                         lookupProperties.forEach(propertyName => {
                             const fieldDescription = modelFields[propertyName];
@@ -1597,7 +1663,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                     if (wssid !== -1) {
                         const id = item[propertyName].id;
                         // find corresponding object in service
-                        const service = ServicesConfiguration.configuration.serviceFactory.create(fieldDescription.modelName);
+                        const service = this.getService(fieldDescription.modelName);
                         const term = await service.__getFromCache(id);
                         if (term instanceof TaxonomyTerm) {
                             term.wssids = term.wssids || [];
@@ -1621,7 +1687,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                 else if (fieldDescription.fieldType === FieldType.TaxonomyMulti) {
                     const updated = [];
                     const terms = spItem[fieldDescription.fieldName] ? spItem[fieldDescription.fieldName].results : [];
-                    const service = ServicesConfiguration.configuration.serviceFactory.create(fieldDescription.modelName);
+                    const service = this.getService(fieldDescription.modelName);
                     if (terms && terms.length > 0) {
                         await Promise.all(terms.map(async (termitem) => {
                             const wssid = termitem.WssId;
