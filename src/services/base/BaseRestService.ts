@@ -334,13 +334,14 @@ export class BaseRestService<T extends RestItem> extends BaseDataService<T>{
         const itemValue = converted[propertyName];
         fieldDescriptor.fieldType = fieldDescriptor.fieldType || FieldType.Simple;
         
-        if (fieldDescriptor.fieldName !== Constants.commonRestFields.uniqueid &&
-            fieldDescriptor.fieldName !== Constants.commonRestFields.created &&
+        if (fieldDescriptor.fieldName !== Constants.commonRestFields.created &&
             fieldDescriptor.fieldName !== Constants.commonRestFields.author &&
             fieldDescriptor.fieldName !== Constants.commonRestFields.editor &&
             fieldDescriptor.fieldName !== Constants.commonRestFields.modified &&
             fieldDescriptor.fieldName !== Constants.commonRestFields.version &&
-            (fieldDescriptor.fieldName !== Constants.commonRestFields.id || itemValue > 0)) 
+            (fieldDescriptor.fieldName !== Constants.commonRestFields.id || itemValue > 0) &&
+            (fieldDescriptor.fieldName !== Constants.commonRestFields.uniqueid || item.id <=0)
+        ) 
         {
             switch (fieldDescriptor.fieldType) {
                 case FieldType.Simple:
