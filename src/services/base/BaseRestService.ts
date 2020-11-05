@@ -1298,7 +1298,7 @@ export class BaseRestService<T extends RestItem> extends BaseDataService<T>{
                 error.message = "Error while executing request";
                 error.name = response.status.toString();
                 error.stack = await response.text();
-                console.error(error);
+                console.error(error.toString(), "\n", error.stack);
                 throw error;
             }
     }
