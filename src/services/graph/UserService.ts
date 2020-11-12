@@ -49,7 +49,7 @@ export class UserService extends BaseDataService<User> {
         .get(), sp.web.siteUsers.select("Id","UserPrincipalName","Email","Title","IsSiteAdmin").get()]);
         
         return users.map((u) => {
-            const spuser = find(spUsers, (spu: any) => { return spu.UserPrincipalName === u.userPrincipalName; });
+            const spuser = find(spUsers, (spu: any) => { return spu.UserPrincipalName?.toLowerCase() === u.userPrincipalName?.toLowerCase(); });
             const result = new User(u);
             if (spuser) {
                 result.id = spuser.Id;
@@ -121,18 +121,29 @@ export class UserService extends BaseDataService<User> {
         return results;
     }
 
-    public async linkToSpUser(user: User): Promise<User> {
+    public async linkToSpUser(user: User): Promise<User> {        
         if (user.id === -1) {
-            const result = await sp.web.ensureUser(user.userPrincipalName);
-            user.id = result.data.Id;
-            const dbresult = await this.dbService.addOrUpdateItem(user);
-            user = dbresult;
+            const allItems = await this.getAll();
+            const existing = find(allItems, u => u.userPrincipalName?.toLowerCase() === user.userPrincipalName?.toLowerCase());
+            if(existing) {
+                user = existing;
+            }
+            else {
+                const result = await sp.web.ensureUser(user.userPrincipalName);
+                const userItem = await result.user.select("Id", "UserPrincipalName", "Email", "Title", "IsSiteAdmin").get();
+                user = new User(userItem);
+                const dbresult = await this.dbService.addOrUpdateItem(user);
+                user = dbresult;
+            }            
         }
         return user;
     }
 
 
     public async getByDisplayName(displayName: string): Promise<Array<User>> {
+        if(stringIsNullOrEmpty(displayName)) {
+            return [];
+        }
         let users = await this.get({ test: { type: "predicate", propertyName: "displayName", operator: TestOperator.BeginsWith, value: displayName } });
         if (users.length === 0) {
             users = await this.getAll();
@@ -144,10 +155,10 @@ export class UserService extends BaseDataService<User> {
                 reverseFilter = parts[1].trim() + " " + parts[0].trim();
             }
             users = users.filter((user) => {
-                return user.displayName.indexOf(displayName) === 0 ||
-                    user.displayName.indexOf(reverseFilter) === 0 ||
-                    user.mail.indexOf(displayName) === 0 ||
-                    user.userPrincipalName.indexOf(displayName) === 0;
+                return user.displayName?.toLowerCase().indexOf(displayName.toLowerCase()) === 0 ||
+                    user.displayName?.toLowerCase().indexOf(reverseFilter.toLowerCase()) === 0 ||
+                    user.mail?.toLowerCase().indexOf(displayName.toLowerCase()) === 0 ||
+                    user.userPrincipalName?.toLowerCase().indexOf(displayName.toLowerCase()) === 0;
             });
         }
         return users;

@@ -905,20 +905,31 @@ export class BaseRestService<T extends RestItem> extends BaseDataService<T>{
             const fieldName = fields[prop].fieldName;
             switch (fields[prop].fieldType) {
                 case FieldType.Date:
-                    item[prop] = new Date(restItem[fieldName]);
+                    if(restItem[fieldName]) {
+                        item[prop] = new Date(restItem[fieldName]);
+                    }
+                    else {
+                        item[prop] = fields[prop].defaultValue;
+                    }
+                    
                     break;
                 case FieldType.User:
                     const upn = restItem[fieldName];
-                    let user = null;
-                    if (this.initialized) {
-                        const users = this.getServiceInitValues(User["name"]);
-                        user = find(users, (u) => { return u.userPrincipalName === upn; });
+                    if(!stringIsNullOrEmpty(upn)) {
+                        let user = null;
+                        if (this.initialized) {
+                            const users = this.getServiceInitValues(User["name"]);
+                            user = find(users, (u) => { return u.userPrincipalName?.toLowerCase() === upn?.toLowerCase(); });
+                        }
+                        else {
+                            const userService: UserService = new UserService();
+                            user = await userService.linkToSpUser(upn);
+                        }
+                        item[prop] = user;
                     }
                     else {
-                        const userService: UserService = new UserService();
-                        user = await userService.getByDisplayName(upn);
+                        item[prop] = fields[prop].defaultValue;
                     }
-                    item[prop] = user;
                     break;
                 default:
                     item[prop] = restItem[fieldName];
