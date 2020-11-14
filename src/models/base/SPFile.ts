@@ -1,9 +1,9 @@
-import { IBaseItem } from "../../interfaces";
+import { IBaseFile } from "../../interfaces";
 
 /**
  * Data model for a SharePoint File
  */
-export class SPFile implements IBaseItem {
+export class SPFile implements IBaseFile {
     /**
      * File content (binary data)
      */

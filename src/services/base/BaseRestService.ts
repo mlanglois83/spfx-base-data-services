@@ -34,7 +34,14 @@ export class BaseRestService<T extends RestItem> extends BaseDataService<T>{
             do {
                 parentType = Object.getPrototypeOf(parentType);
                 if(this.itemType["Fields"][parentType["name"]]) {
-                    assign(this._itemFields, this.itemType["Fields"][parentType["name"]]);
+                    for (const key in this.itemType["Fields"][parentType["name"]]) {
+                        if (Object.prototype.hasOwnProperty.call(this.itemType["Fields"][parentType["name"]], key)) {
+                            if(this._itemFields[key] === undefined || this._itemFields[key] === null) {
+                                // keep higher level redefinition
+                                this._itemFields[key] = this.itemType["Fields"][parentType["name"]][key];
+                            }                            
+                        }
+                    }
                 }
             } while(parentType["name"] !== RestItem["name"]);
         }
