@@ -8,12 +8,14 @@ import { RestItem, User, OfflineTransaction } from "../../models";
 import { BaseItem } from "../../models/base/BaseItem";
 import { UserService } from "../graph/UserService";
 import { isArray, stringIsNullOrEmpty } from "@pnp/common";
+import { RestFile } from "../../models/base/RestFile";
+import * as mime from "mime-types";
 
 /**
  * 
  * Base service for sp list items operations
  */
-export class BaseRestService<T extends RestItem> extends BaseDataService<T>{
+export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataService<T>{
 
     /***************************** Fields and properties **************************************/
     protected initValues: any = {};
@@ -43,7 +45,7 @@ export class BaseRestService<T extends RestItem> extends BaseDataService<T>{
                         }
                     }
                 }
-            } while(parentType["name"] !== RestItem["name"]);
+            } while(parentType["name"] !== RestItem["name"] && parentType["name"] !== RestFile["name"]);
         }
         return this._itemFields;
     }
@@ -149,6 +151,9 @@ export class BaseRestService<T extends RestItem> extends BaseDataService<T>{
                 const fieldDescription = this.ItemFields[propertyName];
                 await this.setFieldValue(restItem, item, propertyName, fieldDescription);
             }
+        }
+        if(item instanceof RestFile) {            
+            item.mimeType = (mime.lookup(item.title) as string) || 'application/octet-stream';
         }
         return item;
     }

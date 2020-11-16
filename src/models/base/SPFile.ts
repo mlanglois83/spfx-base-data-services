@@ -1,29 +1,13 @@
-import { IBaseFile } from "../../interfaces";
+import { BaseFile } from "./BaseFile";
 
 /**
  * Data model for a SharePoint File
  */
-export class SPFile implements IBaseFile {
-    /**
-     * File content (binary data)
-     */
-    public content?: ArrayBuffer;
-    /**
-     * File mime type
-     */
-    public mimeType: string; 
+export class SPFile extends BaseFile {
     /**
      * File Id (server relative url)
      */
     public id: string;
-    /**
-     * File title (name)
-     */
-    public title: string;
-    /**
-     * Last update error
-     */
-    public error?: Error;
     /**
      * Get or set file server relative url
      */
@@ -54,6 +38,7 @@ export class SPFile implements IBaseFile {
      * @param fileItem - file item from rest call (can be file or item or attachment)
      */
     constructor(fileItem?: any){
+        super();
         if(fileItem) {
             this.serverRelativeUrl = (fileItem.FileRef ? fileItem.FileRef : fileItem.ServerRelativeUrl);
             this.name = (fileItem.FileLeafRef ? fileItem.FileLeafRef : (fileItem.Name ? fileItem.Name : fileItem.FileName));

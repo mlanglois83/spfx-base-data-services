@@ -6,9 +6,9 @@ import { BaseService } from "./BaseService";
 import { UtilsService } from "../UtilsService";
 import { ServicesConfiguration } from "../../configuration";
 import { Constants } from "../../constants";
-import { SPFile } from "../../models";
 
 import { Mutex } from 'async-mutex';
+import { BaseFile } from "../../models";
 
 /**
  * Base classe for indexedDB interraction using SP repository
@@ -29,8 +29,8 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
         this.itemType = type;
     }
 
-    protected getChunksRegexp(fileUrl): RegExp {
-        const escapedUrl = UtilsService.escapeRegExp(fileUrl);
+    protected getChunksRegexp(fileId: number | string): RegExp {
+        const escapedUrl = UtilsService.escapeRegExp(fileId.toString());
         return new RegExp("^" + escapedUrl + "_chunk_\\d+$", "g");
     }
 
@@ -114,10 +114,10 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
             if (typeof (item.id) === "number" && !store.autoIncrement && item.id === -1) {
                 item.id = nextid;
             }
-            if (item instanceof SPFile && item.content && item.content.byteLength >= 10485760) {
+            if (item instanceof BaseFile && item.content && item.content.byteLength >= 10485760) {
                 // remove existing chunks
                 const keys: string[] = await this.getAllKeysInternal(store);
-                const chunkRegex = this.getChunksRegexp(item.serverRelativeUrl);
+                const chunkRegex = this.getChunksRegexp(item.id);
                 const chunkkeys = keys.filter((k) => {
                     const match = k.match(chunkRegex);
                     return match && match.length > 0;
@@ -133,9 +133,9 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                     const lastidx = Math.min(item.content.byteLength, firstidx + 10485760);
                     const chunk = item.content.slice(firstidx, lastidx);
                     // create file object
-                    const chunkitem = new SPFile();
-                    chunkitem.serverRelativeUrl = item.serverRelativeUrl + (idx === 0 ? "" : "_chunk_" + idx);
-                    chunkitem.name = item.name;
+                    const chunkitem = new this.itemType() as unknown as BaseFile;
+                    chunkitem.id = item.id + (idx === 0 ? "" : "_chunk_" + idx);
+                    chunkitem.title = item.title;
                     chunkitem.mimeType = item.mimeType;
                     chunkitem.content = chunk;
                     await store.put(assign({}, chunkitem));
@@ -168,9 +168,9 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
         const store = tx.objectStore(this.tableName);
         try {
             const deleteKeys = [item.id];
-            if (item instanceof SPFile) {
+            if (item instanceof BaseFile) {
                 const keys: string[] = await this.getAllKeysInternal(store);
-                const chunkRegex = this.getChunksRegexp(item.serverRelativeUrl);
+                const chunkRegex = this.getChunksRegexp(item.id);
                 const chunkkeys = keys.filter((k) => {
                     const match = k.match(chunkRegex);
                     return match && match.length > 0;
@@ -214,10 +214,10 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                 if (typeof (item.id) === "number" && !store.autoIncrement && item.id === -1) {
                     item.id = nextid--;
                 }
-                if (item instanceof SPFile && item.content && item.content.byteLength >= 10485760) {
+                if (item instanceof BaseFile && item.content && item.content.byteLength >= 10485760) {
                     // remove existing chunks
                     const keys: string[] = await this.getAllKeysInternal(store);
-                    const chunkRegex = this.getChunksRegexp(item.serverRelativeUrl);
+                    const chunkRegex = this.getChunksRegexp(item.id);
                     const chunkkeys = keys.filter((k) => {
                         const match = k.match(chunkRegex);
                         return match && match.length > 0;
@@ -233,9 +233,9 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                         const lastidx = Math.min(item.content.byteLength, firstidx + 10485760);
                         const chunk = item.content.slice(firstidx, lastidx);
                         // create file object
-                        const chunkitem = new SPFile();
-                        chunkitem.serverRelativeUrl = item.serverRelativeUrl + (idx === 0 ? "" : "_chunk_" + idx);
-                        chunkitem.name = item.name;
+                        const chunkitem = new this.itemType() as unknown as BaseFile;
+                        chunkitem.id = item.id + (idx === 0 ? "" : "_chunk_" + idx);
+                        chunkitem.title = item.title;
                         chunkitem.mimeType = item.mimeType;
                         chunkitem.content = chunk;
                         await store.put(assign({}, chunkitem));
@@ -278,12 +278,12 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
             rows.forEach((r) => {
                 const item = new this.itemType();
                 const resultItem = assign(item, r);
-                if (item instanceof SPFile) {
+                if (item instanceof BaseFile) {
                     // item is a part of another file
-                    const chunkparts = (/^.*_chunk_\d+$/g).test(item.serverRelativeUrl);
+                    const chunkparts = (/^.*_chunk_\d+$/g).test(item.id.toString());
                     if (!chunkparts) {
                         // verify if there are other parts
-                        const chunkRegex = this.getChunksRegexp(item.serverRelativeUrl);
+                        const chunkRegex = this.getChunksRegexp(item.id);
                         const chunks = rows.filter((chunkedrow) => {
                             const match = chunkedrow.id.match(chunkRegex);
                             return match && match.length > 0;
@@ -355,13 +355,13 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
             const obj = await store.get(id);
             if (obj) {
                 result = assign(new this.itemType(), obj);
-                if (result instanceof SPFile) {
+                if (result instanceof BaseFile) {
                     // item is a part of another file
-                    const chunkparts = (/^.*_chunk_\d+$/g).test(result.serverRelativeUrl);
+                    const chunkparts = (/^.*_chunk_\d+$/g).test(result.id.toString());
                     if (!chunkparts) {
                         const allRows = await store.getAll();
                         // verify if there are other parts
-                        const chunkRegex = this.getChunksRegexp(result.serverRelativeUrl);
+                        const chunkRegex = this.getChunksRegexp(result.id);
                         const chunks = allRows.filter((chunkedrow) => {
                             const match = chunkedrow.id.match(chunkRegex);
                             return match && match.length > 0;

@@ -1,3 +1,5 @@
+import { Guid } from "@microsoft/sp-core-library";
+import { Constants } from "../../constants";
 import { Decorators } from "../../decorators";
 import { BaseItem } from "./BaseItem";
 
@@ -16,7 +18,10 @@ export abstract class RestItem extends BaseItem {
      * Version number
      */
     @field()
-    public version?: number;
-    @field({fieldName: "uniqueid"})
-    public uniqueId?: string;
+    public version?: number;   
+    /**
+     * Unique id
+     */ 
+    @field({fieldName: Constants.commonRestFields.uniqueid, defaultValue: Guid.newGuid().toString()})
+    public uniqueId: string = Guid.newGuid().toString();  
 }

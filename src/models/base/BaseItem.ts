@@ -48,7 +48,7 @@ export abstract class BaseItem implements IBaseItem {
     /**
      * Item id
      */
-    public id: number;
+    public id: number | string;
     /**
      * Item title
      */

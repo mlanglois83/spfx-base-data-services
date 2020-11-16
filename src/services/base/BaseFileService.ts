@@ -1,8 +1,7 @@
 import { ChunkedFileUploadProgressData, Folder, sp, List } from "@pnp/sp";
 import * as mime from "mime-types";
 import { UtilsService } from "../";
-import { IBaseItem } from "../../interfaces/index";
-import { SPFile } from "../../models";
+import { IBaseFile } from "../../interfaces/index";
 import { BaseDataService } from "./BaseDataService";
 import { ServicesConfiguration } from "../..";
 import { cloneDeep } from "@microsoft/sp-lodash-subset";
@@ -10,7 +9,7 @@ import { cloneDeep } from "@microsoft/sp-lodash-subset";
 /**
  * Base service for sp files operations
  */
-export class BaseFileService<T extends IBaseItem> extends BaseDataService<T>{
+export class BaseFileService<T extends IBaseFile> extends BaseDataService<T>{
     protected listRelativeUrl: string;
 
     /**
@@ -79,10 +78,8 @@ export class BaseFileService<T extends IBaseItem> extends BaseDataService<T>{
 
     private async createFileObject(file: any): Promise<T> {
         const resultFile = new this.itemType(file);
-        if (resultFile instanceof SPFile) {
-            resultFile.mimeType = (mime.lookup(resultFile.name) as string) || 'application/octet-stream';
-            //resultFile.content = await sp.web.getFileByServerRelativeUrl(resultFile.serverRelativeUrl).getBuffer();
-        }
+        resultFile.mimeType = (mime.lookup(resultFile.title) as string) || 'application/octet-stream';
+        //resultFile.content = await sp.web.getFileByServerRelativeUrl(resultFile.serverRelativeUrl).getBuffer();
         return resultFile;
     }
 
@@ -115,22 +112,20 @@ export class BaseFileService<T extends IBaseItem> extends BaseDataService<T>{
     }
 
     public async addOrUpdateItem_Internal(item: T): Promise<T> {
-        if (item instanceof SPFile && item.content) {
-            const folderUrl = UtilsService.getParentFolderUrl(item.serverRelativeUrl);
-            const folder: Folder = sp.web.getFolderByServerRelativeUrl(folderUrl);
-            const exists = await this.folderExists(folderUrl);
-            if (!exists) {
-                await sp.web.folders.add(folderUrl);
-            }
-            if (item.content.byteLength <= 10485760) {
-                // small upload
-                await folder.files.add(item.name, item.content, true);
-            } else {
-                // large upload
-                await folder.files.addChunked(item.name, UtilsService.arrayBufferToBlob(item.content, item.mimeType), (data: ChunkedFileUploadProgressData) => {
-                    console.log("block:" + data.blockNumber + "/" + data.totalBlocks);
-                }, true);
-            }
+        const folderUrl = UtilsService.getParentFolderUrl(item.serverRelativeUrl);
+        const folder: Folder = sp.web.getFolderByServerRelativeUrl(folderUrl);
+        const exists = await this.folderExists(folderUrl);
+        if (!exists) {
+            await sp.web.folders.add(folderUrl);
+        }
+        if (item.content.byteLength <= 10485760) {
+            // small upload
+            await folder.files.add(item.title, item.content, true);
+        } else {
+            // large upload
+            await folder.files.addChunked(item.title, UtilsService.arrayBufferToBlob(item.content, item.mimeType), (data: ChunkedFileUploadProgressData) => {
+                console.log("block:" + data.blockNumber + "/" + data.totalBlocks);
+            }, true);
         }
         return item;
     }
@@ -152,15 +147,13 @@ export class BaseFileService<T extends IBaseItem> extends BaseDataService<T>{
         return items;
     }
 
-    public async deleteItem_Internal(item: T): Promise<void> {
-        if (item instanceof SPFile) {
-            await sp.web.getFileByServerRelativeUrl(item.serverRelativeUrl).recycle();
-            const folderUrl = UtilsService.getParentFolderUrl(item.serverRelativeUrl);
-            const folder: Folder = sp.web.getFolderByServerRelativeUrl(folderUrl);
-            const files = await folder.files.get();
-            if (!files || files.length === 0) {
-                await folder.recycle();
-            }
+    public async deleteItem_Internal(item: T): Promise<void> {        
+        await sp.web.getFileByServerRelativeUrl(item.serverRelativeUrl).recycle();
+        const folderUrl = UtilsService.getParentFolderUrl(item.serverRelativeUrl);
+        const folder: Folder = sp.web.getFolderByServerRelativeUrl(folderUrl);
+        const files = await folder.files.get();
+        if (!files || files.length === 0) {
+            await folder.recycle();
         }
     }
 

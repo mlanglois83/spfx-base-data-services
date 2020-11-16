@@ -1,14 +1,14 @@
 import { assign } from "@microsoft/sp-lodash-subset";
 import { ServicesConfiguration } from "../../configuration/ServicesConfiguration";
-import { OfflineTransaction, SPFile } from "../../models/index";
+import { BaseFile, OfflineTransaction } from "../../models/index";
 import { BaseDbService } from "../base/BaseDbService";
 
 export class TransactionService extends BaseDbService<OfflineTransaction> {
-    private transactionFileService: BaseDbService<SPFile>;
+    private transactionFileService: BaseDbService<BaseFile>;
 
     constructor() {
         super( OfflineTransaction, "Transaction");
-        this.transactionFileService = new BaseDbService<SPFile>(SPFile, "TransactionFiles");
+        this.transactionFileService = new BaseDbService<BaseFile>(BaseFile, "TransactionFiles");
     }
 
 
@@ -26,14 +26,14 @@ export class TransactionService extends BaseDbService<OfflineTransaction> {
                 await this.deleteItem(existing);
             }
             //create a file stored in a separate table
-            const file: SPFile = assign(new SPFile(), item.itemData);
-            const baseUrl = file.serverRelativeUrl;
-            item.itemData = new Date().getTime() + "_" + file.serverRelativeUrl;
-            file.serverRelativeUrl = item.itemData;
+            const file: BaseFile = assign(new BaseFile(), item.itemData);
+            const baseUrl = file.id;
+            item.itemData = new Date().getTime() + "_" + file.id;
+            file.id = item.itemData;
             await this.transactionFileService.addOrUpdateItem(file);            
             result = await super.addOrUpdateItem(item);
             // reassign values for result
-            file.serverRelativeUrl = baseUrl;
+            file.id = baseUrl;
             result.itemData = assign({}, file);
         }
         else {
@@ -45,7 +45,7 @@ export class TransactionService extends BaseDbService<OfflineTransaction> {
     public async deleteItem(item: OfflineTransaction): Promise<void> {
         if (this.isFile(item.itemType)) {
             const transaction = await super.getItemById(item.id);
-            const file: SPFile = new SPFile();
+            const file: BaseFile = new BaseFile();
             file.serverRelativeUrl = transaction.itemData;
             await this.transactionFileService.deleteItem(file);
         }
@@ -73,7 +73,15 @@ export class TransactionService extends BaseDbService<OfflineTransaction> {
             if (this.isFile(item.itemType)) {
                 const file = await this.transactionFileService.getItemById(item.itemData);
                 if (file) {
-                    file.serverRelativeUrl = file.serverRelativeUrl.replace(/^\d+_(.*)$/g, "$1");
+                    const id = file.id.toString().replace(/^\d+_(.*)$/g, "$1");
+                    const type = ServicesConfiguration.configuration.serviceFactory.getItemTypeByName(item.itemType);
+                    const temp = new type();
+                    if(typeof(temp.id) === "number") {
+                        file.id = parseInt(id);
+                    }
+                    else {
+                        file.id = id;
+                    }
                     item.itemData = assign({}, file);
                 }
             }
@@ -88,10 +96,18 @@ export class TransactionService extends BaseDbService<OfflineTransaction> {
      */
     public async getItemById(id: number): Promise<OfflineTransaction> {
         const result = await super.getItemById(id);
-        if (result && result.itemType === SPFile["name"]) {
+        if (this.isFile(result.itemType)) {
             const file = await this.transactionFileService.getItemById(result.itemData);
             if (file) {
-                file.serverRelativeUrl = file.serverRelativeUrl.replace(/^\d+_(.*)$/g, "$1");
+                const fileid = file.id.toString().replace(/^\d+_(.*)$/g, "$1");
+                const type = ServicesConfiguration.configuration.serviceFactory.getItemTypeByName(result.itemType);
+                const temp = new type();
+                if(typeof(temp.id) === "number") {
+                    file.id = parseInt(fileid);
+                }
+                else {
+                    file.id = fileid;
+                }
                 result.itemData = assign({}, file);
             }
         }
@@ -110,7 +126,7 @@ export class TransactionService extends BaseDbService<OfflineTransaction> {
     private isFile(itemTypeName: string): boolean {
         const itemType = ServicesConfiguration.configuration.serviceFactory.getItemTypeByName(itemTypeName);
         const instance = new itemType();
-        return (instance instanceof SPFile);
+        return (instance instanceof BaseFile);
     }
 
 }
