@@ -119,7 +119,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                 const keys: string[] = await this.getAllKeysInternal(store);
                 const chunkRegex = this.getChunksRegexp(item.id);
                 const chunkkeys = keys.filter((k) => {
-                    const match = k.match(chunkRegex);
+                    const match = k.toString().match(chunkRegex);
                     return match && match.length > 0;
                 });
                 await Promise.all(chunkkeys.map((k) => {
@@ -134,7 +134,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                     const chunk = item.content.slice(firstidx, lastidx);
                     // create file object
                     const chunkitem = new this.itemType() as unknown as BaseFile;
-                    chunkitem.id = item.id + (idx === 0 ? "" : "_chunk_" + idx);
+                    chunkitem.id = item.id.toString() + (idx === 0 ? "" : "_chunk_" + idx);
                     chunkitem.title = item.title;
                     chunkitem.mimeType = item.mimeType;
                     chunkitem.content = chunk;
@@ -172,7 +172,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                 const keys: string[] = await this.getAllKeysInternal(store);
                 const chunkRegex = this.getChunksRegexp(item.id);
                 const chunkkeys = keys.filter((k) => {
-                    const match = k.match(chunkRegex);
+                    const match = k.toString().match(chunkRegex);
                     return match && match.length > 0;
                 });
                 deleteKeys.push(...chunkkeys);
@@ -219,7 +219,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                     const keys: string[] = await this.getAllKeysInternal(store);
                     const chunkRegex = this.getChunksRegexp(item.id);
                     const chunkkeys = keys.filter((k) => {
-                        const match = k.match(chunkRegex);
+                        const match = k.toString().match(chunkRegex);
                         return match && match.length > 0;
                     });
                     await Promise.all(chunkkeys.map((k) => {
@@ -234,7 +234,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                         const chunk = item.content.slice(firstidx, lastidx);
                         // create file object
                         const chunkitem = new this.itemType() as unknown as BaseFile;
-                        chunkitem.id = item.id + (idx === 0 ? "" : "_chunk_" + idx);
+                        chunkitem.id = item.id.toString() + (idx === 0 ? "" : "_chunk_" + idx);
                         chunkitem.title = item.title;
                         chunkitem.mimeType = item.mimeType;
                         chunkitem.content = chunk;
