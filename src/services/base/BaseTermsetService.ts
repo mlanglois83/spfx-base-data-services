@@ -153,8 +153,13 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
         throw new Error("Not implemented");
     }
 
-    protected async deleteItem_Internal(item: T): Promise<void> {
+    protected async deleteItem_Internal(item: T): Promise<T> {
         console.log("[" + this.serviceName + ".deleteItem_Internal] - " + JSON.stringify(item));
+        throw new Error("Not implemented");
+    }
+
+    protected async deleteItems_Internal(items: Array<T>): Promise<Array<T>> {
+        console.log("[" + this.serviceName + ".deleteItems_Internal] - " + JSON.stringify(items));
         throw new Error("Not implemented");
     }
 

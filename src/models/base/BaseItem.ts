@@ -62,6 +62,11 @@ export abstract class BaseItem implements IBaseItem {
      */
     public error?: Error;
     /**
+     * Deleted item
+     */
+    public deleted?: boolean;
+
+    /**
      * Defines if item is valid for sending it to list
      */
     public get isValid(): boolean {

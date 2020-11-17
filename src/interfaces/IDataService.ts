@@ -28,7 +28,12 @@ export interface IDataService<T extends IBaseItem> {
      * Removes an item
      * @param item - instance of a Model that has to deleted
      */
-    deleteItem(item: T): Promise<void>;
+    deleteItem(item: T): Promise<T>;
+    /**
+     * Removes an item
+     * @param item - instances of a Model that has to deleted
+     */
+    deleteItems(items: Array<T>): Promise<Array<T>>;
     /**
      * Retrieve item by id
      * @param id - item id

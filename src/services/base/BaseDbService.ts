@@ -162,7 +162,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
         }
     }
 
-    public async deleteItem(item: T): Promise<void> {
+    public async deleteItem(item: T): Promise<T> {
         await this.OpenDb();
         const tx = this.db.transaction(this.tableName, 'readwrite');
         const store = tx.objectStore(this.tableName);
@@ -177,8 +177,9 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                 });
                 deleteKeys.push(...chunkkeys);
             }
-            await Promise.all(deleteKeys.map((k) => {
-                return store.delete(k);
+            await Promise.all(deleteKeys.map(async (k) => {
+                await store.delete(k);
+                item.deleted = true;
             }));
             await tx.complete;
         } catch (error) {
@@ -190,6 +191,42 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
             }
             throw error;
         }
+        return item;
+    }
+
+    public async deleteItems(items: Array<T>): Promise<Array<T>> {
+        await this.OpenDb();        
+        for (const item of items) {
+            const tx = this.db.transaction(this.tableName, 'readwrite');
+            const store = tx.objectStore(this.tableName);
+            try {
+
+                const deleteKeys = [item.id];
+                if (item instanceof BaseFile) {
+                    const keys: string[] = await this.getAllKeysInternal(store);
+                    const chunkRegex = this.getChunksRegexp(item.id);
+                    const chunkkeys = keys.filter((k) => {
+                        const match = k.toString().match(chunkRegex);
+                        return match && match.length > 0;
+                    });
+                    deleteKeys.push(...chunkkeys);
+                }
+                await Promise.all(deleteKeys.map(async (k) => {
+                    await store.delete(k);
+                    item.deleted = true;
+                }));
+                await tx.complete;
+            } catch (error) {
+                console.error(error.message + " - " + error.Name);
+                try {
+                    tx.abort();
+                } catch {
+                    // error allready thrown
+                }
+                throw error;
+            }
+        }        
+        return items;
     }
 
 

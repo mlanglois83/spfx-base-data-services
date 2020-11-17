@@ -42,14 +42,31 @@ export class TransactionService extends BaseDbService<OfflineTransaction> {
         return result;
     }
 
-    public async deleteItem(item: OfflineTransaction): Promise<void> {
+    public async deleteItem(item: OfflineTransaction): Promise<OfflineTransaction> {
         if (this.isFile(item.itemType)) {
             const transaction = await super.getItemById(item.id);
             const file: BaseFile = new BaseFile();
             file.serverRelativeUrl = transaction.itemData;
             await this.transactionFileService.deleteItem(file);
         }
-        await super.deleteItem(item);
+        return super.deleteItem(item);
+    }
+    public async deleteItems(items: Array<OfflineTransaction>): Promise<Array<OfflineTransaction>> {
+        const files = [];
+        // remove files
+        await Promise.all(items.filter(item => this.isFile(item.itemType)).map(async(item) => {
+            if(this.isFile(item.itemType)) {
+                const transaction = await super.getItemById(item.id);
+                const file: BaseFile = new BaseFile();
+                file.serverRelativeUrl = transaction.itemData;
+                files.push(file);
+            }
+        }));
+        if(files.length > 0) {
+            await this.transactionFileService.deleteItems(files);
+        }
+        super.deleteItems(items);
+        return items;
     }
 
     /**

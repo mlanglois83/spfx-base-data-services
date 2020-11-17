@@ -529,30 +529,70 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
     }
 
 
-    protected abstract deleteItem_Internal(item: T): Promise<void>;
+    protected abstract deleteItem_Internal(item: T): Promise<T>;
 
-    public async deleteItem(item: T): Promise<void> {
+    public async deleteItem(item: T): Promise<T> {
+        if(item.id === -1) {
+            item.deleted = true;
+        }
+        else {
+            let isconnected = true;
+            if (ServicesConfiguration.configuration.checkOnline) {
+                isconnected = await UtilsService.CheckOnline();
+            }
+            if (isconnected) {
+                if(item.id > -1) {
+                    item = await this.deleteItem_Internal(item);
+                }
+                if(item.deleted || item.id < -1) {
+                    item = await this.dbService.deleteItem(item);
+                }
+            }
+            else {
+                item = await this.dbService.deleteItem(item);
+
+                // create a new transaction
+                const ot: OfflineTransaction = new OfflineTransaction();
+                const converted = await this.convertItemToDbFormat(item);
+                ot.itemData = assign({}, converted);
+                ot.itemType = item.constructor["name"];
+                ot.title = TransactionType.Delete;
+                await this.transactionService.addOrUpdateItem(ot);
+            }
+        }
+        return item;
+    }
+
+    protected abstract deleteItems_Internal(items: Array<T>): Promise<Array<T>>;
+
+    public async deleteItems(items: Array<T>): Promise<Array<T>> {
+        items.filter(i => i.id === -1).forEach(i => {
+            i.deleted = true;
+        });
         let isconnected = true;
         if (ServicesConfiguration.configuration.checkOnline) {
             isconnected = await UtilsService.CheckOnline();
         }
         if (isconnected) {
-            await this.deleteItem_Internal(item);
-            await this.dbService.deleteItem(item);
+            await this.deleteItems_Internal(items.filter(i => i.id > -1));
+            await this.dbService.deleteItems(items.filter(i=>i.deleted || i.id < -1));
         }
-        else {
-            await this.dbService.deleteItem(item);
-
-            // create a new transaction
-            const ot: OfflineTransaction = new OfflineTransaction();
-            const converted = await this.convertItemToDbFormat(item);
-            ot.itemData = assign({}, converted);
-            ot.itemType = item.constructor["name"];
-            ot.title = TransactionType.Delete;
-            await this.transactionService.addOrUpdateItem(ot);
+        else {   // TODO         
+            await this.dbService.deleteItems(items.filter(i => i.id > -1));
+            const transactions: Array<OfflineTransaction> = [];
+            for (const item of items) {
+                // create a new transaction
+                const ot: OfflineTransaction = new OfflineTransaction();
+                const converted = await this.convertItemToDbFormat(item);
+                ot.itemData = assign({}, converted);
+                ot.itemType = item.constructor["name"];
+                ot.title = TransactionType.Delete;
+                transactions.push(ot);
+            }   
+            await this.transactionService.addOrUpdateItems(transactions);
         }
 
-        return null;
+        return items;
     }
 
     public async persistItemData(data: any, linkedFields?: Array<string>): Promise<T> {

@@ -120,12 +120,22 @@ export class BaseFileService<T extends IBaseFile> extends BaseDataService<T>{
         }
         if (item.content.byteLength <= 10485760) {
             // small upload
-            await folder.files.add(item.title, item.content, true);
+            try {
+                await folder.files.add(item.title, item.content, true);
+            }
+            catch(error) {
+                item.error = error;
+            }
         } else {
             // large upload
-            await folder.files.addChunked(item.title, UtilsService.arrayBufferToBlob(item.content, item.mimeType), (data: ChunkedFileUploadProgressData) => {
-                console.log("block:" + data.blockNumber + "/" + data.totalBlocks);
-            }, true);
+            try {
+                await folder.files.addChunked(item.title, UtilsService.arrayBufferToBlob(item.content, item.mimeType), (data: ChunkedFileUploadProgressData) => {
+                    console.log("block:" + data.blockNumber + "/" + data.totalBlocks);
+                }, true);
+            }
+            catch(error) {
+                item.error = error;
+            }            
         }
         return item;
     }
@@ -143,18 +153,50 @@ export class BaseFileService<T extends IBaseFile> extends BaseDataService<T>{
                 onItemUpdated(item, item);
             }     
         });
-        // TODO : gestion d'erreurs
         return items;
     }
 
-    public async deleteItem_Internal(item: T): Promise<void> {        
-        await sp.web.getFileByServerRelativeUrl(item.serverRelativeUrl).recycle();
-        const folderUrl = UtilsService.getParentFolderUrl(item.serverRelativeUrl);
-        const folder: Folder = sp.web.getFolderByServerRelativeUrl(folderUrl);
-        const files = await folder.files.get();
-        if (!files || files.length === 0) {
-            await folder.recycle();
+    public async deleteItem_Internal(item: T): Promise<T> {        
+        if(item.id) {
+            await sp.web.getFileByServerRelativeUrl(item.serverRelativeUrl).recycle();
+            const folderUrl = UtilsService.getParentFolderUrl(item.serverRelativeUrl);
+            const folder: Folder = sp.web.getFolderByServerRelativeUrl(folderUrl);
+            const files = await folder.files.get();
+            if (!files || files.length === 0) {
+                await folder.recycle();
+            }
+            item.deleted = true;
         }
+        else {
+            item.deleted = true;
+        }        
+        return item;
+    }
+    public async deleteItems_Internal(items: Array<T>): Promise<Array<T>> { 
+        items.filter(i => !i.id).forEach(i => i.deleted = true);   
+        const batch = sp.createBatch();   
+        const folders = [];
+        items.filter(i => i.id).forEach(item => {
+            sp.web.getFileByServerRelativeUrl(item.serverRelativeUrl).inBatch(batch).recycle().then(() => {
+                item.deleted = true;
+            }).catch((error) => {
+                item.error = error;
+            });
+            const folderUrl = UtilsService.getParentFolderUrl(item.serverRelativeUrl);
+            if(folders.indexOf(folderUrl) === -1) {
+                folders.push(folderUrl);
+            }
+        });  
+        await batch.execute();
+        const folderbatch = sp.createBatch();
+        folders.forEach(f => {
+            sp.web.getFolderByServerRelativeUrl(f).files.inBatch(folderbatch).get().then(async (files) => {
+                if (!files || files.length === 0) {
+                    await sp.web.getFolderByServerRelativeUrl(f).recycle();
+                } 
+            });
+        });   
+        return items;
     }
 
     public persistItemData_internal(data: any): Promise<T> {

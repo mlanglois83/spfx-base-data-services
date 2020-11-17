@@ -22,4 +22,8 @@ export interface IBaseItem {
      * Last update error
      */
     error?: Error;
+    /**
+     * Item deleted
+     */
+    deleted?: boolean;
 }

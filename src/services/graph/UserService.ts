@@ -69,8 +69,13 @@ export class UserService extends BaseDataService<User> {
         throw new Error("Not implemented");
     }
 
-    protected async deleteItem_Internal(item: User): Promise<void> {
+    protected async deleteItem_Internal(item: User): Promise<User> {
         console.log("[" + this.serviceName + ".deleteItem_Internal] - " + JSON.stringify(item));
+        throw new Error("Not implemented");
+    }
+
+    protected async deleteItems_Internal(items: Array<User>): Promise<Array<User>> {
+        console.log("[" + this.serviceName + ".deleteItems_Internal] - " + JSON.stringify(items));
         throw new Error("Not implemented");
     }
 

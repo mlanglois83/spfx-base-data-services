@@ -4,6 +4,7 @@ export interface IEndPointBindings {
     addOrUpdateItem: IEndPointBinding;
     addOrUpdateItems: IEndPointBinding;
     deleteItem: IEndPointBinding;
+    deleteItems: IEndPointBinding;
     getItemById: IEndPointBinding;
 }
 export interface IEndPointBinding {

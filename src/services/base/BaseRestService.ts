@@ -879,8 +879,23 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
      * Delete an item
      * @param item - SPItem derived class to be deleted
      */
-    protected async deleteItem_Internal(item: T): Promise<void> {
-        return this.executeRequest(`${this.serviceUrl}${this.Bindings.deleteItem.url}/${item.id}`, this.Bindings.deleteItem.method);
+    protected async deleteItem_Internal(item: T): Promise<T> {
+        try {
+            await this.executeRequest(`${this.serviceUrl}${this.Bindings.deleteItem.url}/${item.id}`, this.Bindings.deleteItem.method);
+            item.deleted = true;
+        }
+        catch(error) {
+            item.error = error;
+        }
+        return item;
+    }
+
+    /**
+     * Delete an item
+     * @param item - SPItem derived class to be deleted
+     */
+    protected async deleteItems_Internal(item: Array<T>): Promise<Array<T>> {
+        throw new Error("not implemented");
     }
 
     protected async persistItemData_internal(data: any, linkedFields?: Array<string>): Promise<T> {

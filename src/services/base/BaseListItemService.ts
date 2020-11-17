@@ -1169,8 +1169,28 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
      * Delete an item
      * @param item - SPItem derived class to be deleted
      */
-    protected async deleteItem_Internal(item: T): Promise<void> {
-        await this.list.items.getById(item.id as number).recycle();
+    protected async deleteItem_Internal(item: T): Promise<T> {
+        try {
+            await this.list.items.getById(item.id as number).recycle();
+            item.deleted = true;
+        }
+        catch(error) {
+            item.error = error;
+        }
+        return item;
+    }
+
+    protected async deleteItems_Internal(items: Array<T>): Promise<Array<T>> {
+        const batch = sp.createBatch();
+        items.forEach(item => {
+            this.list.items.getById(item.id as number).inBatch(batch).recycle().then(() => {
+                item.deleted = true;
+            }).catch((error) => {
+                item.error = error;
+            });
+        });
+        await batch.execute();
+        return items;
     }
 
     protected async persistItemData_internal(data: any, linkedFields?: Array<string>): Promise<T> {
