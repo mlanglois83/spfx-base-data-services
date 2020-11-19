@@ -1,13 +1,12 @@
-import { taxonomy, ITermSet, ITerm } from "@pnp/sp-taxonomy";
-import { UtilsService } from "../";
+import { Text } from "@microsoft/sp-core-library";
+import { cloneDeep, find } from "@microsoft/sp-lodash-subset";
+import { stringIsNullOrEmpty } from "@pnp/common";
+import { ITerm, ITermSet, taxonomy } from "@pnp/sp-taxonomy";
+import { TaxonomyHiddenListService, UtilsService } from "../";
+import { ServicesConfiguration } from "../..";
 import { Constants } from "../../constants/index";
 import { TaxonomyTerm } from "../../models";
 import { BaseDataService } from "./BaseDataService";
-import { TaxonomyHiddenListService } from "../";
-import { find, cloneDeep } from "@microsoft/sp-lodash-subset";
-import { Text } from "@microsoft/sp-core-library";
-import { stringIsNullOrEmpty } from "@pnp/common";
-import { ServicesConfiguration } from "../..";
 
 
 const standardTermSetCacheDuration = 10;
@@ -178,17 +177,20 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
         const childterms = allTerms.filter((t) => { return t.path.indexOf(term.path + ";") == 0; });
         const level = term.path.split(";").length;
         let directChilds = childterms.filter((ct) => { return ct.path.split(";").length === level + 1; });
-        if (!stringIsNullOrEmpty(term.customSortOrder)) {
-            const terms = [];
-            const orderIds = term.customSortOrder.split(":");
-            orderIds.forEach(id => {
-                const t = find(directChilds, (spterm) => {
-                    return spterm.id === id;
-                });
-                terms.push(t);
+        const terms = [];
+        const orderIds = stringIsNullOrEmpty(term.customSortOrder) ? [] : term.customSortOrder.split(":");
+        orderIds.forEach(id => {
+            const t = find(directChilds, (spterm) => {
+                return spterm.id === id;
             });
-            directChilds = terms;
-        }
+            terms.push(t);
+        });
+        const otherterms = directChilds.filter(spterm => !orderIds.some(o => o === spterm.id));
+        otherterms.sort((a,b) => { 
+            return a.title?.localeCompare(b.title); 
+        });
+        terms.push(...otherterms);
+        directChilds = terms;
         directChilds.forEach((dc) => {
             result.push(dc);
             const dcchildren = this.getOrderedChildTerms(dc, childterms);
@@ -203,17 +205,20 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
         const items = await super.getAll();
         const result = [];
         let rootTerms = items.filter((item: T) => { return item.path.indexOf(";") === -1; });
-        if (!stringIsNullOrEmpty(this.customSortOrder)) {
-            const terms = [];
-            const orderIds = this.customSortOrder.split(":");
-            orderIds.forEach(id => {
-                const term = find(rootTerms, (spterm) => {
-                    return spterm.id === id;
-                });
-                terms.push(term);
+        const terms = [];
+        const orderIds = stringIsNullOrEmpty(this.customSortOrder) ? [] : this.customSortOrder.split(":");
+        orderIds.forEach(id => {
+            const term = find(rootTerms, (spterm) => {
+                return spterm.id === id;
             });
-            rootTerms = terms;
-        }
+            terms.push(term);
+        });
+        const otherterms = rootTerms.filter(spterm => !orderIds.some(o => o === spterm.id));
+        otherterms.sort((a,b) => {
+            return a.title?.localeCompare(b.title);
+        });
+        terms.push(...otherterms);
+        rootTerms = terms;
         rootTerms.forEach((rt) => {
             result.push(rt);
             const rtchildren = this.getOrderedChildTerms(rt, items);

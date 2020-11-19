@@ -1,7 +1,7 @@
 import { ServicesConfiguration } from "../..";
 import { cloneDeep, find, assign, findIndex } from "@microsoft/sp-lodash-subset";
 import { Constants, FieldType, TestOperator } from "../../constants/index";
-import { IFieldDescriptor, IQuery, ILogicalSequence, IRestQuery, IRestLogicalSequence, IEndPointBindings, IPredicate, IRestPredicate, IBaseItem } from "../../interfaces/index";
+import { IFieldDescriptor, IQuery, ILogicalSequence, IRestQuery, IRestLogicalSequence, IEndPointBindings, IPredicate, IRestPredicate, IBaseItem, IOrderBy } from "../../interfaces/index";
 import { BaseDataService } from "./BaseDataService";
 import { UtilsService } from "..";
 import { RestItem, User, OfflineTransaction } from "../../models";
@@ -1249,7 +1249,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         const result: IRestQuery = {
             lastId: query.lastId as number,
             limit: query.limit,
-            orderBy: query.orderBy
+            orderBy: this.getOrderBy(query.orderBy)
         };
         if(query.test) {
             if(query.test.type === "sequence") {
@@ -1260,6 +1260,18 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                     predicates: [this.getRestPredicate(query.test)]
                 };
             }
+        }
+        return result;
+    }
+
+    private getOrderBy(orderby: IOrderBy[]): IOrderBy[] {
+        const result = [];
+        if(orderby) {
+            orderby.forEach(ob => {
+                const copy = cloneDeep(ob);
+                copy.propertyName = this.ItemFields[ob.propertyName].fieldName;
+                result.push(copy);
+            });
         }
         return result;
     }
