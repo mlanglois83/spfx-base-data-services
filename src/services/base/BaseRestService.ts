@@ -941,16 +941,18 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                     
                     break;
                 case FieldType.User:
-                    const upn = restItem[fieldName];
+                    const upn: string = restItem[fieldName];
                     if(!stringIsNullOrEmpty(upn)) {
-                        let user = null;
+                        let user: User = null;
                         if (this.initialized) {
                             const users = this.getServiceInitValues(User["name"]);
                             user = find(users, (u) => { return u.userPrincipalName?.toLowerCase() === upn?.toLowerCase(); });
                         }
                         else {
                             const userService: UserService = new UserService();
-                            user = await userService.linkToSpUser(upn);
+                            user = new User();
+                            user.userPrincipalName = upn;
+                            user = await userService.linkToSpUser(user);
                         }
                         item[prop] = user;
                     }
