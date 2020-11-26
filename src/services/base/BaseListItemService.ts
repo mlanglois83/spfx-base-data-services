@@ -367,8 +367,19 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                     converted[propertyName] = fieldDescriptor.defaultValue;
                 }
                 break;
-            case FieldType.Json:
-                converted[propertyName] = spitem[fieldDescriptor.fieldName] ? JSON.parse(spitem[fieldDescriptor.fieldName]) : fieldDescriptor.defaultValue;
+            case FieldType.Json:                
+                if(spitem[fieldDescriptor.fieldName]) {
+                    try {
+                        converted[propertyName] = JSON.parse(spitem[fieldDescriptor.fieldName]);
+                    }
+                    catch(error) {
+                        console.error(error);
+                        converted[propertyName] = fieldDescriptor.defaultValue;
+                    }
+                }
+                else {
+                    converted[propertyName] = fieldDescriptor.defaultValue;
+                }
                 break;
         }
     }

@@ -325,7 +325,18 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                 }
                 break;
             case FieldType.Json:
-                converted[propertyName] = restItem[fieldDescriptor.fieldName] ? JSON.parse(restItem[fieldDescriptor.fieldName]) : fieldDescriptor.defaultValue;
+                if(restItem[fieldDescriptor.fieldName]) {
+                    try {
+                        converted[propertyName] = JSON.parse(restItem[fieldDescriptor.fieldName]);
+                    }
+                    catch(error) {
+                        console.error(error);
+                        converted[propertyName] = fieldDescriptor.defaultValue;
+                    }
+                }
+                else {
+                    converted[propertyName] = fieldDescriptor.defaultValue;
+                }
                 break;
         }
     }
