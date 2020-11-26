@@ -57,6 +57,9 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
     public get serviceUrl(): string {
         return this.baseServiceUrl + this.constructor["serviceProps"].relativeUrl;
     }
+    public get disableVersionCheck(): boolean {
+        return this.constructor["serviceProps"].disableVersionCheck === true;
+    }
 
     /***************************** Constructor **************************************/
     /**
@@ -731,7 +734,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         }
         else {
             // check version (cannot update if newer)
-            if (item.version) {                
+            if (item.version && !this.disableVersionCheck) {                
                 const existing = await this.executeRequest(`${this.serviceUrl}${this.Bindings.getItemById.url}/${item.id}`, this.Bindings.getItemById.method);
                 if (parseFloat(existing[Constants.commonRestFields.version]) > item.version) {
                     const error = new Error(ServicesConfiguration.configuration.translations.versionHigherErrorMessage);
@@ -746,8 +749,19 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
             }
             else {
                 const converted = await this.getRestItem(item);
-                const updateResult = await this.executeRequest(`${this.serviceUrl}${this.Bindings.addOrUpdateItem.url}`, this.Bindings.addOrUpdateItem.method, converted);                                   
-                await this.populateCommonFields(result, updateResult);
+                try {
+                    const updateResult = await this.executeRequest(`${this.serviceUrl}${this.Bindings.addOrUpdateItem.url}`, this.Bindings.addOrUpdateItem.method, converted);                                   
+                    await this.populateCommonFields(result, updateResult);
+                } catch (error) {
+                    if(error.name === "409") {
+                        const conflicterror = new Error(ServicesConfiguration.configuration.translations.versionHigherErrorMessage);
+                        conflicterror.name = Constants.Errors.ItemVersionConfict;
+                        throw conflicterror;
+                    }
+                    else {
+                        throw error;
+                    }
+                }                
             }
         }
         return result;
@@ -764,10 +778,10 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
             return item.id < 0;
         });
         const versionedItems = result.filter((item) => {
-            return item.version !== undefined && item.version !== null && item.id > 0;
+            return !this.disableVersionCheck && item.version !== undefined && item.version !== null && item.id > 0;
         });
         const updatedItems = result.filter((item) => {
-            return (item.version === undefined || item.version === null) && item.id > 0;
+            return (this.disableVersionCheck || item.version === undefined || item.version === null) && item.id > 0;
         });
 
         // creation batch
@@ -860,6 +874,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
             while (updatedItems.length > 0) {
                 const sub = updatedItems.splice(0, 100);
                 try {
+                    // TODO : Manage version conflicts in batch
                     const converted = await Promise.all(sub.map(item => this.getRestItem(item)));
                     const results = await this.executeRequest(`${this.serviceUrl}${this.Bindings.addOrUpdateItems.url}`, this.Bindings.addOrUpdateItems.method, converted);
                     for (let index = 0; index < sub.length; index++) {
@@ -905,8 +920,16 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
      * Delete an item
      * @param item - SPItem derived class to be deleted
      */
-    protected async deleteItems_Internal(item: Array<T>): Promise<Array<T>> {
-        throw new Error("not implemented");
+    protected async deleteItems_Internal(items: Array<T>): Promise<Array<T>> {
+        try {
+            const results = await this.executeRequest(`${this.serviceUrl}${this.Bindings.deleteItems.url}`, this.Bindings.deleteItems.method, items.map(i => i.id));
+            for (let index = 0; index < items.length; index++) {
+                items[index].deleted = results[index];                
+            }
+        } catch (error) {
+            items.forEach(i=>i.error = error);
+        }
+        return items;
     }
 
     protected async persistItemData_internal(data: any, linkedFields?: Array<string>): Promise<T> {
