@@ -58,7 +58,7 @@ export class TaxonomyTerm implements IBaseItem {
             !stringIsNullOrEmpty(this.path) && 
             !stringIsNullOrEmpty(term.path) &&
             this.path.split(";").length + 1 === term.path.split(";").length &&
-            term.path.indexOf(this.path) === 0
+            term.path.indexOf(this.path + ";") === 0
         );
     }
     public contains(term: TaxonomyTerm): boolean {
@@ -66,7 +66,7 @@ export class TaxonomyTerm implements IBaseItem {
             term && 
             !stringIsNullOrEmpty(this.path) && 
             !stringIsNullOrEmpty(term.path) &&
-            term.path.indexOf(this.path) === 0
+            term.path.indexOf(this.path + ";") === 0
         );
     }
 
