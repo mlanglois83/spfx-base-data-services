@@ -880,7 +880,15 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                     for (let index = 0; index < sub.length; index++) {
                         const subitem = sub[index];
                         const currentIdx = idx;
-                        await this.populateCommonFields(subitem, results[index]);
+                        if(results[index]) {
+                            await this.populateCommonFields(subitem, results[index]);
+                        }
+                        else {
+                            // item is null --> conflict
+                            const error = new Error(ServicesConfiguration.configuration.translations.versionHigherErrorMessage);
+                            error.name = Constants.Errors.ItemVersionConfict;
+                            subitem.error = error;
+                        }                        
                         if (onItemUpdated) {
                             onItemUpdated(items[currentIdx], subitem);
                         }
