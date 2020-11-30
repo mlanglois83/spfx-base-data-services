@@ -1062,11 +1062,11 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
             await UtilsService.runBatchesInStacks(batches, 3);
         }
         // update properties
-        if (updatedItems.length > 0) {
+        if (resultItems.length > 0) {
             let idx = 0;
             const batches = [];
-            while (updatedItems.length > 0) {
-                const sub = updatedItems.splice(0, 100);
+            while (resultItems.length > 0) {
+                const sub = resultItems.splice(0, 100);
                 const batch = sp.createBatch();
                 for (const item of sub) {
                     const currentIdx = idx;

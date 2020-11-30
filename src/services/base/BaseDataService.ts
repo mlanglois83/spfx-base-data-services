@@ -483,7 +483,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         if (isconnected) {
             results = await this.addOrUpdateItems_Internal(items, onItemUpdated);
             const versionErrors = results.filter((res) => {
-                return res.error !== null || res.error !== undefined && res.error.name === Constants.Errors.ItemVersionConfict;
+                return res.error && res.error.name === Constants.Errors.ItemVersionConfict;
             });
             // find back items with version error
             if (versionErrors.length > 0) {
