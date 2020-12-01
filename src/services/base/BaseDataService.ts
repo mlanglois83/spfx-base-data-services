@@ -259,7 +259,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
 
 
     public async get(query: IQuery, linkedFields?: Array<string>): Promise<Array<T>> {
-        const keyCached = super.hashCode(query).toString();
+        const keyCached = super.hashCode(query).toString() + super.hashCode(linkedFields).toString();
         let promise = this.getExistingPromise(keyCached);
         if (promise) {
             console.log(this.serviceName + " " + keyCached + " : load allready called before, sharing promise");
