@@ -485,7 +485,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
             if (fields.hasOwnProperty(key)) {
                 const fieldDesc = fields[key] as IFieldDescriptor;
                 if ((fieldDesc.fieldType === FieldType.Lookup || fieldDesc.fieldType === FieldType.LookupMulti) && !stringIsNullOrEmpty(fieldDesc.modelName)) {
-                    if (!loadLookups || loadLookups.indexOf(fieldDesc.fieldName) !== -1) {
+                    if (!loadLookups || (loadLookups.length === 1 && loadLookups[0] === 'loadAll') || loadLookups.indexOf(fieldDesc.fieldName) !== -1) {
                         result[key] = fieldDesc;
                     }
                 }
@@ -634,7 +634,10 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
      * @memberof BaseListItemService
      */
     protected async get_Internal(query: IQuery, linkedFields?: Array<string>): Promise<Array<T>> { 
-        const restQuery = this.getRestQuery(query);            
+        const restQuery = this.getRestQuery(query); 
+        if(linkedFields && linkedFields.length === 1 && linkedFields[0] ==='loadAll') {
+            restQuery.loadAll = true;
+        }
         let results = new Array<T>();
         const items = await this.executeRequest(`${this.serviceUrl}${this.Bindings.get.url}`, this.Bindings.get.method, restQuery);
         if (items && items.length > 0) {
@@ -1290,19 +1293,20 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
     }
 
     protected getRestQuery(query: IQuery): IRestQuery {
-        const result: IRestQuery = {
-            lastId: query.lastId as number,
-            limit: query.limit,
-            orderBy: this.getOrderBy(query.orderBy)
-        };
-        if(query.test) {
-            if(query.test.type === "sequence") {
-                result.test = this.getRestSequence(query.test);
-            }
-            else {
-                result.test = {
-                    predicates: [this.getRestPredicate(query.test)]
-                };
+        const result: IRestQuery = {};
+        if(query) {
+            result.lastId = query.lastId as number;
+            result.limit = query.limit;
+            result.orderBy = this.getOrderBy(query.orderBy);
+            if(query.test) {
+                if(query.test.type === "sequence") {
+                    result.test = this.getRestSequence(query.test);
+                }
+                else {
+                    result.test = {
+                        predicates: [this.getRestPredicate(query.test)]
+                    };
+                }
             }
         }
         return result;

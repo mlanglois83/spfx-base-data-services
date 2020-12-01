@@ -5,6 +5,7 @@ export interface IRestQuery {
     orderBy?: Array<IOrderBy>;
     limit?: number;
     lastId?: number;
+    loadAll?: boolean;
 }
 export interface IRestLogicalSequence {
     logicalOperator?: LogicalOperator;
