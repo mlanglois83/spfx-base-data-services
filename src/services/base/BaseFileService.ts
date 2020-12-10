@@ -1,15 +1,15 @@
 import { ChunkedFileUploadProgressData, Folder, sp, List } from "@pnp/sp";
 import * as mime from "mime-types";
 import { UtilsService } from "../";
-import { IBaseFile } from "../../interfaces/index";
 import { BaseDataService } from "./BaseDataService";
 import { ServicesConfiguration } from "../..";
 import { cloneDeep } from "@microsoft/sp-lodash-subset";
+import { SPFile } from "../../models";
 
 /**
  * Base service for sp files operations
  */
-export class BaseFileService<T extends IBaseFile> extends BaseDataService<T>{
+export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
     protected listRelativeUrl: string;
 
     /**
@@ -79,7 +79,6 @@ export class BaseFileService<T extends IBaseFile> extends BaseDataService<T>{
     private async createFileObject(file: any): Promise<T> {
         const resultFile = new this.itemType(file);
         resultFile.mimeType = (mime.lookup(resultFile.title) as string) || 'application/octet-stream';
-        //resultFile.content = await sp.web.getFileByServerRelativeUrl(resultFile.serverRelativeUrl).getBuffer();
         return resultFile;
     }
 

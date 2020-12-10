@@ -329,7 +329,10 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                             chunks.sort((a, b) => {
                                 return parseInt(a.id.replace(/^.*_chunk_(\d+)$/g, "$1")) - parseInt(b.id.replace(/^.*_chunk_(\d+)$/g, "$1"));
                             });
-                            resultItem.content = UtilsService.concatArrayBuffers(resultItem.content, ...chunks.map(c => c.content));
+                            resultItem.content = UtilsService.concatArrayBuffers(resultItem.content, ...chunks.map(c => {
+                                const file = assign(new this.itemType(), c);
+                                return file.content;
+                            }));
                         }
                         result.push(resultItem);
                     }
@@ -407,7 +410,10 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                             chunks.sort((a, b) => {
                                 return parseInt(a.id.replace(/^.*_chunk_(\d+)$/g, "$1")) - parseInt(b.id.replace(/^.*_chunk_(\d+)$/g, "$1"));
                             });
-                            result.content = UtilsService.concatArrayBuffers(result.content, ...chunks.map(c => c.content));
+                            result.content = UtilsService.concatArrayBuffers(result.content, ...chunks.map(c => {
+                                const file = assign(new this.itemType(), c);
+                                return file.content;
+                            }));
                         }
                     }
                     else {

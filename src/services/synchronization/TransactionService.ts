@@ -21,7 +21,7 @@ export class TransactionService extends BaseDbService<OfflineTransaction> {
         let result: OfflineTransaction = null;
         if (this.isFile(item.itemType)) {
             // if existing transaction, remove with associated files
-            const existing = await this.getItemById(item.id);
+            const existing = await super.getItemById(item.id);
             if(existing) {
                 await this.deleteItem(existing);
             }
@@ -46,7 +46,7 @@ export class TransactionService extends BaseDbService<OfflineTransaction> {
         if (this.isFile(item.itemType)) {
             const transaction = await super.getItemById(item.id);
             const file: BaseFile = new BaseFile();
-            file.serverRelativeUrl = transaction.itemData;
+            file.id = transaction.itemData;
             await this.transactionFileService.deleteItem(file);
         }
         return super.deleteItem(item);
@@ -58,7 +58,7 @@ export class TransactionService extends BaseDbService<OfflineTransaction> {
             if(this.isFile(item.itemType)) {
                 const transaction = await super.getItemById(item.id);
                 const file: BaseFile = new BaseFile();
-                file.serverRelativeUrl = transaction.itemData;
+                file.id = transaction.itemData;
                 files.push(file);
             }
         }));

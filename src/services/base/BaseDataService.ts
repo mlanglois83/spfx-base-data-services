@@ -532,7 +532,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
     protected abstract deleteItem_Internal(item: T): Promise<T>;
 
     public async deleteItem(item: T): Promise<T> {
-        if(item.id === -1) {
+        if(typeof(item.id) === "number" && item.id === -1) {
             item.deleted = true;
         }
         else {
@@ -541,7 +541,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                 isconnected = await UtilsService.CheckOnline();
             }
             if (isconnected) {
-                if(item.id > -1) {
+                if(typeof(item.id) !== "number" || item.id > -1) {
                     item = await this.deleteItem_Internal(item);
                 }
                 if(item.deleted || item.id < -1) {
@@ -566,7 +566,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
     protected abstract deleteItems_Internal(items: Array<T>): Promise<Array<T>>;
 
     public async deleteItems(items: Array<T>): Promise<Array<T>> {
-        items.filter(i => i.id === -1).forEach(i => {
+        items.filter(i => (typeof(i.id) === "number" && i.id === -1)).forEach(i => {
             i.deleted = true;
         });
         let isconnected = true;
@@ -574,7 +574,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
             isconnected = await UtilsService.CheckOnline();
         }
         if (isconnected) {
-            await this.deleteItems_Internal(items.filter(i => i.id > -1));
+            await this.deleteItems_Internal(items.filter(i => (typeof(i.id) !== "number" || i.id > -1)));
             await this.dbService.deleteItems(items.filter(i=>i.deleted || i.id < -1));
         }
         else { 
