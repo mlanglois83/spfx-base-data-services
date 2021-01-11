@@ -1,7 +1,7 @@
 import { ServicesConfiguration } from "../..";
 import { SPHttpClient } from '@microsoft/sp-http';
 import { cloneDeep, find, assign, findIndex } from "@microsoft/sp-lodash-subset";
-import { CamlQuery, List, sp } from "@pnp/sp";
+import { CamlQuery, ItemAddResult, List, sp } from "@pnp/sp";
 import { Constants, FieldType, TestOperator, QueryToken, LogicalOperator } from "../../constants/index";
 import { IBaseItem, IFieldDescriptor, IQuery, IPredicate, ILogicalSequence, IOrderBy } from "../../interfaces/index";
 import { BaseDataService } from "./BaseDataService";
@@ -904,9 +904,9 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         return super.addOrUpdateItem(item);
     }
 
-    public async addOrUpdateItems(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void, loadLookups?: Array<string>): Promise<Array<T>> {
+    public async addOrUpdateItems(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void, onRefreshItems?: (index: number, length: number) => void, loadLookups?: Array<string>): Promise<Array<T>> {
         items.forEach(item => this.updateInternalLinks(item, loadLookups));
-        return super.addOrUpdateItems(items, onItemUpdated);
+        return super.addOrUpdateItems(items, onItemUpdated, onRefreshItems);
     }
 
     /**
@@ -954,7 +954,7 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
         return result;
     }
 
-    protected async addOrUpdateItems_Internal(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void): Promise<Array<T>> {
+    protected async addOrUpdateItems_Internal(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void, onItemRefreshed?: (index: number, length: number) => void): Promise<Array<T>> {
         const result = cloneDeep(items);
         const itemsToAdd = result.filter((item) => {
             return item.id < 0;
@@ -980,7 +980,9 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                     const currentIdx = idx;
                     const itemId = item.id;
                     const converted = await this.getSPRestItem(item);
-                    this.list.items.select(...selectFields).inBatch(batch).add(converted, entityTypeFullName).then(async (addResult) => {
+                    this.list.items.select(...selectFields).inBatch(batch).add(converted, entityTypeFullName).then(async (addResult: ItemAddResult) => {
+                        console.log(`ADD ITEM: ${item}`);
+                        console.log(`ADD RESULT: ${addResult}`);
                         await this.populateCommonFields(item, addResult.data);
                         await this.updateWssIds(item, addResult.data);
                         if (itemId < -1) {
@@ -1046,9 +1048,11 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 for (const item of sub) {
                     const currentIdx = idx;
                     const converted = await this.getSPRestItem(item);
-                    this.list.items.getById(item.id as number).select(...selectFields).inBatch(batch).update(converted, '*', entityTypeFullName).then(async () => {
+                    this.list.items.getById(item.id as number).select(...selectFields).inBatch(batch).update(converted, '*', entityTypeFullName).then(async () => {                                                
+                        if (onItemUpdated) {
+                            onItemUpdated(items[currentIdx], item);
+                        }
                         resultItems.push(item);
-
                     }).catch((error) => {
                         item.error = error;
                         if (onItemUpdated) {
@@ -1060,8 +1064,9 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                 batches.push(batch);
             }
             await UtilsService.runBatchesInStacks(batches, 3);
-        }
+        }    
         // update properties
+        const resultsLength = resultItems.length;
         if (resultItems.length > 0) {
             let idx = 0;
             const batches = [];
@@ -1073,14 +1078,13 @@ export class BaseListItemService<T extends IBaseItem> extends BaseDataService<T>
                     this.list.items.getById(item.id as number).select(...selectFields).inBatch(batch).get().then(async (version) => {
                         await this.populateCommonFields(item, version);
                         await this.updateWssIds(item, version);
-                        if (onItemUpdated) {
-                            onItemUpdated(items[currentIdx], item);
+                        if (onItemRefreshed) {
+                            onItemRefreshed(currentIdx, resultsLength);
                         }
-
                     }).catch((error) => {
                         item.error = error;
-                        if (onItemUpdated) {
-                            onItemUpdated(items[currentIdx], item);
+                        if (onItemRefreshed) {
+                            onItemRefreshed(currentIdx, resultsLength);
                         }
                     });
                     idx++;

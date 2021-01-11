@@ -471,9 +471,9 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         return result;
     }
 
-    protected abstract addOrUpdateItems_Internal(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void): Promise<Array<T>>;
+    protected abstract addOrUpdateItems_Internal(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void, onRefreshItems?: (index: number, length: number) => void): Promise<Array<T>>;
 
-    public async addOrUpdateItems(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void): Promise<Array<T>> {
+    public async addOrUpdateItems(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void, onRefreshItems?: (index: number, length: number) => void): Promise<Array<T>> {
         let results: Array<T> = [];
 
         let isconnected = true;
@@ -481,7 +481,7 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
             isconnected = await UtilsService.CheckOnline();
         }
         if (isconnected) {
-            results = await this.addOrUpdateItems_Internal(items, onItemUpdated);
+            results = await this.addOrUpdateItems_Internal(items, onItemUpdated, onRefreshItems);
             const versionErrors = results.filter((res) => {
                 return res.error && res.error.name === Constants.Errors.ItemVersionConfict;
             });
