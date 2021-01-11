@@ -23,7 +23,7 @@ export interface IDataService<T extends IBaseItem> {
      * @param items - instances of a Model that has to be sent
      * @param onItemUpdated - function called when an item has benn updated
      */
-    addOrUpdateItems(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void): Promise<Array<T>>;
+    addOrUpdateItems(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void, onRefreshItems?: (index: number, length: number) => void): Promise<Array<T>>;
     /**
      * Removes an item
      * @param item - instance of a Model that has to deleted

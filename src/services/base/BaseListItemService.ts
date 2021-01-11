@@ -4,6 +4,7 @@ import { isArray, stringIsNullOrEmpty } from "@pnp/common";
 import { sp } from "@pnp/sp";
 import "@pnp/sp/content-types/list";
 import "@pnp/sp/fields/list";
+import { IItemAddResult } from '@pnp/sp/items';
 import "@pnp/sp/items/list";
 import "@pnp/sp/lists";
 import { ICamlQuery, IList } from "@pnp/sp/lists";
@@ -708,8 +709,9 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
     }
 
     @trace(TraceLevel.Internal)
-    protected async addOrUpdateItems_Internal(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void): Promise<Array<T>> {
+    protected async addOrUpdateItems_Internal(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void, onItemRefreshed?: (index: number, length: number) => void): Promise<Array<T>> {
         const result: Array<T> = cloneDeep(items);
+    
         const itemsToAdd = result.filter((item) => {
             return item.id < 0;
         });
@@ -734,7 +736,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                     const currentIdx = idx;
                     const itemId = item.id;
                     const converted = await this.convertItem(item);
-                    this.list.items.select(...selectFields).inBatch(batch).add(converted, entityTypeFullName).then(async (addResult) => {
+                    this.list.items.select(...selectFields).inBatch(batch).add(converted, entityTypeFullName).then(async (addResult: IItemAddResult) => {
                         await this.populateCommonFields(item, addResult.data);
                         await this.updateWssIds(item, addResult.data);
                         if (itemId < -1) {
@@ -800,9 +802,11 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                 for (const item of sub) {
                     const currentIdx = idx;
                     const converted = await this.convertItem(item);
-                    this.list.items.getById(item.id).select(...selectFields).inBatch(batch).update(converted, '*', entityTypeFullName).then(async () => {
+                    this.list.items.getById(item.id).select(...selectFields).inBatch(batch).update(converted, '*', entityTypeFullName).then(async () => {                                            
+                        if (onItemUpdated) {
+                            onItemUpdated(items[currentIdx], item);
+                        }
                         resultItems.push(item);
-
                     }).catch((error) => {
                         item.error = error;
                         if (onItemUpdated) {
@@ -814,8 +818,9 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                 batches.push(batch);
             }
             await UtilsService.runBatchesInStacks(batches, 3);
-        }
+        }    
         // update properties
+        const resultsLength = resultItems.length;
         if (resultItems.length > 0) {
             let idx = 0;
             const batches = [];
@@ -827,14 +832,13 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                     this.list.items.getById(item.id).select(...selectFields).inBatch(batch).get().then(async (version) => {
                         await this.populateCommonFields(item, version);
                         await this.updateWssIds(item, version);
-                        if (onItemUpdated) {
-                            onItemUpdated(items[currentIdx], item);
+                        if (onItemRefreshed) {
+                            onItemRefreshed(currentIdx, resultsLength);
                         }
-
                     }).catch((error) => {
                         item.error = error;
-                        if (onItemUpdated) {
-                            onItemUpdated(items[currentIdx], item);
+                        if (onItemRefreshed) {
+                            onItemRefreshed(currentIdx, resultsLength);
                         }
                     });
                     idx++;
