@@ -126,17 +126,26 @@ export class UserService extends BaseDataService<User> {
         return results;
     }
 
-    public async linkToSpUser(user: User): Promise<User> {        
-        if (user.id === -1) {
+    public async linkToSpUser(user: User): Promise<User> {    
+        // user is not registered (or created offline)    
+        if (user.id < 0) {
             const allItems = await this.getAll();
-            const existing = find(allItems, u => u.userPrincipalName?.toLowerCase() === user.userPrincipalName?.toLowerCase());
+            const existing = find(allItems, u => u.userPrincipalName?.toLowerCase() === user.userPrincipalName?.toLowerCase() && u.id > 0);
+            // remove existing
             if(existing) {
                 user = existing;
             }
             else {
+                // remove existing without id
+                const sameUsers = allItems.filter(u => u.userPrincipalName?.toLowerCase() === user.userPrincipalName?.toLowerCase());
+                if(sameUsers.length > 0) {
+                    await this.dbService.deleteItems(sameUsers);
+                }
+                // register user
                 const result = await sp.web.ensureUser(user.userPrincipalName);
                 const userItem = await result.user.select("Id", "UserPrincipalName", "Email", "Title", "IsSiteAdmin").get();
                 user = new User(userItem);
+                // cache 
                 const dbresult = await this.dbService.addOrUpdateItem(user);
                 user = dbresult;
             }            

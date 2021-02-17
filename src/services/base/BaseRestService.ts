@@ -115,7 +115,8 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                                 if (fieldDescription.modelName &&
                                     models.indexOf(fieldDescription.modelName) === -1 &&
                                     fieldDescription.fieldType !== FieldType.Lookup &&
-                                    fieldDescription.fieldType !== FieldType.LookupMulti) {
+                                    fieldDescription.fieldType !== FieldType.LookupMulti &&
+                                    fieldDescription.fieldType !== FieldType.Json) {
                                     models.push(fieldDescription.modelName);
                                 }
                             }
@@ -330,7 +331,14 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
             case FieldType.Json:
                 if(restItem[fieldDescriptor.fieldName]) {
                     try {
-                        converted[propertyName] = JSON.parse(restItem[fieldDescriptor.fieldName]);
+                        const jsonObj = JSON.parse(restItem[fieldDescriptor.fieldName]);
+                        if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                            const itemType = ServicesConfiguration.configuration.serviceFactory.getObjectTypeByName(fieldDescriptor.modelName);
+                            converted[propertyName] = assign(new itemType(), jsonObj);
+                        }
+                        else {
+                            converted[propertyName] = jsonObj;
+                        }
                     }
                     catch(error) {
                         console.error(error);
@@ -1130,6 +1138,10 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                                     }
                                 }
                                 convertedResult.__deleteInternalLinks(propertyName);
+                            }
+                            else if(fieldDescriptor.fieldType === FieldType.Json && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                                const itemType = ServicesConfiguration.configuration.serviceFactory.getObjectTypeByName(fieldDescriptor.modelName);
+                                convertedResult[propertyName] = assign(new itemType(), converted[propertyName]);
                             }
                             else {
                                 convertedResult[propertyName] = converted[propertyName];

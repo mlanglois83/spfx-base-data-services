@@ -1,6 +1,7 @@
 import { BaseDataService } from "./BaseDataService";
 import { IBaseItem } from "../../interfaces";
 import { SPFile, User, TaxonomyHidden } from "../../models";
+import { stringIsNullOrEmpty } from "@pnp/common";
 export abstract class BaseServiceFactory {
 
     /**
@@ -30,5 +31,17 @@ export abstract class BaseServiceFactory {
         }
         return result;
     }
+
+    /**
+     * Returns an object contructor given its type name
+     * @param typeName - model type name
+     */
+    public getObjectTypeByName(typeName: string): (new () => any) {
+        if(stringIsNullOrEmpty(typeName)) {
+            throw new Error("Type is required");
+        }
+        return null;
+    }
+
 
 }

@@ -119,7 +119,8 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                                 if (fieldDescription.modelName &&
                                     models.indexOf(fieldDescription.modelName) === -1 &&
                                     fieldDescription.fieldType !== FieldType.Lookup &&
-                                    fieldDescription.fieldType !== FieldType.LookupMulti) {
+                                    fieldDescription.fieldType !== FieldType.LookupMulti &&
+                                    fieldDescription.fieldType !== FieldType.Json) {
                                     models.push(fieldDescription.modelName);
                                 }
                             }
@@ -367,10 +368,17 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                     converted[propertyName] = fieldDescriptor.defaultValue;
                 }
                 break;
-            case FieldType.Json:                
+            case FieldType.Json:   
                 if(spitem[fieldDescriptor.fieldName]) {
                     try {
-                        converted[propertyName] = JSON.parse(spitem[fieldDescriptor.fieldName]);
+                        const jsonObj = JSON.parse(spitem[fieldDescriptor.fieldName]);
+                        if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                            const itemType = ServicesConfiguration.configuration.serviceFactory.getObjectTypeByName(fieldDescriptor.modelName);
+                            converted[propertyName] = assign(new itemType(), jsonObj);
+                        }
+                        else {
+                            converted[propertyName] = jsonObj;
+                        }
                     }
                     catch(error) {
                         console.error(error);
@@ -1507,6 +1515,10 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                                     }
                                 }
                                 convertedResult.__deleteInternalLinks(propertyName);
+                            }
+                            else if(fieldDescriptor.fieldType === FieldType.Json && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                                const itemType = ServicesConfiguration.configuration.serviceFactory.getObjectTypeByName(fieldDescriptor.modelName);
+                                convertedResult[propertyName] = assign(new itemType(), converted[propertyName]);
                             }
                             else {
                                 if (fieldDescriptor.fieldName === Constants.commonFields.attachments) {
