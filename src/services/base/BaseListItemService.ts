@@ -1793,7 +1793,8 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                     ${this.getOrderBy(query)}
                 </Query>
                 ${query.limit !== undefined ? `<RowLimit>${query.limit}</RowLimit>` : ""}
-            </View>`
+            </View>`,
+            DatesInUtc: true
         };
         if (query.lastId !== undefined) {
             result.ListItemCollectionPosition = {
@@ -1993,7 +1994,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                     }
                     break;
             }
-            result = `<Value Type="${type}" ${obj.type === "predicate" && obj.includeTimeValue !== undefined ? (" IncludeTimeValue=\"" + (obj.includeTimeValue ? "TRUE" : "FALSE") + "\"") : ""}>${value}</Value>`;
+            result = `<Value Type="${type}" ${(type === "DateTime" && obj.includeTimeValue !== undefined ? (" IncludeTimeValue=\"" + (obj.includeTimeValue ? "TRUE" : "FALSE") + "\"") : "") + (type === "DateTime" ? " StorageTZ=\"TRUE\"" : "")}>${value}</Value>`;
         }
         else {
             throw new Error("Field was not found : " + obj.propertyName);
