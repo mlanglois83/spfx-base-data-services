@@ -961,6 +961,17 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         return result;
     }
 
+    protected async persistItemsData_internal(data: any[], linkedFields?: Array<string>): Promise<T[]> {
+        let result = null;
+        if (data) {
+            await this.Init();            
+            result = await Promise.all(data.map(d => this.getItemFromRest(d)));
+            await this.populateLookups(result, linkedFields);
+        }
+        return result;
+    }
+
+
     /************************** Query filters ***************************/
  
     protected async populateCommonFields(item: T, restItem): Promise<void> {

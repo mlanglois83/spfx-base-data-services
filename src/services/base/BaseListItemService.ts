@@ -1222,6 +1222,16 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         return result;
     }
 
+    protected async persistItemsData_internal(data: any[], linkedFields?: Array<string>): Promise<T[]> {
+        let result = null;
+        if (data) {
+            await this.Init();            
+            result = await Promise.all(data.map(d => this.getItemFromRest(d)));
+            await this.populateLookups(result, linkedFields);
+        }
+        return result;
+    }
+
     private async getAttachmentContent(attachment: SPFile): Promise<void> {
         const content = await sp.web.getFileByServerRelativeUrl(attachment.serverRelativeUrl).getBuffer();
         attachment.content = content;

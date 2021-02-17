@@ -171,6 +171,7 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
     }
 
 
+
     private getOrderedChildTerms(term: T, allTerms: Array<T>): Array<T> {
         //items.sort((a: T,b: T) => {return a.path.localeCompare(b.path);});
         const result = [];
