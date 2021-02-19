@@ -777,7 +777,13 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                 break;
             case TestOperator.Eq:
                 if (value instanceof TaxonomyTerm && predicate.lookupId) {
-                    result = value.wssids.indexOf(refVal) !== -1;
+                    if(typeof(refVal) === "number") {
+                        result = value.wssids.indexOf(refVal) !== -1;
+                    }
+                    else {
+                        // not in sp list --> test on id
+                        result = value.id === refVal;
+                    }
                 }
                 else {
                     result = value === refVal;
@@ -795,7 +801,13 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                 break;
             case TestOperator.In:
                 if (value instanceof TaxonomyTerm && predicate.lookupId) {
-                    result = Array.isArray(refVal) && refVal.some(v => value.wssids.indexOf(v) !== -1);
+                    if(Array.isArray(refVal) && refVal.length > 0 && typeof(refVal[0]) === "number") {
+                        result = refVal.some(v => value.wssids.indexOf(v) !== -1);
+                    }
+                    else {
+                        // not in sp list --> test on id
+                        result = refVal.some(v => value.id === v);
+                    }                    
                 }
                 else {
                     result = Array.isArray(refVal) && refVal.some(v => v === value);
@@ -811,7 +823,13 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                                     test = lookup === refVal;
                                 }
                                 else if (lookup instanceof TaxonomyTerm) {
-                                    test = lookup.wssids.indexOf(refVal) !== -1;
+                                    if(typeof(refVal) === "number"){
+                                        test = lookup.wssids.indexOf(refVal) !== -1;
+                                    }
+                                    else
+                                    {
+                                        test = lookup.id === refVal;
+                                    }
                                 }
 
                             }
@@ -841,7 +859,13 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                 break;
             case TestOperator.Neq:
                 if (value instanceof TaxonomyTerm && predicate.lookupId) {
-                    result = value.wssids.indexOf(refVal) === -1;
+                    if(typeof(refVal) === "number"){
+                        result = value.wssids.indexOf(refVal) === -1;
+                    }
+                    else
+                    {
+                        result = value.id !== refVal;
+                    }                    
                 }
                 else {
                     result = value !== refVal;
@@ -857,9 +881,14 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
                                     test = lookup === refVal;
                                 }
                                 else if (lookup instanceof TaxonomyTerm) {
-                                    test = lookup.wssids.indexOf(refVal) !== -1;
+                                    if(typeof(refVal) === "number"){
+                                        test = lookup.wssids.indexOf(refVal) !== -1;
+                                    }
+                                    else
+                                    {
+                                        test = lookup.id === refVal;
+                                    }    
                                 }
-
                             }
                         }
                         else if (lookup && lookup.id) {
