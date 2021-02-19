@@ -331,13 +331,18 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
             case FieldType.Json:
                 if(restItem[fieldDescriptor.fieldName]) {
                     try {
-                        const jsonObj = JSON.parse(restItem[fieldDescriptor.fieldName]);
-                        if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                            const itemType = ServicesConfiguration.configuration.serviceFactory.getObjectTypeByName(fieldDescriptor.modelName);
-                            converted[propertyName] = assign(new itemType(), jsonObj);
+                        if(fieldDescriptor.containsFullObject) {
+                            converted[propertyName] = restItem[fieldDescriptor.fieldName];
                         }
                         else {
-                            converted[propertyName] = jsonObj;
+                            const jsonObj = JSON.parse(restItem[fieldDescriptor.fieldName]);
+                            if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                                const itemType = ServicesConfiguration.configuration.serviceFactory.getObjectTypeByName(fieldDescriptor.modelName);
+                                converted[propertyName] = assign(new itemType(), jsonObj);
+                            }
+                            else {
+                                converted[propertyName] = jsonObj;
+                            }
                         }
                     }
                     catch(error) {
