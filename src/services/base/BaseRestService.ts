@@ -464,7 +464,12 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                     }
                     break;
                 case FieldType.Json:
-                    destItem[fieldDescriptor.fieldName] = itemValue ? JSON.stringify(itemValue) : null;
+                    if(fieldDescriptor.containsFullObject) {
+                        destItem[fieldDescriptor.fieldName] = itemValue;
+                    }
+                    else {
+                        destItem[fieldDescriptor.fieldName] = itemValue ? JSON.stringify(itemValue) : null;
+                    }
                     break;
             }
         }
