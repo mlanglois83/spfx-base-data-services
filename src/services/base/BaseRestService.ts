@@ -332,7 +332,13 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                 if(restItem[fieldDescriptor.fieldName]) {
                     try {
                         if(fieldDescriptor.containsFullObject) {
-                            converted[propertyName] = restItem[fieldDescriptor.fieldName];
+                            if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                                const itemType = ServicesConfiguration.configuration.serviceFactory.getObjectTypeByName(fieldDescriptor.modelName);
+                                converted[propertyName] = assign(new itemType(), restItem[fieldDescriptor.fieldName]);
+                            }
+                            else {
+                                converted[propertyName] = restItem[fieldDescriptor.fieldName];
+                            }
                         }
                         else {
                             const jsonObj = JSON.parse(restItem[fieldDescriptor.fieldName]);
