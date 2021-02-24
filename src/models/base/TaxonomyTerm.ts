@@ -1,5 +1,6 @@
 import { IBaseItem } from "../../interfaces/index";
 import { stringIsNullOrEmpty } from "@pnp/common";
+import { assign } from "@microsoft/sp-lodash-subset";
 
 /**
  * Base object for sharepoint taxonomy term abstraction objects
@@ -68,6 +69,11 @@ export class TaxonomyTerm implements IBaseItem {
             !stringIsNullOrEmpty(term.path) &&
             term.path.indexOf(this.path + ";") === 0
         );
+    }
+
+    
+    public fromObject(object: any): void {
+        assign(this, object);
     }
 
 }

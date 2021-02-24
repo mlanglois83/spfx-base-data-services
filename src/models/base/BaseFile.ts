@@ -20,4 +20,5 @@ export class BaseFile extends BaseItem implements IBaseFile {
     public set serverRelativeUrl(value: string) {
         this._serverRelativeUrl = value;
     }
+
 }

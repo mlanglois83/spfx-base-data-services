@@ -1,6 +1,9 @@
 
 import { IBaseItem } from "../../interfaces";
-import { findIndex } from "@microsoft/sp-lodash-subset";
+import { assign, findIndex } from "@microsoft/sp-lodash-subset";
+import { FieldType } from "../..";
+import { stringIsNullOrEmpty } from "@pnp/pnpjs";
+import { ServicesConfiguration } from "../../configuration";
 
 /**
  * Base object for sharepoint item abstraction objects
@@ -71,5 +74,84 @@ export abstract class BaseItem implements IBaseItem {
      */
     public get isValid(): boolean {
         return true;
+    }
+
+    private _itemFields = null;
+    public get ItemFields(): any {
+        if(this._itemFields) {
+            return this._itemFields;
+        }
+        else {
+            this._itemFields = {};
+            if (this.constructor["Fields"][this.constructor["name"]]) {
+                assign(this._itemFields, this.constructor["Fields"][this.constructor["name"]]);
+            }
+            let parentType = this.constructor; 
+            do {
+                parentType = Object.getPrototypeOf(parentType);
+                if(this.constructor["Fields"][parentType["name"]]) {
+                    for (const key in this.constructor["Fields"][parentType["name"]]) {
+                        if (Object.prototype.hasOwnProperty.call(this.constructor["Fields"][parentType["name"]], key)) {
+                            if(this._itemFields[key] === undefined || this._itemFields[key] === null) {
+                                // keep higher level redefinition
+                                this._itemFields[key] = this.constructor["Fields"][parentType["name"]][key];
+                            }                            
+                        }
+                    }
+                }
+            } while(parentType["name"] !== BaseItem["name"]);
+        }
+        return this._itemFields;
+    }
+    
+    public fromObject(object: any): void {
+        assign(this, object);
+        // fields
+        for (const propertyName in this.ItemFields) {
+            if (this.ItemFields.hasOwnProperty(propertyName) && object[propertyName]) {
+                const fieldDescriptor = this.ItemFields[propertyName];
+                if(fieldDescriptor.fieldType === FieldType.Date && typeof(object[propertyName]) === "string" && !stringIsNullOrEmpty(object[propertyName])) {
+                    this[propertyName] = new Date(object[propertyName]);
+                }
+                else if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                    switch (fieldDescriptor.fieldType) {
+                        case FieldType.Json:                     
+                            // get object from serviceFactory
+                            const objectConstructor = ServicesConfiguration.configuration.serviceFactory.getObjectTypeByName(fieldDescriptor.modelName);
+                            const result = new objectConstructor();
+                            this[propertyName] = assign(result, this[propertyName]);
+                            break;
+                        case FieldType.User:
+                        case FieldType.Taxonomy:
+                        case FieldType.Lookup:
+                            // get model from serviceFactory
+                            const singleModelConstructor = ServicesConfiguration.configuration.serviceFactory.getItemTypeByName(fieldDescriptor.modelName);
+                            const singleModelValue = new singleModelConstructor();
+                            singleModelValue.fromObject(this[propertyName]);
+                            this[propertyName] = singleModelValue;
+                            break;
+                        case FieldType.UserMulti:
+                        case FieldType.TaxonomyMulti:
+                        case FieldType.LookupMulti:
+                            if(Array.isArray(this[propertyName])){
+                                // get model from serviceFactory
+                                const modelConstructor = ServicesConfiguration.configuration.serviceFactory.getItemTypeByName(fieldDescriptor.modelName);
+                                for (let index = 0; index < this[propertyName].length; index++) {
+                                    const element = this[propertyName][index];
+                                    const modelValue = new modelConstructor();
+                                    modelValue.fromObject(element);
+                                    this[propertyName][index] = modelValue;
+                                }
+                            }
+                            break;
+                        default:                        
+                            break;
+                    }          
+                }
+                
+
+            }
+        }
+        
     }
 }

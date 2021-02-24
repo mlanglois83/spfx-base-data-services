@@ -26,4 +26,6 @@ export interface IBaseItem {
      * Item deleted
      */
     deleted?: boolean;
+
+    fromObject: (obj) => void;
 }

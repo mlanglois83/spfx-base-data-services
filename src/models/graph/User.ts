@@ -1,3 +1,4 @@
+import { assign } from "@microsoft/sp-lodash-subset";
 import { IBaseItem } from "../../interfaces";
 /**
  * Abstraction class for O365 user associated with a SP User
@@ -63,6 +64,10 @@ export class User implements IBaseItem {
                 this.extendedProperties.set(key, userObj[key]);
             }
         }
+    }
+
+    public fromObject(object: any): void {
+        assign(this, object);
     }
 
 }

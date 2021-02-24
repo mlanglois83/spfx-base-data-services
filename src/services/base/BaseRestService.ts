@@ -29,13 +29,13 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         }
         else {
             this._itemFields = {};
-            if (this.itemType["Fields"][this.itemType["name"]]) {
+            if (this.itemType["Fields"] && this.itemType["Fields"][this.itemType["name"]]) {
                 assign(this._itemFields, this.itemType["Fields"][this.itemType["name"]]);
             }
             let parentType = this.itemType; 
             do {
                 parentType = Object.getPrototypeOf(parentType);
-                if(this.itemType["Fields"][parentType["name"]]) {
+                if(this.itemType["Fields"] && this.itemType["Fields"][parentType["name"]]) {
                     for (const key in this.itemType["Fields"][parentType["name"]]) {
                         if (Object.prototype.hasOwnProperty.call(this.itemType["Fields"][parentType["name"]], key)) {
                             if(this._itemFields[key] === undefined || this._itemFields[key] === null) {
@@ -45,7 +45,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                         }
                     }
                 }
-            } while(parentType["name"] !== RestItem["name"] && parentType["name"] !== RestFile["name"]);
+            } while(parentType["name"] !== BaseItem["name"]);
         }
         return this._itemFields;
     }

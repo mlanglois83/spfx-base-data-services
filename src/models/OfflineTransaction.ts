@@ -1,3 +1,4 @@
+import { assign } from "@microsoft/sp-lodash-subset";
 import { TransactionType } from "../constants";
 import { IBaseItem } from "../interfaces";
 
@@ -21,4 +22,10 @@ export class OfflineTransaction implements IBaseItem {
      * Data item content (as simple object)
      */
     public itemData: any;
+
+    
+    public fromObject(object: any): void {
+        assign(this, object);
+    }
+
 }
