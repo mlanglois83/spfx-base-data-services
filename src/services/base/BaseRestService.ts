@@ -1058,48 +1058,53 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         const converted = item as unknown as BaseItem;
         const result: T = cloneDeep(item);
         const convertedResult = result as unknown as BaseItem;
-        for (const propertyName in this.ItemFields) {
-            if (this.ItemFields.hasOwnProperty(propertyName)) {
-                const fieldDescriptor = this.ItemFields[propertyName];
-                switch (fieldDescriptor.fieldType) {
-                    case FieldType.User:
-                    case FieldType.Taxonomy:
-                        if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                            //link defered
-                            if (converted[propertyName]) {
-                                convertedResult.__setInternalLinks(propertyName, converted[propertyName].id);
+        for (const propertyName in convertedResult) {
+            if (convertedResult.hasOwnProperty(propertyName)) {
+                if (this.ItemFields.hasOwnProperty(propertyName)) {
+                    const fieldDescriptor = this.ItemFields[propertyName];
+                    switch (fieldDescriptor.fieldType) {
+                        case FieldType.User:
+                        case FieldType.Taxonomy:
+                            if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                                //link defered
+                                if (converted[propertyName]) {
+                                    convertedResult.__setInternalLinks(propertyName, converted[propertyName].id);
+                                }
+                                delete convertedResult[propertyName];
                             }
-                            delete convertedResult[propertyName];
-                        }
-                        break;
-                    case FieldType.UserMulti:
-                    case FieldType.TaxonomyMulti:
-                        if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                            const ids = [];
-                            if (converted[propertyName]) {
-                                converted[propertyName].forEach(element => {
-                                    if (element.id) {
-                                        if ((typeof (element.id) === "number" && element.id > 0) || (typeof (element.id) === "string" && !stringIsNullOrEmpty(element.id))) {
-                                            ids.push(element.id);
+                            break;
+                        case FieldType.UserMulti:
+                        case FieldType.TaxonomyMulti:
+                            if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                                const ids = [];
+                                if (converted[propertyName]) {
+                                    converted[propertyName].forEach(element => {
+                                        if (element.id) {
+                                            if ((typeof (element.id) === "number" && element.id > 0) || (typeof (element.id) === "string" && !stringIsNullOrEmpty(element.id))) {
+                                                ids.push(element.id);
+                                            }
                                         }
-                                    }
-                                });
+                                    });
+                                }
+                                convertedResult.__setInternalLinks(propertyName, ids.length > 0 ? ids : []);
+                                delete convertedResult[propertyName];
                             }
-                            convertedResult.__setInternalLinks(propertyName, ids.length > 0 ? ids : []);
-                            delete convertedResult[propertyName];
-                        }
-                        break;
-                    case FieldType.Lookup:
-                    case FieldType.LookupMulti:
-                        // internal links allready updated before (used for rest calls)
-                        if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                            delete convertedResult[propertyName];
-                            convertedResult.__setInternalLinks(propertyName, converted.__getInternalLinks(propertyName));
-                        }
-                        break;
-                    default:                        
-                        break;
+                            break;
+                        case FieldType.Lookup:
+                        case FieldType.LookupMulti:
+                            // internal links allready updated before (used for rest calls)
+                            if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                                delete convertedResult[propertyName];
+                                convertedResult.__setInternalLinks(propertyName, converted.__getInternalLinks(propertyName));
+                            }
+                            break;
+                        default:                        
+                            break;
+                    }
+                } else {
+                    delete convertedResult[propertyName];
                 }
+
 
             }
         }
