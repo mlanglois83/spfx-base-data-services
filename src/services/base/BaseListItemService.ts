@@ -869,7 +869,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
 
     private updateInternalLinks(item: T, loadLookups?: Array<string>): void {
         const converted = item as unknown as BaseItem;
-        const lookupFields = this.linkedLookupFields();
+        const lookupFields = this.linkedLookupFields(loadLookups);
         for (const propertyName in lookupFields) {
             if (lookupFields.hasOwnProperty(propertyName)) {
                 const fieldDesc = lookupFields[propertyName] as IFieldDescriptor;
@@ -1218,6 +1218,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
             await this.Init();
             result = await this.getItemFromRest(data);
             await this.populateLookups([result], linkedFields);
+            this.updateInternalLinks(result, linkedFields); 
         }
         return result;
     }
@@ -1228,6 +1229,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
             await this.Init();            
             result = await Promise.all(data.map(d => this.getItemFromRest(d)));
             await this.populateLookups(result, linkedFields);
+            result.forEach(r => this.updateInternalLinks(r, linkedFields)); 
         }
         return result;
     }

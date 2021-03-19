@@ -626,7 +626,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
 
     protected updateInternalLinks(item: T, loadLookups?: Array<string>): void {
         const converted = item as unknown as BaseItem;
-        const lookupFields = this.linkedLookupFields();
+        const lookupFields = this.linkedLookupFields(loadLookups);
         for (const propertyName in lookupFields) {
             if (lookupFields.hasOwnProperty(propertyName)) {
                 const fieldDesc = lookupFields[propertyName] as IFieldDescriptor;
@@ -971,8 +971,9 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         let result = null;
         if (data) {
             await this.Init();
-            result = await this.getItemFromRest(data);
+            result = await this.getItemFromRest(data);            
             await this.populateLookups([result], linkedFields);
+            this.updateInternalLinks(result, linkedFields);
         }
         return result;
     }
@@ -983,6 +984,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
             await this.Init();            
             result = await Promise.all(data.map(d => this.getItemFromRest(d)));
             await this.populateLookups(result, linkedFields);
+            result.forEach(r => this.updateInternalLinks(r, linkedFields)); 
         }
         return result;
     }
