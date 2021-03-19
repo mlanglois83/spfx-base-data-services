@@ -1101,7 +1101,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                         default:                        
                             break;
                     }
-                } else {
+                } else if(typeof(convertedResult[propertyName]) === "function") {
                     delete convertedResult[propertyName];
                 }
 

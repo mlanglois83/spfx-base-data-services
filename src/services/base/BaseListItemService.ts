@@ -1463,7 +1463,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                     }
 
                 }
-                else {
+                else if(typeof(convertedResult[propertyName]) === "function") {
                     delete convertedResult[propertyName];
                 }
             }
