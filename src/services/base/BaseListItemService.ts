@@ -3,9 +3,9 @@ import { SPHttpClient } from '@microsoft/sp-http';
 import { cloneDeep, find, assign, findIndex } from "@microsoft/sp-lodash-subset";
 import { CamlQuery, List, sp } from "@pnp/sp";
 import { Constants, FieldType, TestOperator, QueryToken, LogicalOperator } from "../../constants/index";
-import { IFieldDescriptor, IQuery, IPredicate, ILogicalSequence, IOrderBy, IBaseItem } from "../../interfaces/index";
+import { IFieldDescriptor, IQuery, IPredicate, ILogicalSequence, IOrderBy } from "../../interfaces/index";
 import { BaseDataService } from "./BaseDataService";
-import { UtilsService } from "..";
+import { ServiceFactory, UtilsService } from "..";
 import { SPItem, User, TaxonomyTerm, OfflineTransaction, SPFile, BaseItem } from "../../models";
 import { UserService } from "../graph/UserService";
 import { isArray, stringIsNullOrEmpty } from "@pnp/common";
@@ -80,13 +80,6 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
 
     /***************************** External sources init and access **************************************/
 
-    private services = {};
-    protected getService(modelName: string): BaseDataService<IBaseItem> {
-        if(!this.services[modelName]) {
-            this.services[modelName] = ServicesConfiguration.configuration.serviceFactory.create(modelName);
-        }
-        return this.services[modelName];
-    } 
 
     private initialized = false;
     protected get isInitialized(): boolean {
@@ -127,7 +120,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                         }
                         await Promise.all(models.map(async (modelName) => {
                             if (!this.initValues[modelName]) {
-                                const service = this.getService(modelName);
+                                const service = ServiceFactory.getServiceByModelName(modelName);
                                 const values = await service.getAll();
                                 this.initValues[modelName] = values;
                             }
@@ -232,7 +225,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                     const obj = spitem[fieldDescriptor.fieldName] ? spitem[fieldDescriptor.fieldName] : null;
                     if(obj) {
                         // get service
-                        const tmpservice = this.getService(fieldDescriptor.modelName);
+                        const tmpservice = ServiceFactory.getServiceByModelName(fieldDescriptor.modelName);
                         const conv = await tmpservice.persistItemData(obj);
                         if(conv) {
                             converted[propertyName] = conv;
@@ -253,7 +246,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                         const values = spitem[fieldDescriptor.fieldName] ? spitem[fieldDescriptor.fieldName] : [];
                         if(values.length > 0) {
                             // get service
-                            const tmpservice = this.getService(fieldDescriptor.modelName);
+                            const tmpservice = ServiceFactory.getServiceByModelName(fieldDescriptor.modelName);
                             for (const obj of values) {
                                 const conv = await tmpservice.persistItemData(obj);
                                 if(conv) {
@@ -373,7 +366,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                     try {
                         const jsonObj = JSON.parse(spitem[fieldDescriptor.fieldName]);
                         if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                            const itemType = ServicesConfiguration.configuration.serviceFactory.getObjectTypeByName(fieldDescriptor.modelName);
+                            const itemType = ServiceFactory.getObjectTypeByName(fieldDescriptor.modelName);
                             converted[propertyName] = assign(new itemType(), jsonObj);
                         }
                         else {
@@ -527,7 +520,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         let result: any = null;
         if (value) {
             if (value.id <= 0) {
-                const userService: UserService = new UserService();
+                const userService: UserService = ServiceFactory.getService(User) as UserService;
                 value = await userService.linkToSpUser(value);
 
             }
@@ -820,7 +813,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
             if (allIds.hasOwnProperty(modelName)) {
                 const ids = allIds[modelName];
                 if (ids && ids.length > 0) {
-                    const service = this.getService(modelName) as BaseDataService<BaseItem>;
+                    const service = ServiceFactory.getServiceByModelName(modelName) as BaseDataService<BaseItem>;
                     promises.push(service.getItemsById(ids));
                 }
             }
@@ -892,6 +885,11 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
     }
     /***************** SP Calls associated to service standard operations ********************/
 
+    public async get(query: IQuery, linkedFields?: Array<string>): Promise<Array<T>> {
+        const result = await super.get(query, linkedFields);
+        await this.populateLookups(result, linkedFields);
+        return result;
+    }
 
     /**
      * Get items by query
@@ -1386,7 +1384,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                         user = find(users, (u) => { return u.id === id; });
                     }
                     else {
-                        const userService: UserService = new UserService();
+                        const userService = ServiceFactory.getService(User);
                         user = await userService.getItemById(id);
                     }
                     item[prop] = user;
@@ -1534,7 +1532,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                                 convertedResult.__deleteInternalLinks(propertyName);
                             }
                             else if(fieldDescriptor.fieldType === FieldType.Json && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                                const itemType = ServicesConfiguration.configuration.serviceFactory.getObjectTypeByName(fieldDescriptor.modelName);
+                                const itemType = ServiceFactory.getObjectTypeByName(fieldDescriptor.modelName);
                                 convertedResult[propertyName] = assign(new itemType(), converted[propertyName]);
                             }
                             else {
@@ -1570,7 +1568,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         nextTransactions.forEach(transaction => {
             let currentObject = null;
             let needUpdate = false;
-            const service = this.getService(transaction.itemType);
+            const service = ServiceFactory.getServiceByModelName(transaction.itemType);
             const fields = service.ItemFields;
             // search for lookup fields
             for (const propertyName in fields) {
@@ -1579,7 +1577,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                     if (fieldDescription.refItemName === this.itemType["name"] || fieldDescription.modelName === this.itemType["name"]) {
                         // get object if not done yet
                         if (!currentObject) {
-                            const destType = ServicesConfiguration.configuration.serviceFactory.getItemTypeByName(transaction.itemType);
+                            const destType = ServiceFactory.getItemTypeByName(transaction.itemType);
                             currentObject = new destType();
                             assign(currentObject, transaction.itemData);
                         }
@@ -1651,7 +1649,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                         modelFields[prop].refItemName === this.itemType["name"] || modelFields[prop].modelName === this.itemType["name"]);
                 });
                 if (lookupProperties.length > 0) {
-                    const service = this.getService(modelName);
+                    const service = ServiceFactory.getServiceByModelName(modelName);
                     const allitems = await service.__getAllFromCache();
                     const updated = [];
                     allitems.forEach(element => {
@@ -1729,7 +1727,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                     if (wssid !== -1) {
                         const id = item[propertyName].id;
                         // find corresponding object in service
-                        const service = this.getService(fieldDescription.modelName);
+                        const service = ServiceFactory.getServiceByModelName(fieldDescription.modelName);
                         const term = await service.__getFromCache(id);
                         if (term instanceof TaxonomyTerm) {
                             term.wssids = term.wssids || [];
@@ -1753,7 +1751,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                 else if (fieldDescription.fieldType === FieldType.TaxonomyMulti) {
                     const updated = [];
                     const terms = spItem[fieldDescription.fieldName] ? spItem[fieldDescription.fieldName].results : [];
-                    const service = this.getService(fieldDescription.modelName);
+                    const service = ServiceFactory.getServiceByModelName(fieldDescription.modelName);
                     if (terms && terms.length > 0) {
                         await Promise.all(terms.map(async (termitem) => {
                             const wssid = termitem.WssId;

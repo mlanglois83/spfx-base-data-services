@@ -1,5 +1,4 @@
 import { BaseFile } from "./BaseFile";
-
 /**
  * Data model for a SharePoint File
  */

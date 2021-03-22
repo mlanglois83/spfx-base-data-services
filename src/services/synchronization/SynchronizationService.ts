@@ -8,6 +8,7 @@ import { IBaseItem, IItemSynchronized, ISynchronizationEnded } from "../../inter
 import { TransactionService } from "./TransactionService";
 import { Text } from "@microsoft/sp-core-library";
 import { ServicesConfiguration } from "../../configuration/ServicesConfiguration";
+import { ServiceFactory } from "..";
 
 
 export class SynchronizationService extends BaseService {
@@ -81,8 +82,8 @@ export class SynchronizationService extends BaseService {
         for (let index = 0; index < transactions.length; index++) {
             const transaction = transactions[index];
             // get associated type & service
-            const itemType = ServicesConfiguration.configuration.serviceFactory.getItemTypeByName(transaction.itemType);
-            const dataService = ServicesConfiguration.configuration.serviceFactory.create(transaction.itemType);
+            const itemType = ServiceFactory.getItemTypeByName(transaction.itemType);
+            const dataService = ServiceFactory.getServiceByModelName(transaction.itemType);
             // init service for tardive links
             await dataService.Init();
             // transform item to destination type
@@ -176,7 +177,7 @@ export class SynchronizationService extends BaseService {
 
     private formatError(transaction: OfflineTransaction, message: string): string {
         let operationLabel: string;
-        const itemType = ServicesConfiguration.configuration.serviceFactory.getItemTypeByName(transaction.itemType);
+        const itemType = ServiceFactory.getItemTypeByName(transaction.itemType);
         const item = assign(new itemType(), transaction.itemData);
         switch (transaction.title) {
             case TransactionType.AddOrUpdate:

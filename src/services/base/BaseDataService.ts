@@ -20,6 +20,8 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
     protected dbService: BaseDbService<T>;
     protected cacheDuration = -1;
 
+    public static __factory: any = {};
+
     public get ItemFields(): any {
         return {};
     }

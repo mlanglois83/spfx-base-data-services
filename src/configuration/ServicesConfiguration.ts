@@ -35,7 +35,6 @@ export class ServicesConfiguration {
         checkOnline: false,
         onlineCheckPage: "",
         context: null,
-        serviceFactory: null,
         tableNames: [],
         currentUserId: -1,
         translations: {

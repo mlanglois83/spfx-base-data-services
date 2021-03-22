@@ -5,7 +5,6 @@ import { BaseDataService } from "./BaseDataService";
 import { ServicesConfiguration } from "../..";
 import { cloneDeep } from "@microsoft/sp-lodash-subset";
 import { SPFile } from "../../models";
-
 /**
  * Base service for sp files operations
  */

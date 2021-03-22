@@ -2,10 +2,10 @@ import { Text } from "@microsoft/sp-core-library";
 import { cloneDeep, find } from "@microsoft/sp-lodash-subset";
 import { stringIsNullOrEmpty } from "@pnp/common";
 import { ITerm, ITermSet, taxonomy } from "@pnp/sp-taxonomy";
-import { TaxonomyHiddenListService, UtilsService } from "../";
+import { ServiceFactory, UtilsService } from "../";
 import { ServicesConfiguration } from "../..";
 import { Constants } from "../../constants/index";
-import { TaxonomyTerm } from "../../models";
+import { TaxonomyHidden, TaxonomyTerm } from "../../models";
 import { BaseDataService } from "./BaseDataService";
 
 
@@ -16,7 +16,6 @@ const standardTermSetCacheDuration = 10;
  */
 export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<T> {
 
-    protected taxonomyHiddenListService: TaxonomyHiddenListService;
     protected utilsService: UtilsService;
     protected termsetnameorid: string;
     protected isGlobal: boolean;
@@ -60,13 +59,12 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
     constructor(type: (new (item?: any) => T), termsetnameorid: string, tableName: string, isGlobal = true, cacheDuration: number = standardTermSetCacheDuration) {
         super(type, tableName, cacheDuration);
         this.utilsService = new UtilsService();
-        this.taxonomyHiddenListService = new TaxonomyHiddenListService();
         this.termsetnameorid = termsetnameorid;
         this.isGlobal = isGlobal;
     }
 
     public async getWssIds(termId: string): Promise<Array<number>> {
-        const taxonomyHiddenItems = await this.taxonomyHiddenListService.getAll();
+        const taxonomyHiddenItems = await ServiceFactory.getService(TaxonomyHidden).getAll();
         return taxonomyHiddenItems.filter((taxItem) => {
             return taxItem.termId === termId;
         }).map((filteredItem) => {
@@ -93,7 +91,7 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
         await batch.execute();
 
         this.customSortOrder = ts.CustomSortOrder;
-        const taxonomyHiddenItems = await this.taxonomyHiddenListService.getAll();
+        const taxonomyHiddenItems = await ServiceFactory.getService(TaxonomyHidden).getAll();
         return spterms.map((term) => {
             const result = new this.itemType(term);
             result.wssids = [];

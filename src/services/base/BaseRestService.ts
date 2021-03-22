@@ -1,7 +1,7 @@
 import { ServicesConfiguration } from "../..";
 import { cloneDeep, find, assign, findIndex } from "@microsoft/sp-lodash-subset";
 import { Constants, FieldType, TestOperator } from "../../constants/index";
-import { IFieldDescriptor, IQuery, ILogicalSequence, IRestQuery, IRestLogicalSequence, IEndPointBindings, IPredicate, IRestPredicate, IBaseItem, IOrderBy } from "../../interfaces/index";
+import { IFieldDescriptor, IQuery, ILogicalSequence, IRestQuery, IRestLogicalSequence, IEndPointBindings, IPredicate, IRestPredicate, IOrderBy } from "../../interfaces/index";
 import { BaseDataService } from "./BaseDataService";
 import { UtilsService } from "..";
 import { RestItem, User, OfflineTransaction } from "../../models";
@@ -10,6 +10,7 @@ import { UserService } from "../graph/UserService";
 import { isArray, stringIsNullOrEmpty } from "@pnp/common";
 import { RestFile } from "../../models/base/RestFile";
 import * as mime from "mime-types";
+import { ServiceFactory } from "../ServiceFactory";
 
 /**
  * 
@@ -87,14 +88,6 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         return;
     }
 
-    private services = {};
-    protected getService(modelName: string): BaseDataService<IBaseItem> {
-        if(!this.services[modelName]) {
-            this.services[modelName] = ServicesConfiguration.configuration.serviceFactory.create(modelName);
-        }
-        return this.services[modelName];
-    } 
-
     public async Init(): Promise<void> {
         if (!this.initPromise) {
             this.initPromise = new Promise<void>(async (resolve, reject) => {
@@ -123,7 +116,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                         }
                         await Promise.all(models.map(async (modelName) => {
                             if (!this.initValues[modelName]) {
-                                const service = this.getService(modelName);
+                                const service = ServiceFactory.getService(modelName);
                                 const values = await service.getAll();
                                 this.initValues[modelName] = values;
                             }
@@ -178,7 +171,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                     const obj = restItem[fieldDescriptor.fieldName] ? restItem[fieldDescriptor.fieldName] : null;
                     if(obj) {
                         // get service
-                        const tmpservice = this.getService(fieldDescriptor.modelName);
+                        const tmpservice = ServiceFactory.getServiceByModelName(fieldDescriptor.modelName);
                         const conv = await tmpservice.persistItemData(obj);
                         if(conv) {
                             converted[propertyName] = conv;
@@ -217,7 +210,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                     const values = restItem[fieldDescriptor.fieldName] ? restItem[fieldDescriptor.fieldName] : [];
                     if(values.length > 0) {
                         // get service
-                        const tmpservice = this.getService(fieldDescriptor.modelName);
+                        const tmpservice = ServiceFactory.getServiceByModelName(fieldDescriptor.modelName);
                         for (const obj of values) {
                             const conv = await tmpservice.persistItemData(obj);
                             if(conv) {
@@ -333,7 +326,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                     try {
                         if(fieldDescriptor.containsFullObject) {
                             if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                                const itemType = ServicesConfiguration.configuration.serviceFactory.getObjectTypeByName(fieldDescriptor.modelName);
+                                const itemType = ServiceFactory.getObjectTypeByName(fieldDescriptor.modelName);
                                 converted[propertyName] = assign(new itemType(), restItem[fieldDescriptor.fieldName]);
                             }
                             else {
@@ -343,7 +336,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                         else {
                             const jsonObj = JSON.parse(restItem[fieldDescriptor.fieldName]);
                             if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                                const itemType = ServicesConfiguration.configuration.serviceFactory.getObjectTypeByName(fieldDescriptor.modelName);
+                                const itemType = ServiceFactory.getObjectTypeByName(fieldDescriptor.modelName);
                                 converted[propertyName] = assign(new itemType(), jsonObj);
                             }
                             else {
@@ -489,7 +482,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         let result: any = null;
         if (value) {
             if (value.id <= 0) {
-                const userService: UserService = new UserService();
+                const userService: UserService = ServiceFactory.getService(User) as UserService;
                 value = await userService.linkToSpUser(value);
 
             }
@@ -520,6 +513,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
     }
 
     protected async populateLookups(items: Array<T>, loadLookups?: Array<string>): Promise<void> {
+        await this.Init();
         // get lookup fields
         const lookupFields = this.linkedLookupFields(loadLookups);
         // init values and retrieve all ids by model
@@ -527,7 +521,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         for (const key in lookupFields) {
             if (lookupFields.hasOwnProperty(key)) {
                 const fieldDesc = lookupFields[key] as IFieldDescriptor;
-                if(!fieldDesc.containsFullObject) {
+                if(!fieldDesc.containsFullObject || !ServicesConfiguration.configuration.lastConnectionCheckResult) {
                     allIds[fieldDesc.modelName] = allIds[fieldDesc.modelName] || [];
                     const ids = allIds[fieldDesc.modelName];
                     items.forEach((item: T) => {
@@ -577,7 +571,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
             if (allIds.hasOwnProperty(modelName)) {
                 const ids = allIds[modelName];
                 if (ids && ids.length > 0) {
-                    const service = this.getService(modelName) as BaseDataService<BaseItem>;
+                    const service = ServiceFactory.getServiceByModelName(modelName) as BaseDataService<BaseItem>;
                     promises.push(service.getItemsById(ids));
                 }
             }
@@ -649,6 +643,13 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
     }
     /***************** SP Calls associated to service standard operations ********************/
 
+
+    
+    public async get(query: IQuery, linkedFields?: Array<string>): Promise<Array<T>> {
+        const result = await super.get(query, linkedFields);
+        await this.populateLookups(result, linkedFields);
+        return result;
+    }
 
     /**
      * Get items by query
@@ -1031,7 +1032,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                             user = find(users, (u) => { return u.userPrincipalName?.toLowerCase() === upn?.toLowerCase(); });
                         }
                         else {
-                            const userService: UserService = new UserService();
+                            const userService: UserService = ServiceFactory.getService(User) as UserService;
                             user = new User();
                             user.userPrincipalName = upn;
                             user = await userService.linkToSpUser(user);
@@ -1174,7 +1175,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                                 convertedResult.__deleteInternalLinks(propertyName);
                             }
                             else if(fieldDescriptor.fieldType === FieldType.Json && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                                const itemType = ServicesConfiguration.configuration.serviceFactory.getObjectTypeByName(fieldDescriptor.modelName);
+                                const itemType = ServiceFactory.getObjectTypeByName(fieldDescriptor.modelName);
                                 convertedResult[propertyName] = assign(new itemType(), converted[propertyName]);
                             }
                             else {
@@ -1196,7 +1197,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         nextTransactions.forEach(transaction => {
             let currentObject = null;
             let needUpdate = false;
-            const service = this.getService(transaction.itemType);
+            const service = ServiceFactory.getServiceByModelName(transaction.itemType);
             const fields = service.ItemFields;
             // search for lookup fields
             for (const propertyName in fields) {
@@ -1205,7 +1206,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                     if (fieldDescription.refItemName === this.itemType["name"] || fieldDescription.modelName === this.itemType["name"]) {
                         // get object if not done yet
                         if (!currentObject) {
-                            const destType = ServicesConfiguration.configuration.serviceFactory.getItemTypeByName(transaction.itemType);
+                            const destType = ServiceFactory.getItemTypeByName(transaction.itemType);
                             currentObject = new destType();
                             assign(currentObject, transaction.itemData);
                         }
@@ -1277,7 +1278,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                         modelFields[prop].refItemName === this.itemType["name"] || modelFields[prop].modelName === this.itemType["name"]);
                 });
                 if (lookupProperties.length > 0) {
-                    const service = this.getService(modelName);
+                    const service = ServiceFactory.getServiceByModelName(modelName);
                     const allitems = await service.__getAllFromCache();
                     const updated = [];
                     allitems.forEach(element => {

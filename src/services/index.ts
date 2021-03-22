@@ -1,5 +1,5 @@
 
-export { BaseServiceFactory } from "./base/BaseServiceFactory";
+export { ServiceFactory } from "./ServiceFactory";
 export { BaseDataService } from "./base/BaseDataService";
 export { BaseDbService } from "./base/BaseDbService";
 export { BaseFileService } from "./base/BaseFileService";

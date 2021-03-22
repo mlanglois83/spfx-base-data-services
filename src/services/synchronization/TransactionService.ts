@@ -1,5 +1,5 @@
 import { assign } from "@microsoft/sp-lodash-subset";
-import { ServicesConfiguration } from "../../configuration/ServicesConfiguration";
+import { ServiceFactory } from "..";
 import { BaseFile, OfflineTransaction } from "../../models/index";
 import { BaseDbService } from "../base/BaseDbService";
 
@@ -91,7 +91,7 @@ export class TransactionService extends BaseDbService<OfflineTransaction> {
                 const file = await this.transactionFileService.getItemById(item.itemData);
                 if (file) {
                     const id = file.id.toString().replace(/^\d+_(.*)$/g, "$1");
-                    const type = ServicesConfiguration.configuration.serviceFactory.getItemTypeByName(item.itemType);
+                    const type = ServiceFactory.getItemTypeByName(item.itemType);
                     const temp = new type();
                     if(typeof(temp.id) === "number") {
                         file.id = parseInt(id);
@@ -117,7 +117,7 @@ export class TransactionService extends BaseDbService<OfflineTransaction> {
             const file = await this.transactionFileService.getItemById(result.itemData);
             if (file) {
                 const fileid = file.id.toString().replace(/^\d+_(.*)$/g, "$1");
-                const type = ServicesConfiguration.configuration.serviceFactory.getItemTypeByName(result.itemType);
+                const type = ServiceFactory.getItemTypeByName(result.itemType);
                 const temp = new type();
                 if(typeof(temp.id) === "number") {
                     file.id = parseInt(fileid);
@@ -141,7 +141,7 @@ export class TransactionService extends BaseDbService<OfflineTransaction> {
     }
 
     private isFile(itemTypeName: string): boolean {
-        const itemType = ServicesConfiguration.configuration.serviceFactory.getItemTypeByName(itemTypeName);
+        const itemType = ServiceFactory.getItemTypeByName(itemTypeName);
         const instance = new itemType();
         return (instance instanceof BaseFile);
     }

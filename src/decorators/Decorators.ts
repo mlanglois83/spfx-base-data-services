@@ -42,4 +42,29 @@ export namespace Decorators {
             target.serviceProps = declaration;            
         };
     }
+
+    export function dataService(modelName: string): (target: any) => void { 
+        return (target: any): void => {
+            if(!target.__factory) {
+                target.__factory = {};
+            }
+            // First key : model name
+            if(!target.__factory[modelName]) {
+                target.__factory[modelName] = target;
+            }                       
+        };
+    }
+
+    export function dataModel(): (target: any) => void { 
+        return (target: any): void => {
+            // constructs a static dictionnary on SPItem class
+            if(!target.__factory) {
+                target.__factory = {};
+            }
+            // First key : model name
+            if(!target.__factory[target["name"]]) {
+                target.__factory[target["name"]] = target;
+            }                    
+        };
+    }
 } 

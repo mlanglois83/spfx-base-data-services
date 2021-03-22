@@ -1,6 +1,5 @@
 import { BaseComponentContext } from "@microsoft/sp-component-base";
 import { ITranslationLabels } from "./";
-import { BaseServiceFactory } from "../services";
 
 /**
  * Configuration format for spfx base data services
@@ -39,10 +38,6 @@ export interface IConfiguration {
      * Translations used by synchronization service when an operation or an error is reported
      */
     translations: ITranslationLabels;
-    /**
-     * Service factory able to instanciate services allowing the synchronization service to work
-     */
-    serviceFactory: BaseServiceFactory;
     /**
      * Current user id
      */

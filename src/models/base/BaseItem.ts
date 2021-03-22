@@ -1,14 +1,14 @@
 
 import { IBaseItem } from "../../interfaces";
 import { assign, findIndex } from "@microsoft/sp-lodash-subset";
-import { FieldType } from "../..";
+import { FieldType, ServiceFactory } from "../..";
 import { stringIsNullOrEmpty } from "@pnp/pnpjs";
-import { ServicesConfiguration } from "../../configuration";
 
 /**
  * Base object for sharepoint item abstraction objects
  */
 export abstract class BaseItem implements IBaseItem {
+    public static __factory: any = {};
     /**
      * internal field for linked items not stored in db
      */
@@ -117,7 +117,7 @@ export abstract class BaseItem implements IBaseItem {
                     switch (fieldDescriptor.fieldType) {
                         case FieldType.Json:                     
                             // get object from serviceFactory
-                            const objectConstructor = ServicesConfiguration.configuration.serviceFactory.getObjectTypeByName(fieldDescriptor.modelName);
+                            const objectConstructor = ServiceFactory.getObjectTypeByName(fieldDescriptor.modelName);
                             const result = new objectConstructor();
                             this[propertyName] = assign(result, this[propertyName]);
                             break;
@@ -125,7 +125,7 @@ export abstract class BaseItem implements IBaseItem {
                         case FieldType.Taxonomy:
                         case FieldType.Lookup:
                             // get model from serviceFactory
-                            const singleModelConstructor = ServicesConfiguration.configuration.serviceFactory.getItemTypeByName(fieldDescriptor.modelName);
+                            const singleModelConstructor = ServiceFactory.getItemTypeByName(fieldDescriptor.modelName);
                             const singleModelValue = new singleModelConstructor();
                             singleModelValue.fromObject(this[propertyName]);
                             this[propertyName] = singleModelValue;
@@ -135,7 +135,7 @@ export abstract class BaseItem implements IBaseItem {
                         case FieldType.LookupMulti:
                             if(Array.isArray(this[propertyName])){
                                 // get model from serviceFactory
-                                const modelConstructor = ServicesConfiguration.configuration.serviceFactory.getItemTypeByName(fieldDescriptor.modelName);
+                                const modelConstructor = ServiceFactory.getItemTypeByName(fieldDescriptor.modelName);
                                 for (let index = 0; index < this[propertyName].length; index++) {
                                     const element = this[propertyName][index];
                                     const modelValue = new modelConstructor();

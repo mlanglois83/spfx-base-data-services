@@ -1,5 +1,5 @@
 import { BaseDataService, UtilsService } from "..";
-import { User, PictureSize, IQuery } from "../..";
+import { User, PictureSize, IQuery, Decorators } from "../..";
 import { graph } from "@pnp/graph";
 import { sp } from "@pnp/sp";
 import { Text } from "@microsoft/sp-core-library";
@@ -10,6 +10,9 @@ import { IPredicate } from "../../interfaces";
 import { stringIsNullOrEmpty } from "@pnp/common";
 
 const standardUserCacheDuration = 10;
+const dataService = Decorators.dataService;
+
+@dataService("User")
 export class UserService extends BaseDataService<User> {
     /**
      * Instanciates a user service
