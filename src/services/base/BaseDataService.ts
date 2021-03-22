@@ -57,6 +57,10 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         return this.itemModelType;
     }
 
+    public cast<Tdest extends BaseDataService<T>> (): Tdest {
+        return this as unknown as Tdest;
+    }
+
     public async Init(): Promise<void> {
         return;
     }

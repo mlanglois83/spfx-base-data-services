@@ -756,6 +756,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
     }
 
     private async populateLookups(items: Array<T>, loadLookups?: Array<string>): Promise<void> {
+        await this.Init();
         // get lookup fields
         const lookupFields = this.linkedLookupFields(loadLookups);
         // init values and retrieve all ids by model

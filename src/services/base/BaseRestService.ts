@@ -25,7 +25,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
 
     private _itemFields = null;
     public get ItemFields(): any {
-        if(this._itemFields) {
+        if (this._itemFields) {
             return this._itemFields;
         }
         else {
@@ -33,20 +33,20 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
             if (this.itemType["Fields"] && this.itemType["Fields"][this.itemType["name"]]) {
                 assign(this._itemFields, this.itemType["Fields"][this.itemType["name"]]);
             }
-            let parentType = this.itemType; 
+            let parentType = this.itemType;
             do {
                 parentType = Object.getPrototypeOf(parentType);
-                if(this.itemType["Fields"] && this.itemType["Fields"][parentType["name"]]) {
+                if (this.itemType["Fields"] && this.itemType["Fields"][parentType["name"]]) {
                     for (const key in this.itemType["Fields"][parentType["name"]]) {
                         if (Object.prototype.hasOwnProperty.call(this.itemType["Fields"][parentType["name"]], key)) {
-                            if(this._itemFields[key] === undefined || this._itemFields[key] === null) {
+                            if (this._itemFields[key] === undefined || this._itemFields[key] === null) {
                                 // keep higher level redefinition
                                 this._itemFields[key] = this.itemType["Fields"][parentType["name"]][key];
-                            }                            
+                            }
                         }
                     }
                 }
-            } while(parentType["name"] !== BaseItem["name"]);
+            } while (parentType["name"] !== BaseItem["name"]);
         }
         return this._itemFields;
     }
@@ -135,7 +135,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         return this.initPromise;
 
     }
-    
+
     protected getServiceInitValues(modelName: string): any {
         return this.initValues[modelName];
     }
@@ -149,7 +149,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                 await this.setFieldValue(restItem, item, propertyName, fieldDescription);
             }
         }
-        if(item instanceof RestFile) {            
+        if (item instanceof RestFile) {
             item.mimeType = (mime.lookup(item.title) as string) || 'application/octet-stream';
         }
         return item;
@@ -160,30 +160,31 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         const converted = destItem as unknown as RestItem;
         fieldDescriptor.fieldType = fieldDescriptor.fieldType || FieldType.Simple;
         switch (fieldDescriptor.fieldType) {
-            case FieldType.Simple:                
+            case FieldType.Simple:
                 converted[propertyName] = restItem[fieldDescriptor.fieldName] !== null && restItem[fieldDescriptor.fieldName] !== undefined ? restItem[fieldDescriptor.fieldName] : fieldDescriptor.defaultValue;
                 break;
             case FieldType.Date:
                 converted[propertyName] = restItem[fieldDescriptor.fieldName] ? new Date(restItem[fieldDescriptor.fieldName]) : fieldDescriptor.defaultValue;
                 break;
             case FieldType.Lookup:
-                if(fieldDescriptor.containsFullObject && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                if (fieldDescriptor.containsFullObject && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                     const obj = restItem[fieldDescriptor.fieldName] ? restItem[fieldDescriptor.fieldName] : null;
-                    if(obj) {
+                    if (obj) {
                         // get service
                         const tmpservice = ServiceFactory.getServiceByModelName(fieldDescriptor.modelName);
                         const conv = await tmpservice.persistItemData(obj);
-                        if(conv) {
+                        if (conv) {
+                            converted.__setInternalLinks(propertyName, conv.id);
                             converted[propertyName] = conv;
                         }
                         else {
                             converted[propertyName] = fieldDescriptor.defaultValue;
                         }
-                        
+
                     }
                     else {
                         converted[propertyName] = fieldDescriptor.defaultValue;
-                    }                    
+                    }
                 }
                 else {
                     const lookupId: number = restItem[fieldDescriptor.fieldName] ? restItem[fieldDescriptor.fieldName] : -1;
@@ -205,23 +206,25 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                 }
                 break;
             case FieldType.LookupMulti:
-                if(fieldDescriptor.containsFullObject && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                if (fieldDescriptor.containsFullObject && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                     const convertedObjects = [];
                     const values = restItem[fieldDescriptor.fieldName] ? restItem[fieldDescriptor.fieldName] : [];
-                    if(values.length > 0) {
+                    if (values.length > 0) {
                         // get service
                         const tmpservice = ServiceFactory.getServiceByModelName(fieldDescriptor.modelName);
                         for (const obj of values) {
                             const conv = await tmpservice.persistItemData(obj);
-                            if(conv) {
+                            if (conv) {
+
                                 convertedObjects.push(conv);
                             }
-                        }     
+                        }
+                        converted.__setInternalLinks(propertyName, convertedObjects.map(c => c.id));
                         converted[propertyName] = convertedObjects;
                     }
                     else {
                         converted[propertyName] = fieldDescriptor.defaultValue;
-                    }                    
+                    }
                 }
                 else {
                     const lookupIds: Array<number> = restItem[fieldDescriptor.fieldName] ? restItem[fieldDescriptor.fieldName].map(ri => ri.id) : [];
@@ -238,7 +241,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                     else {
                         converted[propertyName] = fieldDescriptor.defaultValue;
                     }
-                }                
+                }
                 break;
             case FieldType.User:
                 const upn: string = restItem[fieldDescriptor.fieldName];
@@ -267,14 +270,14 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                         const val = [];
                         const users = this.getServiceInitValues(fieldDescriptor.modelName);
                         upns.forEach(umupn => {
-                            if(!stringIsNullOrEmpty(umupn)) {
+                            if (!stringIsNullOrEmpty(umupn)) {
                                 const existing = find(users, (user: User) => {
                                     return !stringIsNullOrEmpty(user.userPrincipalName) && user.userPrincipalName.toLowerCase() === umupn.toLowerCase();
                                 });
                                 if (existing) {
                                     val.push(existing);
                                 }
-                            }                            
+                            }
                         });
                         converted[propertyName] = val;
                     }
@@ -286,7 +289,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                     converted[propertyName] = fieldDescriptor.defaultValue;
                 }
                 break;
-            case FieldType.Taxonomy:                
+            case FieldType.Taxonomy:
                 const conJsonId = !stringIsNullOrEmpty(restItem[fieldDescriptor.fieldName]) ? JSON.parse(restItem[fieldDescriptor.fieldName]) : null;
                 const termid: string = conJsonId && conJsonId.length > 0 ? conJsonId[0].id : null;
                 if (!stringIsNullOrEmpty(termid)) {
@@ -322,7 +325,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                 }
                 break;
             case FieldType.Json:
-                if(restItem[fieldDescriptor.fieldName]) {
+                if (restItem[fieldDescriptor.fieldName]) {
                     try {
                         if(fieldDescriptor.containsFullObject) {
                             if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
@@ -344,7 +347,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                             }
                         }
                     }
-                    catch(error) {
+                    catch (error) {
                         console.error(error);
                         converted[propertyName] = fieldDescriptor.defaultValue;
                     }
@@ -371,16 +374,15 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         const converted = item as unknown as RestItem;
         const itemValue = converted[propertyName];
         fieldDescriptor.fieldType = fieldDescriptor.fieldType || FieldType.Simple;
-        
+
         if (fieldDescriptor.fieldName !== Constants.commonRestFields.created &&
             fieldDescriptor.fieldName !== Constants.commonRestFields.author &&
             fieldDescriptor.fieldName !== Constants.commonRestFields.editor &&
             fieldDescriptor.fieldName !== Constants.commonRestFields.modified &&
             fieldDescriptor.fieldName !== Constants.commonRestFields.version &&
             (fieldDescriptor.fieldName !== Constants.commonRestFields.id || itemValue > 0) &&
-            (fieldDescriptor.fieldName !== Constants.commonRestFields.uniqueid || item.id <=0)
-        ) 
-        {
+            (fieldDescriptor.fieldName !== Constants.commonRestFields.uniqueid || item.id <= 0)
+        ) {
             switch (fieldDescriptor.fieldType) {
                 case FieldType.Simple:
                 case FieldType.Date:
@@ -452,18 +454,18 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                     }
                     break;
                 case FieldType.Taxonomy:
-                    destItem[fieldDescriptor.fieldName] = itemValue ? JSON.stringify([{id: itemValue.id}]) : null;
+                    destItem[fieldDescriptor.fieldName] = itemValue ? JSON.stringify([{ id: itemValue.id }]) : null;
                     break;
                 case FieldType.TaxonomyMulti:
                     if (itemValue && isArray(itemValue) && itemValue.length > 0) {
-                        destItem[fieldDescriptor.fieldName] = JSON.stringify(itemValue.map((t) => {return {id: t.id};}));
+                        destItem[fieldDescriptor.fieldName] = JSON.stringify(itemValue.map((t) => { return { id: t.id }; }));
                     }
                     else {
                         destItem[fieldDescriptor.fieldName] = null;
                     }
                     break;
                 case FieldType.Json:
-                    if(fieldDescriptor.containsFullObject) {
+                    if (fieldDescriptor.containsFullObject) {
                         destItem[fieldDescriptor.fieldName] = itemValue;
                     }
                     else {
@@ -477,12 +479,12 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
     /****************************** Lookup loading **************************************/
 
     /********************** SP Fields conversion helpers *****************************/
-    
+
     private async convertSingleUserFieldValue(value: User): Promise<string> {
         let result: any = null;
         if (value) {
             if (value.id <= 0) {
-                const userService: UserService = ServiceFactory.getService(User) as UserService;
+                const userService: UserService = ServiceFactory.getService(User).cast<UserService>();
                 value = await userService.linkToSpUser(value);
 
             }
@@ -642,15 +644,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         }
     }
     /***************** SP Calls associated to service standard operations ********************/
-
-
     
-    public async get(query: IQuery, linkedFields?: Array<string>): Promise<Array<T>> {
-        const result = await super.get(query, linkedFields);
-        await this.populateLookups(result, linkedFields);
-        return result;
-    }
-
     /**
      * Get items by query
      * @protected
@@ -658,9 +652,9 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
      * @returns {Promise<Array<T>>}
      * @memberof BaseListItemService
      */
-    protected async get_Internal(query: IQuery, linkedFields?: Array<string>): Promise<Array<T>> { 
-        const restQuery = this.getRestQuery(query); 
-        if(linkedFields && linkedFields.length === 1 && linkedFields[0] ==='loadAll') {
+    protected async get_Internal(query: IQuery, linkedFields?: Array<string>): Promise<Array<T>> {
+        const restQuery = this.getRestQuery(query);
+        if (linkedFields && linkedFields.length === 1 && linkedFields[0] === 'loadAll') {
             restQuery.loadAll = true;
         }
         let results = new Array<T>();
@@ -669,7 +663,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
             await this.Init();
             results = await Promise.all(items.map((r) => {
                 return this.getItemFromRest(r);
-            }));            
+            }));
         }
         await this.populateLookups(results, linkedFields);
         return results;
@@ -753,16 +747,16 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
     protected async addOrUpdateItem_Internal(item: T): Promise<T> {
         const result = cloneDeep(item);
         if (item.id < 0) {
-            const converted = await this.getRestItem(item);            
+            const converted = await this.getRestItem(item);
             const addResult = await this.executeRequest(`${this.serviceUrl}${this.Bindings.addOrUpdateItem.url}`, this.Bindings.addOrUpdateItem.method, converted);
             await this.populateCommonFields(result, addResult);
             if (item.id < -1) {
                 await this.updateLinksInDb(Number(item.id), Number(result.id));
-            }         
+            }
         }
         else {
             // check version (cannot update if newer)
-            if (item.version && !this.disableVersionCheck) {                
+            if (item.version && !this.disableVersionCheck) {
                 const existing = await this.executeRequest(`${this.serviceUrl}${this.Bindings.getItemById.url}/${item.id}`, this.Bindings.getItemById.method);
                 if (parseFloat(existing[Constants.commonRestFields.version]) > item.version) {
                     const error = new Error(ServicesConfiguration.configuration.translations.versionHigherErrorMessage);
@@ -771,17 +765,17 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                 }
                 else {
                     const converted = await this.getRestItem(item);
-                    const updateResult = await this.executeRequest(`${this.serviceUrl}${this.Bindings.addOrUpdateItem.url}`, this.Bindings.addOrUpdateItem.method, converted);                 
-                    await this.populateCommonFields(result, updateResult); 
-                }               
+                    const updateResult = await this.executeRequest(`${this.serviceUrl}${this.Bindings.addOrUpdateItem.url}`, this.Bindings.addOrUpdateItem.method, converted);
+                    await this.populateCommonFields(result, updateResult);
+                }
             }
             else {
                 const converted = await this.getRestItem(item);
                 try {
-                    const updateResult = await this.executeRequest(`${this.serviceUrl}${this.Bindings.addOrUpdateItem.url}`, this.Bindings.addOrUpdateItem.method, converted);                                   
+                    const updateResult = await this.executeRequest(`${this.serviceUrl}${this.Bindings.addOrUpdateItem.url}`, this.Bindings.addOrUpdateItem.method, converted);
                     await this.populateCommonFields(result, updateResult);
                 } catch (error) {
-                    if(error.name === "409") {
+                    if (error.name === "409") {
                         const conflicterror = new Error(ServicesConfiguration.configuration.translations.versionHigherErrorMessage);
                         conflicterror.name = Constants.Errors.ItemVersionConfict;
                         throw conflicterror;
@@ -789,7 +783,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                     else {
                         throw error;
                     }
-                }                
+                }
             }
         }
         return result;
@@ -835,7 +829,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                         idx++;
                     }
                 } catch (error) {
-                    for (let index = 0; index < sub.length; index++) {                        
+                    for (let index = 0; index < sub.length; index++) {
                         const currentIdx = idx;
                         const item = sub[index];
                         item.error = error;
@@ -844,7 +838,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                         }
                         idx++;
                     }
-                }               
+                }
             }
         }
 
@@ -866,7 +860,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                         limit: 2000
                     });
                     const versionitems = await this.executeRequest(`${this.serviceUrl}${this.Bindings.get.url}`, this.Bindings.get.method, restQuery);
-                    for (const subitem of sub) {                        
+                    for (const subitem of sub) {
                         const currentIdx = idx;
                         const existing = find(versionitems, i => { return i.id === subitem.id; });
                         if (parseFloat(existing[Constants.commonRestFields.version]) > subitem.version) {
@@ -883,8 +877,8 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                         idx++;
                     }
                 }
-                catch(error) {
-                    for (const subitem of sub) {                      
+                catch (error) {
+                    for (const subitem of sub) {
                         const currentIdx = idx;
                         subitem.error = error;
                         if (onItemUpdated) {
@@ -897,7 +891,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         }
         // classical update + version checked
         if (updatedItems.length > 0) {
-            let idx = 0;            
+            let idx = 0;
             // TODO: Call stack
             while (updatedItems.length > 0) {
                 const sub = updatedItems.splice(0, 100);
@@ -908,7 +902,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                     for (let index = 0; index < sub.length; index++) {
                         const subitem = sub[index];
                         const currentIdx = idx;
-                        if(results[index]) {
+                        if (results[index]) {
                             await this.populateCommonFields(subitem, results[index]);
                         }
                         else {
@@ -916,14 +910,14 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                             const error = new Error(ServicesConfiguration.configuration.translations.versionHigherErrorMessage);
                             error.name = Constants.Errors.ItemVersionConfict;
                             subitem.error = error;
-                        }                        
+                        }
                         if (onItemUpdated) {
                             onItemUpdated(items[currentIdx], subitem);
                         }
                         idx++;
                     }
                 } catch (error) {
-                    for (const subitem of sub) {                      
+                    for (const subitem of sub) {
                         const currentIdx = idx;
                         subitem.error = error;
                         if (onItemUpdated) {
@@ -931,7 +925,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                         }
                         idx++;
                     }
-                }                
+                }
             }
         }
         return result;
@@ -946,7 +940,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
             await this.executeRequest(`${this.serviceUrl}${this.Bindings.deleteItem.url}/${item.id}`, this.Bindings.deleteItem.method);
             item.deleted = true;
         }
-        catch(error) {
+        catch (error) {
             item.error = error;
         }
         return item;
@@ -960,10 +954,10 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         try {
             const results = await this.executeRequest(`${this.serviceUrl}${this.Bindings.deleteItems.url}`, this.Bindings.deleteItems.method, items.map(i => i.id));
             for (let index = 0; index < items.length; index++) {
-                items[index].deleted = results[index];                
+                items[index].deleted = results[index];
             }
         } catch (error) {
-            items.forEach(i=>i.error = error);
+            items.forEach(i => i.error = error);
         }
         return items;
     }
@@ -972,7 +966,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         let result = null;
         if (data) {
             await this.Init();
-            result = await this.getItemFromRest(data);            
+            result = await this.getItemFromRest(data);
             await this.populateLookups([result], linkedFields);
             this.updateInternalLinks(result, linkedFields);
         }
@@ -982,17 +976,17 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
     protected async persistItemsData_internal(data: any[], linkedFields?: Array<string>): Promise<T[]> {
         let result = null;
         if (data) {
-            await this.Init();            
+            await this.Init();
             result = await Promise.all(data.map(d => this.getItemFromRest(d)));
             await this.populateLookups(result, linkedFields);
-            result.forEach(r => this.updateInternalLinks(r, linkedFields)); 
+            result.forEach(r => this.updateInternalLinks(r, linkedFields));
         }
         return result;
     }
 
 
     /************************** Query filters ***************************/
- 
+
     protected async populateCommonFields(item: T, restItem): Promise<void> {
         if (item.id < 0) {
             // update ids
@@ -1015,24 +1009,24 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
             const fieldName = fields[prop].fieldName;
             switch (fields[prop].fieldType) {
                 case FieldType.Date:
-                    if(restItem[fieldName]) {
+                    if (restItem[fieldName]) {
                         item[prop] = new Date(restItem[fieldName]);
                     }
                     else {
                         item[prop] = fields[prop].defaultValue;
                     }
-                    
+
                     break;
                 case FieldType.User:
                     const upn: string = restItem[fieldName];
-                    if(!stringIsNullOrEmpty(upn)) {
+                    if (!stringIsNullOrEmpty(upn)) {
                         let user: User = null;
                         if (this.initialized) {
                             const users = this.getServiceInitValues(User["name"]);
                             user = find(users, (u) => { return u.userPrincipalName?.toLowerCase() === upn?.toLowerCase(); });
                         }
                         else {
-                            const userService: UserService = ServiceFactory.getService(User) as UserService;
+                            const userService: UserService = ServiceFactory.getService(User).cast<UserService>();
                             user = new User();
                             user.userPrincipalName = upn;
                             user = await userService.linkToSpUser(user);
@@ -1101,10 +1095,10 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                                 convertedResult.__setInternalLinks(propertyName, converted.__getInternalLinks(propertyName));
                             }
                             break;
-                        default:                        
+                        default:
                             break;
                     }
-                } else if(typeof(convertedResult[propertyName]) === "function") {
+                } else if (typeof (convertedResult[propertyName]) === "function") {
                     delete convertedResult[propertyName];
                 }
 
@@ -1267,9 +1261,9 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         const allFields = assign({}, this.itemType["Fields"]);
         let parentType = this.itemType;
         do {
-            delete allFields[parentType["name"] ];
+            delete allFields[parentType["name"]];
             parentType = Object.getPrototypeOf(parentType);
-        } while(parentType["name"] !== BaseItem["name"]);
+        } while (parentType["name"] !== BaseItem["name"]);
         for (const modelName in allFields) {
             if (allFields.hasOwnProperty(modelName)) {
                 const modelFields = allFields[modelName];
@@ -1341,12 +1335,12 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
 
     protected getRestQuery(query: IQuery): IRestQuery {
         const result: IRestQuery = {};
-        if(query) {
+        if (query) {
             result.lastId = query.lastId as number;
             result.limit = query.limit;
             result.orderBy = this.getOrderBy(query.orderBy);
-            if(query.test) {
-                if(query.test.type === "sequence") {
+            if (query.test) {
+                if (query.test.type === "sequence") {
                     result.test = this.getRestSequence(query.test);
                 }
                 else {
@@ -1361,7 +1355,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
 
     private getOrderBy(orderby: IOrderBy[]): IOrderBy[] {
         const result = [];
-        if(orderby) {
+        if (orderby) {
             orderby.forEach(ob => {
                 const copy = cloneDeep(ob);
                 copy.propertyName = this.ItemFields[ob.propertyName].fieldName;
@@ -1378,7 +1372,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
             sequences: []
         };
         sequence.children.forEach((child) => {
-            if(child.type === "predicate") {                
+            if (child.type === "predicate") {
                 result.predicates.push(this.getRestPredicate(child));
             }
             else {
@@ -1389,7 +1383,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         return result;
     }
     private getRestPredicate(predicate: IPredicate): IRestPredicate {
-        
+
         return {
             logicalOperator: predicate.operator,
             propertyName: this.ItemFields[predicate.propertyName].fieldName,
@@ -1399,52 +1393,52 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         };
     }
 
-    private async initRequest(method: string, data?: any): Promise<RequestInit>{  
+    private async initRequest(method: string, data?: any): Promise<RequestInit> {
         const aadTokenProvider = await ServicesConfiguration.context.aadTokenProviderFactory.getTokenProvider();
         const token = await aadTokenProvider.getToken(ServicesConfiguration.configuration.aadAppId);
-        if(stringIsNullOrEmpty(token)) {
+        if (stringIsNullOrEmpty(token)) {
             throw Error("Error while getting authentication token");
         }
         const headers = {
-            'Accept': 'application/json', 
+            'Accept': 'application/json',
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': "*", 
+            'Access-Control-Allow-Origin': "*",
             'Access-Control-Allow-Headers': "*",
             'authorization': `Bearer ${token}`
-          };
-          if (data != null) {
+        };
+        if (data != null) {
             const postData: string = JSON.stringify(data);
-            return { 
-                method: method, 
-                body: postData, 
-                mode: 'cors', 
-                headers: headers, 
-                referrer: ServicesConfiguration.context.pageContext.web.absoluteUrl, 
-                referrerPolicy: "no-referrer-when-downgrade" 
+            return {
+                method: method,
+                body: postData,
+                mode: 'cors',
+                headers: headers,
+                referrer: ServicesConfiguration.context.pageContext.web.absoluteUrl,
+                referrerPolicy: "no-referrer-when-downgrade"
             };
-          }
-          return { 
-              method: method, 
-              mode: 'cors', 
-              headers: headers, 
-              referrer: ServicesConfiguration.context.pageContext.web.absoluteUrl, 
-              referrerPolicy: "no-referrer-when-downgrade" 
-            };
-    }   
+        }
+        return {
+            method: method,
+            mode: 'cors',
+            headers: headers,
+            referrer: ServicesConfiguration.context.pageContext.web.absoluteUrl,
+            referrerPolicy: "no-referrer-when-downgrade"
+        };
+    }
 
     protected async executeRequest(url: string, method: string, data?: any): Promise<any> {
         const req = await this.initRequest(method, data);
         const response = await fetch(url, req);
-            if(response.ok) {                    
-                return response.json();                    
-            }
-            else {
-                const error = new Error();
-                error.message = "Error while executing request";
-                error.name = response.status.toString();
-                error.stack = await response.text();
-                console.error(error.toString(), "\n", error.stack);
-                throw error;
-            }
+        if (response.ok) {
+            return response.json();
+        }
+        else {
+            const error = new Error();
+            error.message = "Error while executing request";
+            error.name = response.status.toString();
+            error.stack = await response.text();
+            console.error(error.toString(), "\n", error.stack);
+            throw error;
+        }
     }
 }
