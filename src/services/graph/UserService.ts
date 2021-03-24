@@ -1,13 +1,15 @@
-import { BaseDataService, UtilsService } from "..";
-import { User, PictureSize, IQuery, Decorators } from "../..";
 import { graph } from "@pnp/graph";
 import { sp } from "@pnp/sp";
 import { Text } from "@microsoft/sp-core-library";
 import { ServicesConfiguration } from "../../configuration/ServicesConfiguration";
 import { find, cloneDeep } from "@microsoft/sp-lodash-subset";
-import { TestOperator } from "../../constants";
-import { IPredicate } from "../../interfaces";
+import { PictureSize, TestOperator } from "../../constants";
+import { IPredicate, IQuery } from "../../interfaces";
 import { stringIsNullOrEmpty } from "@pnp/common";
+import { UtilsService } from "../UtilsService";
+import { BaseDataService } from "../base/BaseDataService";
+import { Decorators } from "../../decorators";
+import { User } from "../../models";
 
 const standardUserCacheDuration = 10;
 const dataService = Decorators.dataService;
@@ -19,7 +21,7 @@ export class UserService extends BaseDataService<User> {
      * @param cacheDuration - cache duration in minutes (default : 10)
      */
     constructor(cacheDuration: number = standardUserCacheDuration) {
-        super(User, "Users", cacheDuration);
+        super(User, cacheDuration);
     }
 
     public async currentUser(extendedProperties: Array<string>): Promise<User> {

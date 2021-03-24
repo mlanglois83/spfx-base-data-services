@@ -1,9 +1,9 @@
 import { BaseService } from "./base/BaseService";
-import { ServicesConfiguration } from "../";
+import { ServicesConfiguration } from "../configuration/ServicesConfiguration";
 import { Text } from '@microsoft/sp-core-library';
 import { cloneDeep, find } from "@microsoft/sp-lodash-subset";
 import { ODataBatch } from "@pnp/odata";
-import { TaxonomyTerm } from "../models";
+import { TaxonomyTerm } from "../models/base/TaxonomyTerm";
 /**
  * Utility class
  */

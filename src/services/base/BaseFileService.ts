@@ -1,10 +1,10 @@
 import { ChunkedFileUploadProgressData, Folder, sp, List } from "@pnp/sp";
 import * as mime from "mime-types";
-import { UtilsService } from "../";
+import { UtilsService } from "../UtilsService";
 import { BaseDataService } from "./BaseDataService";
-import { ServicesConfiguration } from "../..";
+import { ServicesConfiguration } from "../../configuration/ServicesConfiguration";
 import { cloneDeep } from "@microsoft/sp-lodash-subset";
-import { SPFile } from "../../models";
+import { SPFile } from "../../models/base/SPFile";
 /**
  * Base service for sp files operations
  */
@@ -24,8 +24,8 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
      * @param context - current sp component context 
      * @param listRelativeUrl - list web relative url
      */
-    constructor(type: (new (item?: any) => T), listRelativeUrl: string, tableName: string) {
-        super(type, tableName);
+    constructor(type: (new (item?: any) => T), listRelativeUrl: string) {
+        super(type);
         this.listRelativeUrl = ServicesConfiguration.context.pageContext.web.serverRelativeUrl + listRelativeUrl;
     }
     /**

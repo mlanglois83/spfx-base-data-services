@@ -1,12 +1,11 @@
-import { assign } from "@microsoft/sp-lodash-subset";
+import { BaseItem } from "../base/BaseItem";
 import { Decorators } from "../../decorators";
-import { IBaseItem } from "../../interfaces";
 const dataModel = Decorators.dataModel;
 /**
  * Abstraction class for O365 user associated with a SP User
  */
  @dataModel()
-export class User implements IBaseItem {
+export class User extends BaseItem {
     /**
      * id of the user
      */
@@ -51,6 +50,7 @@ export class User implements IBaseItem {
      * @param userObj - user object returned by graph api or sp
      */
     constructor(userObj?: any) {
+        super();
         if (userObj) {
             this.title = userObj.displayName ? userObj.displayName : (userObj.Title ? userObj.Title : "");
             this.id = userObj.Id ? userObj.Id : -1;
@@ -67,10 +67,6 @@ export class User implements IBaseItem {
                 this.extendedProperties.set(key, userObj[key]);
             }
         }
-    }
-
-    public fromObject(object: any): void {
-        assign(this, object);
     }
 
 }

@@ -1,15 +1,17 @@
 export { IBaseItem } from "./IBaseItem";
 export { IBaseFile } from "./IBaseFile";
-export {IAddOrUpdateResult} from "./IAddOrUpdateResult";
-export {IDataService} from "./IDataService";
-export {IConfiguration} from "./IConfiguration";
-export {ITranslationLabels} from "./ITranslationLabels";
+export { IAddOrUpdateResult } from "./IAddOrUpdateResult";
+export { IDataService } from "./IDataService";
+export { IConfiguration } from "./IConfiguration";
+export { ITranslationLabels } from "./ITranslationLabels";
 export { IFieldDescriptor } from "./IFieldDescriptor";
 export { IRestServiceDescriptor } from "./IRestServiceDescriptor";
 export { IEndPointBindings } from "./IEndPointBindings";
 export { IItemSynchronized } from "./IItemSynchronized";
 export { IRestQuery, IRestLogicalSequence, IRestPredicate } from "./IRestQuery";
 export { ISynchronizationEnded } from "./ISynchronizationEnded";
+export { IFactoryMapping } from "./IFactoryMapping";
+export { IPreloadedData } from "./IPreloadedData";
 
 export { ILogicalSequence } from "./ILogicalSequence";
 export { IOrderBy } from "./IOrderBy";

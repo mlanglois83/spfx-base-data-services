@@ -1,11 +1,12 @@
-import { ServicesConfiguration } from "../..";
+import { ServicesConfiguration } from "../../configuration/ServicesConfiguration";
 import { SPHttpClient } from '@microsoft/sp-http';
 import { cloneDeep, find, assign, findIndex } from "@microsoft/sp-lodash-subset";
 import { CamlQuery, List, sp } from "@pnp/sp";
 import { Constants, FieldType, TestOperator, QueryToken, LogicalOperator } from "../../constants/index";
 import { IFieldDescriptor, IQuery, IPredicate, ILogicalSequence, IOrderBy } from "../../interfaces/index";
 import { BaseDataService } from "./BaseDataService";
-import { ServiceFactory, UtilsService } from "..";
+import { ServiceFactory } from "../ServiceFactory";
+import { UtilsService } from "../UtilsService";
 import { SPItem, User, TaxonomyTerm, OfflineTransaction, SPFile, BaseItem } from "../../models";
 import { UserService } from "../graph/UserService";
 import { isArray, stringIsNullOrEmpty } from "@pnp/common";
@@ -19,40 +20,11 @@ import { Semaphore } from "async-mutex";
 export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
 
     /***************************** Fields and properties **************************************/
-    protected listRelativeUrl: string;
-    protected initValues: any = {};
-    protected taxoMultiFieldNames: any = {};
+    protected listRelativeUrl: string;    
+    protected taxoMultiFieldNames: { [fieldName: string]: string } = {};
 
-    protected attachmentsService: BaseDbService<SPFile>;
     /* AttachmentService */
-
-    private _itemFields = null;
-    public get ItemFields(): any {
-        if(this._itemFields) {
-            return this._itemFields;
-        }
-        else {
-            this._itemFields = {};
-            if (this.itemType["Fields"] && this.itemType["Fields"][this.itemType["name"]]) {
-                assign(this._itemFields, this.itemType["Fields"][this.itemType["name"]]);
-            }
-            let parentType = this.itemType; 
-            do {
-                parentType = Object.getPrototypeOf(parentType);
-                if(this.itemType["Fields"] && this.itemType["Fields"][parentType["name"]]) {
-                    for (const key in this.itemType["Fields"][parentType["name"]]) {
-                        if (Object.prototype.hasOwnProperty.call(this.itemType["Fields"][parentType["name"]], key)) {
-                            if(this._itemFields[key] === undefined || this._itemFields[key] === null) {
-                                // keep higher level redefinition
-                                this._itemFields[key] = this.itemType["Fields"][parentType["name"]][key];
-                            }                            
-                        }
-                    }
-                }
-            } while(parentType["name"] !== BaseItem["name"]);
-        }
-        return this._itemFields;
-    }
+    protected attachmentsService: BaseDbService<SPFile>;
 
 
     /**
@@ -70,75 +42,13 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
      * @param tableName - name of table in local db
      * @param cacheDuration - cache duration in minutes
      */
-    constructor(type: (new (item?: any) => T), listRelativeUrl: string, tableName: string, cacheDuration?: number) {
-        super(type, tableName, cacheDuration);
+    constructor(type: (new (item?: any) => T), listRelativeUrl: string, cacheDuration?: number) {
+        super(type, cacheDuration);
         this.listRelativeUrl = ServicesConfiguration.context.pageContext.web.serverRelativeUrl + listRelativeUrl;
-        this.attachmentsService = new BaseDbService<SPFile>(SPFile, tableName + "_Attachments");
+        this.attachmentsService = new BaseDbService<SPFile>(SPFile, "ListAttachments");
 
     }
-
-
-    /***************************** External sources init and access **************************************/
-
-
-    private initialized = false;
-    protected get isInitialized(): boolean {
-        return this.initialized;
-    }
-    private initPromise: Promise<void> = null;
-
-    protected async init_internal(): Promise<void> {
-        return;
-    }
-
-    public async Init(): Promise<void> {
-        if (!this.initPromise) {
-            this.initPromise = new Promise<void>(async (resolve, reject) => {
-                if (this.initialized) {
-                    resolve();
-                }
-                else {
-                    this.initValues = {};
-                    try {
-                        if (this.init_internal) {
-                            await this.init_internal();
-                        }
-                        const fields = this.ItemFields;
-                        const models = [];
-                        for (const key in fields) {
-                            if (fields.hasOwnProperty(key)) {
-                                const fieldDescription = fields[key];
-                                // REM MLS : lookup removed from preload
-                                if (fieldDescription.modelName &&
-                                    models.indexOf(fieldDescription.modelName) === -1 &&
-                                    fieldDescription.fieldType !== FieldType.Lookup &&
-                                    fieldDescription.fieldType !== FieldType.LookupMulti &&
-                                    fieldDescription.fieldType !== FieldType.Json) {
-                                    models.push(fieldDescription.modelName);
-                                }
-                            }
-                        }
-                        await Promise.all(models.map(async (modelName) => {
-                            if (!this.initValues[modelName]) {
-                                const service = ServiceFactory.getServiceByModelName(modelName);
-                                const values = await service.getAll();
-                                this.initValues[modelName] = values;
-                            }
-                        }));
-                        this.initialized = true;
-                        this.initPromise = null;
-                        resolve();
-                    }
-                    catch (error) {
-                        this.initPromise = null;
-                        reject(error);
-                    }
-                }
-            });
-        }
-        return this.initPromise;
-
-    }
+    
     /********** init for taxo multi ************/
     private fieldsInitialized = false;
     private initFieldsPromise: Promise<void> = null;
@@ -185,15 +95,11 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
 
     }
 
-    private getServiceInitValues(modelName: string): any {
-        return this.initValues[modelName];
-    }
-
     /****************************** get item methods ***********************************/
     protected async getItemFromRest(spitem: any): Promise<T> {
         const item = new this.itemType();
         for (const propertyName in this.ItemFields) {
-            if (Object.prototype.hasOwnProperty.call(this.ItemFields, propertyName)) {
+            if (this.ItemFields.hasOwnProperty(propertyName)) {
                 const fieldDescription = this.ItemFields[propertyName];
                 await this.setFieldValue(spitem, item, propertyName, fieldDescription);
             }
@@ -202,22 +108,21 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
     }
 
     private async setFieldValue(spitem: any, destItem: T, propertyName: string, fieldDescriptor: IFieldDescriptor): Promise<void> {
-        const converted = destItem as unknown as BaseItem;
         fieldDescriptor.fieldType = fieldDescriptor.fieldType || FieldType.Simple;
         switch (fieldDescriptor.fieldType) {
             case FieldType.Simple:
                 if (fieldDescriptor.fieldName === Constants.commonFields.version) {
-                    converted[propertyName] = spitem[fieldDescriptor.fieldName] ? parseFloat(spitem[fieldDescriptor.fieldName]) : fieldDescriptor.defaultValue;
+                    destItem[propertyName] = spitem[fieldDescriptor.fieldName] ? parseFloat(spitem[fieldDescriptor.fieldName]) : fieldDescriptor.defaultValue;
                 }
                 else if (fieldDescriptor.fieldName === Constants.commonFields.attachments) {
-                    converted[propertyName] = spitem[fieldDescriptor.fieldName] ? spitem[fieldDescriptor.fieldName].map((fileobj) => { return new SPFile(fileobj); }) : fieldDescriptor.defaultValue;
+                    destItem[propertyName] = spitem[fieldDescriptor.fieldName] ? spitem[fieldDescriptor.fieldName].map((fileobj) => { return new SPFile(fileobj); }) : fieldDescriptor.defaultValue;
                 }
                 else {
-                    converted[propertyName] = spitem[fieldDescriptor.fieldName] !== null && spitem[fieldDescriptor.fieldName] !== undefined ? spitem[fieldDescriptor.fieldName] : fieldDescriptor.defaultValue;
+                    destItem[propertyName] = spitem[fieldDescriptor.fieldName] !== null && spitem[fieldDescriptor.fieldName] !== undefined ? spitem[fieldDescriptor.fieldName] : fieldDescriptor.defaultValue;
                 }
                 break;
             case FieldType.Date:
-                converted[propertyName] = spitem[fieldDescriptor.fieldName] ? new Date(spitem[fieldDescriptor.fieldName]) : fieldDescriptor.defaultValue;
+                destItem[propertyName] = spitem[fieldDescriptor.fieldName] ? new Date(spitem[fieldDescriptor.fieldName]) : fieldDescriptor.defaultValue;
                 break;
             case FieldType.Lookup:
                 if(fieldDescriptor.containsFullObject && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
@@ -228,15 +133,15 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                         const tmpservice = ServiceFactory.getServiceByModelName(fieldDescriptor.modelName);
                         const conv = await tmpservice.persistItemData(obj);
                         if(conv) {
-                            converted[propertyName] = conv;
+                            destItem[propertyName] = conv;
                         }
                         else {
-                            converted[propertyName] = fieldDescriptor.defaultValue;
+                            destItem[propertyName] = fieldDescriptor.defaultValue;
                         }
                         
                     }
                     else {
-                        converted[propertyName] = fieldDescriptor.defaultValue;
+                        destItem[propertyName] = fieldDescriptor.defaultValue;
                     }                    
                 }
                 else {
@@ -253,10 +158,10 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                                     convertedObjects.push(conv);
                                 }
                             }     
-                            converted[propertyName] = convertedObjects;
+                            destItem[propertyName] = convertedObjects;
                         }
                         else {
-                            converted[propertyName] = fieldDescriptor.defaultValue;
+                            destItem[propertyName] = fieldDescriptor.defaultValue;
                         }                    
                     }
                     else {
@@ -264,17 +169,17 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                         if (lookupId !== -1) {
                             if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                                 // LOOKUPS --> links
-                                converted.__setInternalLinks(propertyName, lookupId);
-                                converted[propertyName] = fieldDescriptor.defaultValue;
+                                destItem.__setInternalLinks(propertyName, lookupId);
+                                destItem[propertyName] = fieldDescriptor.defaultValue;
 
                             }
                             else {
-                                converted[propertyName] = lookupId;
+                                destItem[propertyName] = lookupId;
                             }
 
                         }
                         else {
-                            converted[propertyName] = fieldDescriptor.defaultValue;
+                            destItem[propertyName] = fieldDescriptor.defaultValue;
                         }
                     }
                 }
@@ -284,15 +189,15 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                 if (lookupIds.length > 0) {
                     if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                         // LOOKUPS --> links
-                        converted.__setInternalLinks(propertyName, lookupIds);
-                        converted[propertyName] = fieldDescriptor.defaultValue;
+                        destItem.__setInternalLinks(propertyName, lookupIds);
+                        destItem[propertyName] = fieldDescriptor.defaultValue;
                     }
                     else {
-                        converted[propertyName] = lookupIds;
+                        destItem[propertyName] = lookupIds;
                     }
                 }
                 else {
-                    converted[propertyName] = fieldDescriptor.defaultValue;
+                    destItem[propertyName] = fieldDescriptor.defaultValue;
                 }
                 break;
             case FieldType.User:
@@ -300,18 +205,18 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                 if (id !== -1) {
                     if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                         // get values from init values
-                        const users = this.getServiceInitValues(fieldDescriptor.modelName);
+                        const users = this.getServiceInitValuesByName(fieldDescriptor.modelName);
                         const existing = find(users, (user) => {
                             return user.id === id;
                         });
-                        converted[propertyName] = existing ? existing : fieldDescriptor.defaultValue;
+                        destItem[propertyName] = existing ? existing : fieldDescriptor.defaultValue;
                     }
                     else {
-                        converted[propertyName] = id;
+                        destItem[propertyName] = id;
                     }
                 }
                 else {
-                    converted[propertyName] = fieldDescriptor.defaultValue;
+                    destItem[propertyName] = fieldDescriptor.defaultValue;
                 }
                 break;
             case FieldType.UserMulti:
@@ -320,7 +225,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                     if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                         // get values from init values
                         const val = [];
-                        const users = this.getServiceInitValues(fieldDescriptor.modelName);
+                        const users = this.getServiceInitValuesByName(fieldDescriptor.modelName);
                         ids.forEach(umid => {
                             const existing = find(users, (user) => {
                                 return user.id === umid;
@@ -329,36 +234,36 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                                 val.push(existing);
                             }
                         });
-                        converted[propertyName] = val;
+                        destItem[propertyName] = val;
                     }
                     else {
-                        converted[propertyName] = ids;
+                        destItem[propertyName] = ids;
                     }
                 }
                 else {
-                    converted[propertyName] = fieldDescriptor.defaultValue;
+                    destItem[propertyName] = fieldDescriptor.defaultValue;
                 }
                 break;
             case FieldType.Taxonomy:
                 const wssid: number = spitem[fieldDescriptor.fieldName] ? spitem[fieldDescriptor.fieldName].WssId : -1;
                 if (wssid !== -1) {
-                    const tterms = this.getServiceInitValues(fieldDescriptor.modelName);
-                    converted[propertyName] = this.getTaxonomyTermByWssId(wssid, tterms);
+                    const tterms = this.getServiceInitValuesByName<TaxonomyTerm>(fieldDescriptor.modelName);
+                    destItem[propertyName] = this.getTaxonomyTermByWssId(wssid, tterms);
                 }
                 else {
-                    converted[propertyName] = fieldDescriptor.defaultValue;
+                    destItem[propertyName] = fieldDescriptor.defaultValue;
                 }
                 break;
             case FieldType.TaxonomyMulti:
                 const tmterms = spitem[fieldDescriptor.fieldName] ? (spitem[fieldDescriptor.fieldName].results ? spitem[fieldDescriptor.fieldName].results : spitem[fieldDescriptor.fieldName]) : [];
                 if (tmterms.length > 0) {
-                    const allterms = this.getServiceInitValues(fieldDescriptor.modelName);
-                    converted[propertyName] = tmterms.map((term) => {
+                    const allterms = this.getServiceInitValuesByName<TaxonomyTerm>(fieldDescriptor.modelName);
+                    destItem[propertyName] = tmterms.map((term) => {
                         return this.getTaxonomyTermByWssId(term.WssId, allterms);
                     });
                 }
                 else {
-                    converted[propertyName] = fieldDescriptor.defaultValue;
+                    destItem[propertyName] = fieldDescriptor.defaultValue;
                 }
                 break;
             case FieldType.Json:   
@@ -367,19 +272,19 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                         const jsonObj = JSON.parse(spitem[fieldDescriptor.fieldName]);
                         if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                             const itemType = ServiceFactory.getObjectTypeByName(fieldDescriptor.modelName);
-                            converted[propertyName] = assign(new itemType(), jsonObj);
+                            destItem[propertyName] = assign(new itemType(), jsonObj);
                         }
                         else {
-                            converted[propertyName] = jsonObj;
+                            destItem[propertyName] = jsonObj;
                         }
                     }
                     catch(error) {
                         console.error(error);
-                        converted[propertyName] = fieldDescriptor.defaultValue;
+                        destItem[propertyName] = fieldDescriptor.defaultValue;
                     }
                 }
                 else {
-                    converted[propertyName] = fieldDescriptor.defaultValue;
+                    destItem[propertyName] = fieldDescriptor.defaultValue;
                 }
                 break;
         }
@@ -394,8 +299,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         return spitem;
     }
     private async setRestFieldValue(item: T, destItem: any, propertyName: string, fieldDescriptor: IFieldDescriptor): Promise<void> {
-        const converted = item as unknown as BaseItem;
-        const itemValue = converted[propertyName];
+        const itemValue = item[propertyName];
         fieldDescriptor.fieldType = fieldDescriptor.fieldType || FieldType.Simple;
         
         if (fieldDescriptor.fieldName !== Constants.commonFields.author &&
@@ -411,7 +315,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                     destItem[fieldDescriptor.fieldName] = itemValue;
                     break;
                 case FieldType.Lookup:
-                    const link = converted.__getInternalLinks(propertyName);
+                    const link = item.__getInternalLinks(propertyName);
                     if (itemValue) {
                         if (typeof (itemValue) === "number") {
                             destItem[fieldDescriptor.fieldName + "Id"] = itemValue > 0 ? itemValue : null;
@@ -426,7 +330,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                     break;
                 case FieldType.LookupMulti:
                     if (itemValue && isArray(itemValue) && itemValue.length > 0) {
-                        const links = converted.__getInternalLinks(propertyName);
+                        const links = item.__getInternalLinks(propertyName);
                         const firstLookupVal = itemValue[0];
                         if (typeof (firstLookupVal) === "number") {
                             destItem[fieldDescriptor.fieldName + "Id"] = { results: itemValue };
@@ -508,19 +412,19 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         }
         return result;
     }
-    private convertTaxonomyMultiFieldValue(value: Array<TaxonomyTerm>): any {
-        let result: any = null;
+    private convertTaxonomyMultiFieldValue(value: Array<TaxonomyTerm>): string {
+        let result: string = null;
         if (value) {
             result = value.map(term => `-1;#${term.title}|${term.id};#`).join("");
         }
         return result;
     }
 
-    private async convertSingleUserFieldValue(value: User): Promise<any> {
-        let result: any = null;
+    private async convertSingleUserFieldValue(value: User): Promise<User | number> {
+        let result: User | number = null;
         if (value) {
             if (value.id <= 0) {
-                const userService: UserService = ServiceFactory.getService(User) as UserService;
+                const userService: UserService = ServiceFactory.getService(User).cast<UserService>();
                 value = await userService.linkToSpUser(value);
 
             }
@@ -738,12 +642,12 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
 
 
     /********************************** Link to lookups  *************************************/
-    private linkedLookupFields(loadLookups?: Array<string>): any {
-        const result = [];
+    private linkedLookupFields(loadLookups?: Array<string>): Array<IFieldDescriptor> {
+        const result: Array<IFieldDescriptor> = [];
         const fields = this.ItemFields;
         for (const key in fields) {
             if (fields.hasOwnProperty(key)) {
-                const fieldDesc = fields[key] as IFieldDescriptor;
+                const fieldDesc = fields[key];
                 if ((fieldDesc.fieldType === FieldType.Lookup || fieldDesc.fieldType === FieldType.LookupMulti) && !stringIsNullOrEmpty(fieldDesc.modelName)) {
                     if (!loadLookups || loadLookups.indexOf(fieldDesc.fieldName) !== -1) {
                         result[key] = fieldDesc;
@@ -763,16 +667,15 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         const allIds = {};
         for (const key in lookupFields) {
             if (lookupFields.hasOwnProperty(key)) {
-                const fieldDesc = lookupFields[key] as IFieldDescriptor;
+                const fieldDesc = lookupFields[key];
                 if(!fieldDesc.containsFullObject) {
                     allIds[fieldDesc.modelName] = allIds[fieldDesc.modelName] || [];
                     const ids = allIds[fieldDesc.modelName];
                     items.forEach((item: T) => {
-                        const converted = item as unknown as BaseItem;
-                        const links = converted.__getInternalLinks(key);
+                        const links = item.__getInternalLinks(key);
                         //init value 
                         if (fieldDesc.fieldType === FieldType.Lookup || fieldDesc.fieldType === FieldType.LookupMulti) {
-                            converted[key] = fieldDesc.defaultValue;
+                            item[key] = fieldDesc.defaultValue;
                         }
                         if (fieldDesc.fieldType === FieldType.Lookup &&
                             // lookup has value
@@ -814,7 +717,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
             if (allIds.hasOwnProperty(modelName)) {
                 const ids = allIds[modelName];
                 if (ids && ids.length > 0) {
-                    const service = ServiceFactory.getServiceByModelName(modelName) as BaseDataService<BaseItem>;
+                    const service = ServiceFactory.getServiceByModelName(modelName);
                     promises.push(service.getItemsById(ids));
                 }
             }
@@ -831,17 +734,16 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         // Associate to items
         for (const propertyName in lookupFields) {
             if (lookupFields.hasOwnProperty(propertyName)) {
-                const fieldDesc = lookupFields[propertyName] as IFieldDescriptor;
+                const fieldDesc = lookupFields[propertyName];
                 const refCol = this.initValues[fieldDesc.modelName];
                 items.forEach((item: T) => {
-                    const converted = item as unknown as BaseItem;
-                    const links = converted.__getInternalLinks(propertyName);
+                    const links = item.__getInternalLinks(propertyName);
                     if (fieldDesc.fieldType === FieldType.Lookup &&
                         links &&
                         links !== -1) {
                         const litem = find(refCol, { id: links });
                         if (litem) {
-                            converted[propertyName] = litem;
+                            item[propertyName] = litem;
                         }
 
                     }
@@ -852,7 +754,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                         links.forEach((id) => {
                             const litem = find(refCol, { id: id });
                             if (litem) {
-                                converted[propertyName].push(litem);
+                                item[propertyName].push(litem);
                             }
                         });
                     }
@@ -862,22 +764,21 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
     }
 
     private updateInternalLinks(item: T, loadLookups?: Array<string>): void {
-        const converted = item as unknown as BaseItem;
         const lookupFields = this.linkedLookupFields(loadLookups);
         for (const propertyName in lookupFields) {
             if (lookupFields.hasOwnProperty(propertyName)) {
-                const fieldDesc = lookupFields[propertyName] as IFieldDescriptor;
+                const fieldDesc = lookupFields[propertyName];
                 if (!loadLookups || loadLookups.indexOf(fieldDesc.fieldName) !== -1) {
                     if (fieldDesc.fieldType === FieldType.Lookup) {
-                        converted.__deleteInternalLinks(propertyName);
-                        if (converted[propertyName] && converted[propertyName].id > -1) {
-                            converted.__setInternalLinks(propertyName, converted[propertyName].id);
+                        item.__deleteInternalLinks(propertyName);
+                        if (item[propertyName] && item[propertyName].id > -1) {
+                            item.__setInternalLinks(propertyName, item[propertyName].id);
                         }
                     }
                     else if (fieldDesc.fieldType === FieldType.LookupMulti) {
-                        converted.__deleteInternalLinks(propertyName);
-                        if (converted[propertyName] && converted[propertyName].length > 0) {
-                            converted.__setInternalLinks(propertyName, converted[propertyName].filter(l => l.id !== -1).map(l => l.id));
+                        item.__deleteInternalLinks(propertyName);
+                        if (item[propertyName] && item[propertyName].length > 0) {
+                            item.__setInternalLinks(propertyName, item[propertyName].filter(l => l.id !== -1).map(l => l.id));
                         }
                     }
                 }
@@ -885,12 +786,6 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         }
     }
     /***************** SP Calls associated to service standard operations ********************/
-
-    public async get(query: IQuery, linkedFields?: Array<string>): Promise<Array<T>> {
-        const result = await super.get(query, linkedFields);
-        await this.populateLookups(result, linkedFields);
-        return result;
-    }
 
     /**
      * Get items by query
@@ -1020,7 +915,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         else {
             // check version (cannot update if newer)
             if (item.version) {
-                const existing = await this.list.items.getById(item.id as number).select(Constants.commonFields.version).get();
+                const existing = await this.list.items.getById(item.id).select(Constants.commonFields.version).get();
                 if (parseFloat(existing[Constants.commonFields.version]) > item.version) {
                     const error = new Error(ServicesConfiguration.configuration.translations.versionHigherErrorMessage);
                     error.name = Constants.Errors.ItemVersionConfict;
@@ -1028,7 +923,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                 }
                 else {
                     const converted = await this.getSPRestItem(item);
-                    const updateResult = await this.list.items.getById(item.id as number).select(...selectFields).update(converted);
+                    const updateResult = await this.list.items.getById(item.id).select(...selectFields).update(converted);
                     const version = await updateResult.item.select(...selectFields).get();
                     await this.populateCommonFields(result, version);
                     await this.updateWssIds(result, version);
@@ -1036,7 +931,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
             }
             else {
                 const converted = await this.getSPRestItem(item);
-                const updateResult = await this.list.items.getById(item.id as number).update(converted);
+                const updateResult = await this.list.items.getById(item.id).update(converted);
                 const version = await updateResult.item.select(...selectFields).get();
                 await this.populateCommonFields(result, version);
                 await this.updateWssIds(result, version);
@@ -1046,7 +941,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
     }
 
     protected async addOrUpdateItems_Internal(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void): Promise<Array<T>> {
-        const result = cloneDeep(items);
+        const result:  Array<T> = cloneDeep(items);
         const itemsToAdd = result.filter((item) => {
             return item.id < 0;
         });
@@ -1101,7 +996,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                 const batch = sp.createBatch();
                 for (const item of sub) {
                     const currentIdx = idx;
-                    this.list.items.getById(item.id as number).select(Constants.commonFields.version).inBatch(batch).get().then(async (existing) => {
+                    this.list.items.getById(item.id).select(Constants.commonFields.version).inBatch(batch).get().then(async (existing) => {
                         if (parseFloat(existing[Constants.commonFields.version]) > item.version) {
                             const error = new Error(ServicesConfiguration.configuration.translations.versionHigherErrorMessage);
                             error.name = Constants.Errors.ItemVersionConfict;
@@ -1126,7 +1021,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
             await UtilsService.runBatchesInStacks(batches, 3);
         }
         // 
-        const resultItems = [];
+        const resultItems:  Array<T> = [];
         // classical update batch + version checked
         if (updatedItems.length > 0) {
             let idx = 0;
@@ -1137,7 +1032,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                 for (const item of sub) {
                     const currentIdx = idx;
                     const converted = await this.getSPRestItem(item);
-                    this.list.items.getById(item.id as number).select(...selectFields).inBatch(batch).update(converted, '*', entityTypeFullName).then(async () => {
+                    this.list.items.getById(item.id).select(...selectFields).inBatch(batch).update(converted, '*', entityTypeFullName).then(async () => {
                         resultItems.push(item);
 
                     }).catch((error) => {
@@ -1161,7 +1056,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                 const batch = sp.createBatch();
                 for (const item of sub) {
                     const currentIdx = idx;
-                    this.list.items.getById(item.id as number).select(...selectFields).inBatch(batch).get().then(async (version) => {
+                    this.list.items.getById(item.id).select(...selectFields).inBatch(batch).get().then(async (version) => {
                         await this.populateCommonFields(item, version);
                         await this.updateWssIds(item, version);
                         if (onItemUpdated) {
@@ -1189,7 +1084,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
      */
     protected async deleteItem_Internal(item: T): Promise<T> {
         try {
-            await this.list.items.getById(item.id as number).recycle();
+            await this.list.items.getById(item.id).recycle();
             item.deleted = true;
         }
         catch(error) {
@@ -1201,7 +1096,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
     protected async deleteItems_Internal(items: Array<T>): Promise<Array<T>> {
         const batch = sp.createBatch();
         items.forEach(item => {
-            this.list.items.getById(item.id as number).inBatch(batch).recycle().then(() => {
+            this.list.items.getById(item.id).inBatch(batch).recycle().then(() => {
                 item.deleted = true;
             }).catch((error) => {
                 item.error = error;
@@ -1405,11 +1300,9 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
      * @param item - full provisionned item
      */
     protected async convertItemToDbFormat(item: T): Promise<T> {
-        const converted = item as unknown as BaseItem;
-        const result: T = cloneDeep(item);
-        const convertedResult = result as unknown as BaseItem;
-        for (const propertyName in convertedResult) {
-            if (convertedResult.hasOwnProperty(propertyName)) {
+        const result: T = await super.convertItemToDbFormat(item);
+        for (const propertyName in result) {
+            if (result.hasOwnProperty(propertyName)) {
                 if (this.ItemFields.hasOwnProperty(propertyName)) {
                     const fieldDescriptor = this.ItemFields[propertyName];
                     switch (fieldDescriptor.fieldType) {
@@ -1417,18 +1310,18 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                         case FieldType.Taxonomy:
                             if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                                 //link defered
-                                if (converted[propertyName]) {
-                                    convertedResult.__setInternalLinks(propertyName, converted[propertyName].id);
+                                if (item[propertyName]) {
+                                    result.__setInternalLinks(propertyName, (item[propertyName] as unknown as BaseItem).id);
                                 }
-                                delete convertedResult[propertyName];
+                                delete result[propertyName];
                             }
                             break;
                         case FieldType.UserMulti:
                         case FieldType.TaxonomyMulti:
                             if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                                 const ids = [];
-                                if (converted[propertyName]) {
-                                    converted[propertyName].forEach(element => {
+                                if (item[propertyName]) {
+                                    (item[propertyName] as unknown as BaseItem[]).forEach(element => {
                                         if (element.id) {
                                             if ((typeof (element.id) === "number" && element.id > 0) || (typeof (element.id) === "string" && !stringIsNullOrEmpty(element.id))) {
                                                 ids.push(element.id);
@@ -1436,36 +1329,36 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                                         }
                                     });
                                 }
-                                convertedResult.__setInternalLinks(propertyName, ids.length > 0 ? ids : []);
-                                delete convertedResult[propertyName];
+                                result.__setInternalLinks(propertyName, ids.length > 0 ? ids : []);
+                                delete result[propertyName];
                             }
                             break;
                         case FieldType.Lookup:
                         case FieldType.LookupMulti:
                             // internal links allready updated before (used for rest calls)
                             if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                                delete convertedResult[propertyName];
-                                convertedResult.__setInternalLinks(propertyName, converted.__getInternalLinks(propertyName));
+                                delete result[propertyName];
+                                result.__setInternalLinks(propertyName, item.__getInternalLinks(propertyName));
                             }
                             break;
                         default:
                             if (fieldDescriptor.fieldName === Constants.commonFields.attachments) {
                                 let ids = [];
-                                if (converted[propertyName] && converted[propertyName].length > 0) {
-                                    const files = await this.attachmentsService.addOrUpdateItems(converted[propertyName]);
+                                if (item[propertyName] && (item[propertyName] as unknown as SPFile[]).length > 0) {
+                                    const files = await this.attachmentsService.addOrUpdateItems(item[propertyName] as unknown as SPFile[]);
                                     ids = files.map((f) => {
                                         return f.id;
                                     });
                                 }
-                                convertedResult.__setInternalLinks(propertyName, ids.length > 0 ? ids : []);
-                                delete convertedResult[propertyName];
+                                result.__setInternalLinks(propertyName, ids.length > 0 ? ids : []);
+                                delete result[propertyName];
                             }
                             break;
                     }
 
                 }
-                else if(typeof(convertedResult[propertyName]) === "function") {
-                    delete convertedResult[propertyName];
+                else if(typeof(result[propertyName]) === "function") {
+                    delete result[propertyName];
                 }
             }
         }
@@ -1481,9 +1374,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         if (items && items.length > 0) {
             await this.Init();
             for (const item of items) {
-                const converted = item as unknown as BaseItem;
                 const result: T = cloneDeep(item);
-                const convertedResult = result as unknown as BaseItem;
                 if (item) {
                     for (const propertyName in this.ItemFields) {
                         if (this.ItemFields.hasOwnProperty(propertyName)) {
@@ -1493,29 +1384,29 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                                 fieldDescriptor.fieldType === FieldType.Taxonomy) {
                                 if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                                     // get values from init values
-                                    const id: number = converted.__getInternalLinks(propertyName);
+                                    const id: number = item.__getInternalLinks(propertyName);
                                     if (id !== null) {
-                                        const destElements = this.getServiceInitValues(fieldDescriptor.modelName);
+                                        const destElements = this.getServiceInitValuesByName(fieldDescriptor.modelName);
                                         const existing = find(destElements, (destElement) => {
                                             return destElement.id === id;
                                         });
-                                        convertedResult[propertyName] = existing ? existing : fieldDescriptor.defaultValue;
+                                        result[propertyName] = existing ? existing : fieldDescriptor.defaultValue;
                                     }
                                     else {
-                                        convertedResult[propertyName] = fieldDescriptor.defaultValue;
+                                        result[propertyName] = fieldDescriptor.defaultValue;
                                     }
                                 }
-                                convertedResult.__deleteInternalLinks(propertyName);
+                                result.__deleteInternalLinks(propertyName);
                             }
                             else if (//fieldDescriptor.fieldType === FieldType.LookupMulti ||
                                 fieldDescriptor.fieldType === FieldType.UserMulti ||
                                 fieldDescriptor.fieldType === FieldType.TaxonomyMulti) {
                                 if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                                     // get values from init values
-                                    const ids = converted.__getInternalLinks(propertyName) || [];
+                                    const ids = item.__getInternalLinks(propertyName) || [];
                                     if (ids.length > 0) {
                                         const val = [];
-                                        const targetItems = this.getServiceInitValues(fieldDescriptor.modelName);
+                                        const targetItems = this.getServiceInitValuesByName(fieldDescriptor.modelName);
                                         ids.forEach(id => {
                                             const existing = find(targetItems, (tmpitem) => {
                                                 return tmpitem.id === id;
@@ -1524,39 +1415,39 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                                                 val.push(existing);
                                             }
                                         });
-                                        convertedResult[propertyName] = val;
+                                        result[propertyName] = val;
                                     }
                                     else {
-                                        convertedResult[propertyName] = fieldDescriptor.defaultValue;
+                                        result[propertyName] = fieldDescriptor.defaultValue;
                                     }
                                 }
-                                convertedResult.__deleteInternalLinks(propertyName);
+                                result.__deleteInternalLinks(propertyName);
                             }
                             else if(fieldDescriptor.fieldType === FieldType.Json && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                                 const itemType = ServiceFactory.getObjectTypeByName(fieldDescriptor.modelName);
-                                convertedResult[propertyName] = assign(new itemType(), converted[propertyName]);
+                                result[propertyName] = assign(new itemType(), item[propertyName]);
                             }
                             else {
                                 if (fieldDescriptor.fieldName === Constants.commonFields.attachments) {
                                     // get values from init values
-                                    const urls = converted.__getInternalLinks(propertyName) || [];
+                                    const urls = item.__getInternalLinks(propertyName) || [];
                                     if (urls.length > 0) {
                                         const files = await this.attachmentsService.getItemsById(urls);
-                                        convertedResult[propertyName] = files;
+                                        result[propertyName] = files;
                                     }
                                     else {
-                                        convertedResult[propertyName] = fieldDescriptor.defaultValue;
+                                        result[propertyName] = fieldDescriptor.defaultValue;
                                     }
-                                    convertedResult.__deleteInternalLinks(propertyName);
+                                    result.__deleteInternalLinks(propertyName);
                                 }
                                 else {
-                                    convertedResult[propertyName] = converted[propertyName];
+                                    result[propertyName] = item[propertyName];
                                 }
                             }
                         }
                     }
                 }
-                convertedResult.__clearEmptyInternalLinks();
+                result.__clearEmptyInternalLinks();
                 results.push(result);
             }
         }
@@ -1578,8 +1469,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                     if (fieldDescription.refItemName === this.itemType["name"] || fieldDescription.modelName === this.itemType["name"]) {
                         // get object if not done yet
                         if (!currentObject) {
-                            const destType = ServiceFactory.getItemTypeByName(transaction.itemType);
-                            currentObject = new destType();
+                            currentObject = ServiceFactory.getItemByName(transaction.itemType);
                             assign(currentObject, transaction.itemData);
                         }
                         if (fieldDescription.fieldType === FieldType.Lookup) {
@@ -1654,53 +1544,52 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                     const allitems = await service.__getAllFromCache();
                     const updated = [];
                     allitems.forEach(element => {
-                        const converted = element as unknown as BaseItem;
                         let needUpdate = false;
                         lookupProperties.forEach(propertyName => {
                             const fieldDescription = modelFields[propertyName];
                             if (fieldDescription.fieldType === FieldType.Lookup) {
                                 if (fieldDescription.modelName) {
                                     // serch in internalLinks
-                                    const link = converted.__getInternalLinks(propertyName);
+                                    const link = element.__getInternalLinks(propertyName);
                                     if (link && link === oldId) {
-                                        converted.__setInternalLinks(propertyName, newId);
+                                        element.__setInternalLinks(propertyName, newId);
                                         needUpdate = true;
                                     }
                                 }
-                                else if (converted[propertyName] === oldId) {
+                                else if (element[propertyName] === oldId) {
                                     // change field
-                                    converted[propertyName] = newId;
+                                    element[propertyName] = newId;
                                     needUpdate = true;
                                 }
                             }
                             else if (fieldDescription.fieldType === FieldType.LookupMulti) {
                                 if (fieldDescription.modelName) {
                                     // search in internalLinks
-                                    const links = converted.__getInternalLinks(propertyName);
+                                    const links = element.__getInternalLinks(propertyName);
                                     if (links && isArray(links)) {
                                         // find item
                                         const lookupidx = findIndex(links, (id) => { return id === oldId; });
                                         // change id
                                         if (lookupidx > -1) {
-                                            converted.__setInternalLinks(propertyName, newId);
+                                            element.__setInternalLinks(propertyName, newId);
                                             needUpdate = true;
                                         }
                                     }
                                 }
-                                else if (converted[propertyName] && isArray(converted[propertyName])) {
+                                else if (element[propertyName] && isArray(element[propertyName])) {
                                     // find index
-                                    const lookupidx = findIndex(converted[propertyName], (id) => { return id === oldId; });
+                                    const lookupidx = findIndex(element[propertyName], (id) => { return id === oldId; });
                                     // change field
                                     // change id
                                     if (lookupidx > -1) {
-                                        converted[propertyName] = newId;
+                                        element[propertyName] = newId;
                                         needUpdate = true;
                                     }
                                 }
                             }
                         });
                         if (needUpdate) {
-                            updated.push(converted);
+                            updated.push(element);
                         }
                     });
                     if (updated.length > 0) {
@@ -1711,6 +1600,8 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         }
 
     }
+
+    
 
 
     private async updateWssIds(item: T, spItem: any): Promise<void> {
@@ -1741,7 +1632,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                             await service.__updateCache(term);
                             // update initValues
                             if (this.initialized) {
-                                const idx = findIndex(this.initValues[fieldDescription.modelName], (t: any) => { return t.id === id; });
+                                const idx = findIndex(this.initValues[fieldDescription.modelName], (t: BaseItem) => { return t.id === id; });
                                 if (idx !== -1) {
                                     this.initValues[fieldDescription.modelName][idx] = term;
                                 }
@@ -1778,7 +1669,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                         // update initValues
                         if (this.initialized) {
                             updated.forEach((u) => {
-                                const idx = findIndex(this.initValues[fieldDescription.modelName], (t: any) => { return t.id === u.id; });
+                                const idx = findIndex(this.initValues[fieldDescription.modelName], (t: BaseItem) => { return t.id === u.id; });
                                 if (idx !== -1) {
                                     this.initValues[fieldDescription.modelName][idx] = u;
                                 }
@@ -1788,6 +1679,12 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                 }
             }
         }
+    }
+
+    public async refreshData(): Promise<void>  {
+        this.initialized = false;
+        this.initValues = {};
+        return super.refreshData();
     }
 
 

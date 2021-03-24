@@ -1,4 +1,4 @@
-import { SPItem } from "../";
+import { SPItem } from "../base/SPItem";
 import { Decorators } from "../../decorators";
 
 const field = Decorators.field;

@@ -2,8 +2,9 @@ import { Text } from "@microsoft/sp-core-library";
 import { cloneDeep, find } from "@microsoft/sp-lodash-subset";
 import { stringIsNullOrEmpty } from "@pnp/common";
 import { ITerm, ITermSet, taxonomy } from "@pnp/sp-taxonomy";
-import { ServiceFactory, UtilsService } from "../";
-import { ServicesConfiguration } from "../..";
+import { ServiceFactory } from "../ServiceFactory";
+import { UtilsService } from "../UtilsService";
+import { ServicesConfiguration } from "../../configuration/ServicesConfiguration";
 import { Constants } from "../../constants/index";
 import { TaxonomyHidden, TaxonomyTerm } from "../../models";
 import { BaseDataService } from "./BaseDataService";
@@ -56,8 +57,8 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
      * @param context - current sp component context 
      * @param termsetname - term set name
      */
-    constructor(type: (new (item?: any) => T), termsetnameorid: string, tableName: string, isGlobal = true, cacheDuration: number = standardTermSetCacheDuration) {
-        super(type, tableName, cacheDuration);
+    constructor(type: (new (item?: any) => T), termsetnameorid: string, isGlobal = true, cacheDuration: number = standardTermSetCacheDuration) {
+        super(type, cacheDuration);
         this.utilsService = new UtilsService();
         this.termsetnameorid = termsetnameorid;
         this.isGlobal = isGlobal;

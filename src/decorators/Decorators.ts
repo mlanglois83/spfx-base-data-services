@@ -1,3 +1,4 @@
+import { ServicesConfiguration } from "../configuration/ServicesConfiguration";
 import { IFieldDescriptor, IRestServiceDescriptor } from "../interfaces";
 
 
@@ -45,25 +46,38 @@ export namespace Decorators {
 
     export function dataService(modelName: string): (target: any) => void { 
         return (target: any): void => {
-            if(!target.__factory) {
-                target.__factory = {};
+            if(!ServicesConfiguration.__factory) {
+                ServicesConfiguration.__factory = {
+                    models: {},
+                    services: {},
+                    objects: {}
+                };
+            }
+            if(!ServicesConfiguration.__factory.services) {
+                ServicesConfiguration.__factory.services = {};
             }
             // First key : model name
-            if(!target.__factory[modelName]) {
-                target.__factory[modelName] = target;
+            if(!ServicesConfiguration.__factory.services[modelName]) {
+                ServicesConfiguration.__factory.services[modelName] = target;
             }                       
         };
     }
 
     export function dataModel(): (target: any) => void { 
         return (target: any): void => {
-            // constructs a static dictionnary on SPItem class
-            if(!target.__factory) {
-                target.__factory = {};
+            if(!ServicesConfiguration.__factory) {
+                ServicesConfiguration.__factory = {
+                    models: {},
+                    services: {},
+                    objects: {}
+                };
+            }
+            if(!ServicesConfiguration.__factory.models) {
+                ServicesConfiguration.__factory.models = {};
             }
             // First key : model name
-            if(!target.__factory[target["name"]]) {
-                target.__factory[target["name"]] = target;
+            if(!ServicesConfiguration.__factory.models[target["name"]]) {
+                ServicesConfiguration.__factory.models[target["name"]] = target;
             }                    
         };
     }

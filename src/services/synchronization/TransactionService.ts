@@ -1,5 +1,5 @@
 import { assign } from "@microsoft/sp-lodash-subset";
-import { ServiceFactory } from "..";
+import { ServiceFactory } from "../ServiceFactory";
 import { BaseFile, OfflineTransaction } from "../../models/index";
 import { BaseDbService } from "../base/BaseDbService";
 
@@ -91,8 +91,7 @@ export class TransactionService extends BaseDbService<OfflineTransaction> {
                 const file = await this.transactionFileService.getItemById(item.itemData);
                 if (file) {
                     const id = file.id.toString().replace(/^\d+_(.*)$/g, "$1");
-                    const type = ServiceFactory.getItemTypeByName(item.itemType);
-                    const temp = new type();
+                    const temp = ServiceFactory.getItemByName(item.itemType);
                     if(typeof(temp.id) === "number") {
                         file.id = parseInt(id);
                     }
@@ -117,8 +116,7 @@ export class TransactionService extends BaseDbService<OfflineTransaction> {
             const file = await this.transactionFileService.getItemById(result.itemData);
             if (file) {
                 const fileid = file.id.toString().replace(/^\d+_(.*)$/g, "$1");
-                const type = ServiceFactory.getItemTypeByName(result.itemType);
-                const temp = new type();
+                const temp = ServiceFactory.getItemByName(result.itemType);
                 if(typeof(temp.id) === "number") {
                     file.id = parseInt(fileid);
                 }
@@ -141,8 +139,7 @@ export class TransactionService extends BaseDbService<OfflineTransaction> {
     }
 
     private isFile(itemTypeName: string): boolean {
-        const itemType = ServiceFactory.getItemTypeByName(itemTypeName);
-        const instance = new itemType();
+        const instance = ServiceFactory.getItemByName(itemTypeName);
         return (instance instanceof BaseFile);
     }
 

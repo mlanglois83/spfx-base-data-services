@@ -5,7 +5,6 @@ import { IBaseItem, IDataService, IQuery } from "../../interfaces";
 import { BaseService } from "./BaseService";
 import { UtilsService } from "../UtilsService";
 import { ServicesConfiguration } from "../../configuration";
-import { Constants } from "../../constants";
 
 import { Mutex } from 'async-mutex';
 import { BaseFile } from "../../models";
@@ -88,10 +87,9 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                 throw new Error(ServicesConfiguration.configuration.translations.IndexedDBNotDefined);
             }
             const dbName = Text.format(ServicesConfiguration.configuration.dbName, ServicesConfiguration.context.pageContext.web.serverRelativeUrl);
-            this.db = await openDb(dbName, ServicesConfiguration.configuration.dbVersion, (UpgradeDB) => {
-                const tableNames = Constants.tableNames.concat(ServicesConfiguration.configuration.tableNames);
+            this.db = await openDb(dbName, ServicesConfiguration.configuration.dbVersion, (UpgradeDB) => {   
                 // add new tables
-                for (const tableName of tableNames) {
+                for (const tableName of ServicesConfiguration.configuration.tableNames) {
                     if (!UpgradeDB.objectStoreNames.contains(tableName)) {
                         UpgradeDB.createObjectStore(tableName, { keyPath: 'id', autoIncrement: tableName == "Transaction" });
                     }

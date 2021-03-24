@@ -1,18 +1,18 @@
-
-import { IBaseItem } from "../../interfaces";
 import { assign, findIndex } from "@microsoft/sp-lodash-subset";
-import { FieldType, ServiceFactory } from "../..";
 import { stringIsNullOrEmpty } from "@pnp/pnpjs";
+import { FieldType } from "../../constants";
+import { IBaseItem, IFieldDescriptor } from "../../interfaces";
+import { ServiceFactory } from "../../services/ServiceFactory";
 
 /**
  * Base object for sharepoint item abstraction objects
  */
 export abstract class BaseItem implements IBaseItem {
-    public static __factory: any = {};
+
     /**
      * internal field for linked items not stored in db
      */
-    public __internalLinks?: any;
+    public __internalLinks?:  any;
 
     public __getInternalLinks(propertyName: string): any {
         let result = null;
@@ -41,6 +41,10 @@ export abstract class BaseItem implements IBaseItem {
         if (this.__internalLinks) {
             delete this.__internalLinks[propertyName];
         }
+    }
+
+    public __clearInternalLinks(): void {
+        delete this.__internalLinks;
     }
 
     public __clearEmptyInternalLinks(): void {
@@ -76,32 +80,18 @@ export abstract class BaseItem implements IBaseItem {
         return true;
     }
 
-    private _itemFields = null;
-    public get ItemFields(): any {
-        if(this._itemFields) {
-            return this._itemFields;
-        }
-        else {
-            this._itemFields = {};
-            if (this.constructor["Fields"][this.constructor["name"]]) {
-                assign(this._itemFields, this.constructor["Fields"][this.constructor["name"]]);
-            }
-            let parentType = this.constructor; 
-            do {
-                parentType = Object.getPrototypeOf(parentType);
-                if(this.constructor["Fields"][parentType["name"]]) {
-                    for (const key in this.constructor["Fields"][parentType["name"]]) {
-                        if (Object.prototype.hasOwnProperty.call(this.constructor["Fields"][parentType["name"]], key)) {
-                            if(this._itemFields[key] === undefined || this._itemFields[key] === null) {
-                                // keep higher level redefinition
-                                this._itemFields[key] = this.constructor["Fields"][parentType["name"]][key];
-                            }                            
-                        }
-                    }
+    public cleanBeforeStorage(): void {
+        for (const propertyName in this) {
+            if (this.hasOwnProperty(propertyName)) {
+                if (!this.ItemFields.hasOwnProperty(propertyName) && typeof (this[propertyName]) === "function") {
+                    delete this[propertyName];
                 }
-            } while(parentType["name"] !== BaseItem["name"]);
+            }
         }
-        return this._itemFields;
+    }
+
+    public get ItemFields(): {[propertyName: string]: IFieldDescriptor } {
+        return ServiceFactory.getModelFields(this.constructor["name"]);        
     }
     
     public fromObject(object: any): void {
@@ -125,8 +115,7 @@ export abstract class BaseItem implements IBaseItem {
                         case FieldType.Taxonomy:
                         case FieldType.Lookup:
                             // get model from serviceFactory
-                            const singleModelConstructor = ServiceFactory.getItemTypeByName(fieldDescriptor.modelName);
-                            const singleModelValue = new singleModelConstructor();
+                            const singleModelValue =  ServiceFactory.getItemByName(fieldDescriptor.modelName);
                             singleModelValue.fromObject(this[propertyName]);
                             this[propertyName] = singleModelValue;
                             break;

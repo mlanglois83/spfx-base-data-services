@@ -1,16 +1,20 @@
 import { BaseComponentContext } from "@microsoft/sp-component-base";
 import { sp } from "@pnp/sp";
 import { taxonomy } from "@pnp/sp-taxonomy";
-import { IConfiguration } from "../interfaces";
-import { Constants } from "../constants";
-import { find } from "@microsoft/sp-lodash-subset";
+import { IConfiguration, IFactoryMapping } from "../interfaces";
 import { graph } from "@pnp/graph";
+import { Constants } from "..";
 
 /**
  * Configuration class for spfx base data services
  */
 export class ServicesConfiguration {
 
+    public static __factory: IFactoryMapping = {
+        models: {},
+        services: {},
+        objects: {}
+    };
     /**
      * Web Part Context
      */
@@ -35,7 +39,6 @@ export class ServicesConfiguration {
         checkOnline: false,
         onlineCheckPage: "",
         context: null,
-        tableNames: [],
         currentUserId: -1,
         translations: {
             AddLabel: "Add",
@@ -55,9 +58,26 @@ export class ServicesConfiguration {
      */
     public static Init(configuration: IConfiguration): void {
         ServicesConfiguration.configurationInternal = configuration;
-        configuration.tableNames = configuration.tableNames || [];
-        if (!find(configuration.tableNames, (s) => { return s === Constants.taxonomyHiddenList.tableName; })) {
-            configuration.tableNames.push(Constants.taxonomyHiddenList.tableName);
+        configuration.tableNames = Constants.tableNames.concat(configuration.tableNames || []);
+        configuration.lastConnectionCheckResult = false;
+        configuration.checkOnline = configuration.checkOnline === true;
+        configuration.translations = configuration.translations || {
+            AddLabel: "Add",
+            DeleteLabel: "Delete",
+            IndexedDBNotDefined: "IDB not defined",
+            SynchronisationErrorFormat: "Sync error",
+            UpdateLabel: "Update",
+            UploadLabel: "Upload",
+            versionHigherErrorMessage: "Version conflict",
+            typeTranslations: []
+        };
+        configuration.currentUserId = configuration.currentUserId > 0 ? configuration.currentUserId : -1;
+        
+        const allModels = ServicesConfiguration.__factory?.models || {};
+        for (const key in allModels) {
+            if (allModels.hasOwnProperty(key)) {
+                configuration.tableNames.push(key); 
+            }
         }
         // SP calls init with no cache
         sp.setup({
@@ -81,5 +101,9 @@ export class ServicesConfiguration {
         graph.setup({
             spfxContext: ServicesConfiguration.context
         });
+    }
+
+    public static addObjectMapping(typeName: string, objectConstructor: (new () => any)): void {
+        ServicesConfiguration.__factory.objects[typeName] = objectConstructor;
     }
 }

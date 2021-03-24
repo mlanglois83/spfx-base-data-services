@@ -15,7 +15,7 @@ export class TaxonomyHiddenListService extends BaseListItemService<TaxonomyHidde
 
 
     constructor() {
-        super(TaxonomyHidden, Constants.taxonomyHiddenList.relativeUrl, Constants.taxonomyHiddenList.tableName, cacheDuration);
+        super(TaxonomyHidden, Constants.taxonomyHiddenList.relativeUrl, cacheDuration);
 
     }
 

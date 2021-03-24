@@ -1,6 +1,7 @@
 export { TaxonomyTerm } from "./base/TaxonomyTerm";
 export { SPItem } from "./base/SPItem";
 export { RestItem } from "./base/RestItem";
+export { RestResultMapping } from "./base/RestResultMapping";
 export { BaseItem } from "./base/BaseItem";
 export { BaseFile } from "./base/BaseFile";
 export { SPFile } from "./base/SPFile";

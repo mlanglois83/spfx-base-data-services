@@ -53,10 +53,6 @@ export const Constants = {
      */
     taxonomyHiddenList: {
         /**
-         * Table name in indexed db
-         */
-        tableName: "TaxonomyHiddenList",
-        /**
          * list web relative url
          */
         relativeUrl: "/lists/taxonomyhiddenlist"
@@ -67,7 +63,7 @@ export const Constants = {
     tableNames: [
         "Transaction",
         "TransactionFiles",
-        "TaxonomyHiddenList", 
-        "Users"
+        "ListAttachments",
+        "RestMapping"
     ]
 };

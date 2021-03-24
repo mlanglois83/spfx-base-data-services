@@ -16,11 +16,11 @@ export interface IConfiguration {
     /**
      * Result of the last connection test call
      */
-    lastConnectionCheckResult: boolean;
+    lastConnectionCheckResult?: boolean;
     /**
      * true : services can retrieve data when offline, false : every time a network call is performed
      */
-    checkOnline: boolean;
+    checkOnline?: boolean;
 
     /**
     * empty : indicate a specific url to test online/offline instead of site root (creating 302 to default page). Fill this value avoid making to many request
@@ -33,15 +33,15 @@ export interface IConfiguration {
     /**
      * Data table names used to update structure (1 by data service)
      */
-    tableNames: Array<string>;
+    tableNames?: Array<string>;
     /**
      * Translations used by synchronization service when an operation or an error is reported
      */
-    translations: ITranslationLabels;
+    translations?: ITranslationLabels;
     /**
      * Current user id
      */
-    currentUserId: number;
+    currentUserId?: number;
     /**
      * Id of Azure AD app registered to get authentication token
      */

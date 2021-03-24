@@ -1,32 +1,143 @@
 import { assign, cloneDeep, findIndex } from "@microsoft/sp-lodash-subset";
-import { IBaseItem, IDataService, IQuery, ILogicalSequence, IPredicate } from "../../interfaces";
-import { OfflineTransaction, TaxonomyTerm } from "../../models";
+import { IDataService, IQuery, ILogicalSequence, IPredicate, IFieldDescriptor } from "../../interfaces";
+import { BaseItem, OfflineTransaction, TaxonomyTerm } from "../../models";
 import { UtilsService } from "../UtilsService";
 import { TransactionService } from "../synchronization/TransactionService";
 import { BaseDbService } from "./BaseDbService";
 import { BaseService } from "./BaseService";
 import { Text } from "@microsoft/sp-core-library";
-import { TransactionType, Constants, LogicalOperator, TestOperator, QueryToken } from "../../constants";
+import { TransactionType, Constants, LogicalOperator, TestOperator, QueryToken, FieldType } from "../../constants";
 import { ServicesConfiguration } from "../../configuration";
 import { stringIsNullOrEmpty } from "@pnp/common";
+import { ServiceFactory } from "../ServiceFactory";
 
 
 /**
  * Base class for data service allowing automatic management of online/offline mode with links to db and sp 
  */
-export abstract class BaseDataService<T extends IBaseItem> extends BaseService implements IDataService<T> {
+export abstract class BaseDataService<T extends BaseItem> extends BaseService implements IDataService<T> {
     private itemModelType: (new (item?: any) => T);
     protected transactionService: TransactionService;
     protected dbService: BaseDbService<T>;
-    protected cacheDuration = -1;
+    protected cacheDuration = -1;      
 
-    public static __factory: any = {};
-
-    public get ItemFields(): any {
-        return {};
+    public get serviceName(): string {
+        return this.constructor["name"];
     }
 
+    public get itemType(): (new (item?: any) => T) {
+        return this.itemModelType;
+    }
 
+    public cast<Tdest extends BaseDataService<T>> (): Tdest {
+        return this as unknown as Tdest;
+    }
+
+    /**
+     * 
+     * @param type - type of items
+     * @param context - context of the current wp
+     */
+    constructor(type: (new (item?: any) => T), cacheDuration = -1) {
+        super();
+        if(ServiceFactory.isServiceManaged(type["name"]) && !ServiceFactory.isServiceInitializing(type["name"])) {
+            console.warn(`Service constructor called out of Service factory. Please use ServiceFactory.getService(${type["name"]}) or ServiceFactory.getServiceByModelName("${type["name"]}")`);
+        }
+        this.itemModelType = type;
+        this.cacheDuration = cacheDuration;
+        this.dbService = new BaseDbService<T>(type, type["name"]);
+        this.transactionService = new TransactionService();
+    }
+
+    /***************************** External sources init and access **************************************/
+    protected initValues: {[modelName: string]: BaseItem[]} = {};
+
+
+    protected initialized = false;
+    protected get isInitialized(): boolean {
+        return this.initialized;
+    }
+    private initPromise: Promise<void> = null;
+
+    protected async init_internal(): Promise<void> {
+        return;
+    }
+
+    public async Init(): Promise<void> {
+        if (!this.initPromise) {
+            this.initPromise = new Promise<void>(async (resolve, reject) => {
+                if (this.initialized) {
+                    resolve();
+                }
+                else {
+                    this.initValues = {};
+                    try {
+                        if (this.init_internal) {
+                            await this.init_internal();
+                        }
+                        const fields = this.ItemFields;
+                        const models: string[] = [];
+                        for (const key in fields) {
+                            if (fields.hasOwnProperty(key)) {
+                                const fieldDescription = fields[key];
+                                if (fieldDescription.modelName &&
+                                    models.indexOf(fieldDescription.modelName) === -1 &&
+                                    fieldDescription.fieldType !== FieldType.Lookup &&
+                                    fieldDescription.fieldType !== FieldType.LookupMulti &&
+                                    fieldDescription.fieldType !== FieldType.Json) {
+                                    models.push(fieldDescription.modelName);
+                                }
+                            }
+                        }
+                        await Promise.all(models.map(async (modelName) => {
+                            if (!this.initValues[modelName]) {
+                                const service = ServiceFactory.getServiceByModelName(modelName);
+                                const values = await service.getAll();
+                                this.initValues[modelName] = values;
+                            }
+                        }));
+                        this.initialized = true;
+                        this.initPromise = null;
+                        resolve();
+                    }
+                    catch (error) {
+                        this.initPromise = null;
+                        reject(error);
+                    }
+                }
+            });
+        }
+        return this.initPromise;
+
+    }
+
+    protected getServiceInitValues<Tvalue extends BaseItem>(model: new (data?: any) => Tvalue): Tvalue[] {
+        return this.getServiceInitValuesByName<Tvalue>(model["name"]);
+    }
+
+    protected getServiceInitValuesByName<Tvalue extends BaseItem>(modelName: string): Tvalue[] {
+        return this.initValues[modelName] as Tvalue[];
+    }
+
+    protected updateInitValues(modelName: string, ...items: BaseItem[]): void {
+        this.initValues[modelName] = this.initValues[modelName] || [];
+        items.forEach(i => {
+            const idx = findIndex(this.initValues[modelName], iv => iv.id === i.id);
+            if(idx !== -1) {
+                this.initValues[modelName][idx] = i;
+            }
+            else {
+                this.initValues[modelName].push(i);
+            }
+        });
+    }
+    /*************************************************************************************************************************/
+
+    /********************************************* Fields Management *********************************************************/
+    
+    public get ItemFields(): {[propertyName: string]: IFieldDescriptor} {        
+        return ServiceFactory.getModelFields(this.itemType["name"]);
+    }
     public get Identifier(): Array<string> {
 
         const fields = this.ItemFields;
@@ -44,44 +155,17 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         return fieldNames;
     }
 
+
+    /*****************************************************************************************************************************************************************/
+
+
+
+    /**************************************************************** Promise Concurency ******************************************************************************/
+
     /**
      * Stored promises to avoid multiple calls
      */
-    protected static promises = {};
-
-    public get serviceName(): string {
-        return this.constructor["name"];
-    }
-
-    public get itemType(): (new (item?: any) => T) {
-        return this.itemModelType;
-    }
-
-    public cast<Tdest extends BaseDataService<T>> (): Tdest {
-        return this as unknown as Tdest;
-    }
-
-    public async Init(): Promise<void> {
-        return;
-    }
-
-    /**
-     * 
-     * @param type - type of items
-     * @param context - context of the current wp
-     * @param tableName - name of indexedDb table 
-     */
-    constructor(type: (new (item?: any) => T), tableName: string, cacheDuration = -1) {
-        super();
-        this.itemModelType = type;
-        this.cacheDuration = cacheDuration;
-        this.dbService = new BaseDbService<T>(type, tableName);
-        this.transactionService = new TransactionService();
-    }
-
-    protected getCacheKey(key = "all"): string {
-        return Text.format(Constants.cacheKeys.latestDataLoadFormat, ServicesConfiguration.context.pageContext.web.serverRelativeUrl, this.serviceName, key);
-    }
+     protected static promises = {};
 
     protected getExistingPromise(key = "all"): Promise<any> {
         const pkey = this.serviceName + "-" + key;
@@ -102,8 +186,13 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         const pkey = this.serviceName + "-" + key;
         BaseDataService.promises[pkey] = undefined;
     }
+    /*****************************************************************************************************************************************************************/
 
-
+    /************************************************************************* Cache expiration ************************************************************************************/
+    
+    protected getCacheKey(key = "all"): string {
+        return Text.format(Constants.cacheKeys.latestDataLoadFormat, ServicesConfiguration.context.pageContext.web.serverRelativeUrl, this.serviceName, key);
+    }
     /***
      * 
      */
@@ -209,6 +298,9 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
 
     }
 
+    /*********************************************************************************************************************************************************/
+
+    /*********************************************************** Data operations ***************************************************************************/
     protected abstract getAll_Internal(linkedFields?: Array<string>): Promise<Array<T>>;
 
     /* 
@@ -622,17 +714,24 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
     protected async persistItemsData_internal(data: any[], linkedFields?: Array<string>): Promise<T[]> {
         let result = null;
         if (data) {
-            result = await Promise.all(data.map(d => this.persistItemData(d, linkedFields)));
+            result = await Promise.all(data.map(d => this.persistItemData_internal(d, linkedFields)));
         }
         return result;
     }
 
+    /*****************************************************************************************************************************************************************/
+
+    /********************************************************************** Cached data management ******************************************************************************/
+
     protected async convertItemToDbFormat(item: T): Promise<T> {
-        return item;
+        const result: T = cloneDeep(item);
+        result.cleanBeforeStorage();
+        return result;
     }
 
-    public mapItems(items: Array<T>, linkedFields?: Array<string>): Promise<Array<T>> { // eslint-disable-line @typescript-eslint/no-unused-vars
-        return Promise.resolve(items);
+    public async mapItems(items: Array<T>, linkedFields?: Array<string>): Promise<Array<T>> { // eslint-disable-line @typescript-eslint/no-unused-vars
+        items.forEach(i => i.__clearEmptyInternalLinks());
+        return items;
     }
 
     public async updateLinkedTransactions(oldId: number | string, newId: number | string, nextTransactions: Array<OfflineTransaction>): Promise<Array<OfflineTransaction>> {
@@ -651,8 +750,20 @@ export abstract class BaseDataService<T extends IBaseItem> extends BaseService i
         return this.dbService.addOrUpdateItems(items);
     }
 
+    /**
+     * Refresh the terms data
+     */
+     public async refreshData(): Promise<void>  {
+        // Invalidate cache
+        const cacheKey = this.getCacheKey(); // Default key is "ALL"
+        window.sessionStorage.removeItem(cacheKey);      
+        // Reload all data
+        await this.getAll();
+    }
 
-    ////////////////////////////// Queries ////////////////////////////////////
+    /*****************************************************************************************************************************************************************/
+
+    /********************************************************************* Queries ************************************************************************************/
     private filterItems(query: IQuery, items: Array<T>): Array<T> {
         // filter items by test
         let results = query.test ? items.filter((i) => { return this.getTestResult(query.test, i); }) : cloneDeep(items);

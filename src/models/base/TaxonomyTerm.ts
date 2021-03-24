@@ -1,19 +1,19 @@
-import { IBaseItem } from "../../interfaces/index";
+import { Guid } from "@microsoft/sp-core-library";
 import { stringIsNullOrEmpty } from "@pnp/common";
-import { assign } from "@microsoft/sp-lodash-subset";
+import { BaseItem } from "../base/BaseItem";
 
 /**
  * Base object for sharepoint taxonomy term abstraction objects
  */
-export class TaxonomyTerm implements IBaseItem {
+export class TaxonomyTerm extends BaseItem {
     /**
      * WssIds assiciated with term
      */
-    public wssids: Array<number>;
+    public wssids: Array<number> = [];
     /**
      * Term id (Guid)
      */
-    public id: string;
+    public id: string = Guid.empty.toString();
     /**
      * Term label
      */
@@ -43,6 +43,7 @@ export class TaxonomyTerm implements IBaseItem {
      * @param - term term object from rest call
      */
     constructor(term? : any) {
+        super();
         if (term != undefined) {
             this.title = term.Name ? term.Name : "";
             this.description = term.Description ? term.Description : "";
@@ -69,11 +70,6 @@ export class TaxonomyTerm implements IBaseItem {
             !stringIsNullOrEmpty(term.path) &&
             term.path.indexOf(this.path + ";") === 0
         );
-    }
-
-    
-    public fromObject(object: any): void {
-        assign(this, object);
     }
 
 }
