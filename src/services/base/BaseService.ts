@@ -1,8 +1,18 @@
 import { SPWeb } from "@microsoft/sp-page-context";
+import { ServicesConfiguration } from "../../configuration/ServicesConfiguration";
+import { LoggingService } from "../LoggingService";
 
 
 export abstract class BaseService {
-    
+    protected get logFormat(): string {
+        return LoggingService.defaultLogFormat;
+    }
+    constructor() {        
+        if(ServicesConfiguration.configuration.debug) {
+            LoggingService.addLoggingToTaggedMembers(this, this.logFormat);
+        }
+    }
+
     protected hashCode(obj: any): number {
         let hash = 0;
         const str = JSON.stringify((obj || ""));

@@ -13,6 +13,9 @@ import * as mime from "mime-types";
 import { ServiceFactory } from "../ServiceFactory";
 import { IEndPointBinding } from "../../interfaces/IEndPointBindings";
 import { BaseDbService } from "../base/BaseDbService";
+import { Decorators } from "../../decorators";
+
+const trace = Decorators.trace;
 
 /**
  * 
@@ -96,8 +99,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
             case FieldType.Lookup:
                 if (fieldDescriptor.containsFullObject && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                     const obj = restItem[fieldDescriptor.fieldName] ? restItem[fieldDescriptor.fieldName] : null;
-                    if (obj) {
-                        // store localy (persist in populatelookups)
+                    if (obj) {                        
                         this.setPreloaded(preloaded, fieldDescriptor.modelName, destItem.id.toString(), propertyName, obj);
                         // get service
                         /*const tmpservice = ServiceFactory.getServiceByModelName(fieldDescriptor.modelName);
@@ -385,7 +387,6 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         }
     }
 
-    /****************************** Lookup loading **************************************/
 
     /********************** SP Fields conversion helpers *****************************/
 
@@ -422,77 +423,81 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         return result;
     }
 
+    private async persistPreloadedModelData(items: T[],modelName: string, modelData: {[itemId: string]: { [propertyName: string]: any }}): Promise<void> {
+        // construct a list with elements to persist
+        const dataObjects = [];                 
+        for (const itemId in modelData) {
+            if (modelData.hasOwnProperty(itemId)) {
+                const itemData = modelData[itemId];
+                for (const propertyName in itemData) {
+
+                    if (itemData.hasOwnProperty(propertyName)) {
+                        const dataObject = itemData[propertyName];
+                        // get field description
+                        const fieldDescription = this.ItemFields[propertyName];
+                        if(fieldDescription.fieldType === FieldType.Lookup) {
+                            dataObjects.push(dataObject);
+                        }
+                        else { // lookup multi
+                            dataObjects.push(...dataObject);
+                        }
+
+                    }
+                }
+            }
+        }
+        if(dataObjects.length > 0) {
+            // get service
+            const modelService = ServiceFactory.getServiceByModelName(modelName);                        
+            //persit items
+            const resultItems = await modelService.persistItemsData(dataObjects);
+            this.updateInitValues(modelName, ...resultItems);    
+            // update items 
+            for (const itemId in modelData) {
+                if (modelData.hasOwnProperty(itemId)) {
+                    const itemData = modelData[itemId];
+                    for (const propertyName in itemData) {
+
+                        if (itemData.hasOwnProperty(propertyName)) {
+                            const dataObject = itemData[propertyName];
+                            // get field description
+                            const fieldDescription = this.ItemFields[propertyName];
+                            if(fieldDescription.fieldType === FieldType.Lookup) {
+                                const linkedItem =  find(resultItems, i => i.id === dataObject.id);
+                                const item = find(items, i => i.id.toString() === itemId);
+                                if(item) {
+                                    item[propertyName]= linkedItem;
+                                    item.__setInternalLinks(propertyName, linkedItem.id);
+                                }
+                            }
+                            else { // lookup multi
+                                const linkedItems =  resultItems.filter(i => dataObject.some(d => d.id === i.id));
+                                const item = find(items, i => i.id.toString() === itemId);
+                                if(item) {
+                                    item[propertyName]= linkedItems;
+                                    item.__setInternalLinks(propertyName, linkedItems.map(l => l.id));
+                                }
+                            }    
+                        }
+                    }
+                }
+            }
+
+        }  
+    }
+
+    @trace()
     protected async populateLookups(items: Array<T>, loadEmbeded: boolean, preloaded: IPreloadedData, loadLookups?: Array<string>): Promise<void> {
         await this.Init();
         // get lookup fields
         const lookupFields = this.linkedLookupFields(loadLookups);
         // persitst preloaded
         preloaded = preloaded || {};
-        for (const modelName in preloaded) {            
-            if (preloaded.hasOwnProperty(modelName)) {                
-                // construct a list with elements to persist
-                const dataObjects = [];                 
-                const modelData = preloaded[modelName];
-                for (const itemId in modelData) {
-                    if (modelData.hasOwnProperty(itemId)) {
-                        const itemData = modelData[itemId];
-                        for (const propertyName in itemData) {
-
-                            if (itemData.hasOwnProperty(propertyName)) {
-                                const dataObject = itemData[propertyName];
-                                // get field description
-                                const fieldDescription = this.ItemFields[propertyName];
-                                if(fieldDescription.fieldType === FieldType.Lookup) {
-                                    dataObjects.push(dataObject);
-                                }
-                                else { // lookup multi
-                                    dataObjects.push(...dataObject);
-                                }
-
-                            }
-                        }
-                    }
-                }
-                if(dataObjects.length > 0) {
-                    // get service
-                    const modelService = ServiceFactory.getServiceByModelName(modelName);                        
-                    //persit items
-                    const resultItems = await modelService.persistItemsData(dataObjects);
-                    this.updateInitValues(modelName, ...resultItems);    
-                    // update items 
-                    for (const itemId in modelData) {
-                        if (modelData.hasOwnProperty(itemId)) {
-                            const itemData = modelData[itemId];
-                            for (const propertyName in itemData) {
-    
-                                if (itemData.hasOwnProperty(propertyName)) {
-                                    const dataObject = itemData[propertyName];
-                                    // get field description
-                                    const fieldDescription = this.ItemFields[propertyName];
-                                    if(fieldDescription.fieldType === FieldType.Lookup) {
-                                        const linkedItem =  find(resultItems, i => i.id === dataObject.id);
-                                        const item = find(items, i => i.id.toString() === itemId);
-                                        if(item) {
-                                            item[propertyName]= linkedItem;
-                                            item.__setInternalLinks(propertyName, linkedItem.id);
-                                        }
-                                    }
-                                    else { // lookup multi
-                                        const linkedItems =  resultItems.filter(i => dataObject.some(d => d.id === i.id));
-                                        const item = find(items, i => i.id.toString() === itemId);
-                                        if(item) {
-                                            item[propertyName]= linkedItems;
-                                            item.__setInternalLinks(propertyName, linkedItems.map(l => l.id));
-                                        }
-                                    }    
-                                }
-                            }
-                        }
-                    }
-
-                }                
-            }
+        const keys = Object.keys(preloaded).filter(modelName => preloaded.hasOwnProperty(modelName));
+        if(keys.length > 0) {
+            await Promise.all(keys.map(modelName => this.persistPreloadedModelData(items,modelName, preloaded[modelName])));
         }
+        
         // init values and retrieve all ids by model
         const allIds = {};
         for (const key in lookupFields) {
@@ -625,6 +630,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
      * @returns {Promise<Array<T>>}
      * @memberof BaseListItemService
      */
+    @trace()
     protected async get_Internal(query: IQuery, linkedFields?: Array<string>, preloaded?: IPreloadedData): Promise<Array<T>> {
         const restQuery = this.getRestQuery(query);
         if (linkedFields && linkedFields.length === 1 && linkedFields[0] === 'loadAll') {
@@ -647,6 +653,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
      * Get an item by id
      * @param {number} id - item id
      */
+    @trace()
     protected async getItemById_Internal(id: number, linkedFields?: Array<string>): Promise<T> {
         let result = null;
         const temp = await this.executeRequest(`${this.serviceUrl}${this.Bindings.getItemById.url}/${id}`, this.Bindings.getItemById.method);
@@ -664,6 +671,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
      * Get a list of items by id
      * @param ids - array of item id to retrieve
      */
+    @trace()
     protected async getItemsById_Internal(ids: Array<number>, linkedFields?: Array<string>): Promise<Array<T>> {
         const result: Array<T> = [];
         const preloaded: IPreloadedData = {};
@@ -695,6 +703,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
      * Retrieve all items
      * 
      */
+    @trace()
     protected async getAll_Internal(linkedFields?: Array<string>): Promise<Array<T>> {
         let results: Array<T> = [];
         const items = await this.executeRequest(`${this.serviceUrl}${this.Bindings.getAll.url}`, this.Bindings.getAll.method);
@@ -723,6 +732,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
      * Add or update an item
      * @param item - SPItem derived object to be converted
      */
+    @trace()
     protected async addOrUpdateItem_Internal(item: T): Promise<T> {
         const result = cloneDeep(item);
         if (item.id < 0) {
@@ -773,6 +783,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
      * @param items Array of model type to be added or updated
      * @param onItemUpdated callback function called when an item has been added or updated
      */
+    @trace()
     protected async addOrUpdateItems_Internal(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void): Promise<Array<T>> {
         const result = cloneDeep(items);
         const itemsToAdd = result.filter((item) => {
@@ -914,6 +925,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
      * Delete an item
      * @param item - SPItem derived class to be deleted
      */
+    @trace()
     protected async deleteItem_Internal(item: T): Promise<T> {
         try {
             await this.executeRequest(`${this.serviceUrl}${this.Bindings.deleteItem.url}/${item.id}`, this.Bindings.deleteItem.method);
@@ -929,6 +941,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
      * Delete an item
      * @param item - SPItem derived class to be deleted
      */
+    @trace()
     protected async deleteItems_Internal(items: Array<T>): Promise<Array<T>> {
         try {
             const results = await this.executeRequest(`${this.serviceUrl}${this.Bindings.deleteItems.url}`, this.Bindings.deleteItems.method, items.map(i => i.id));
@@ -941,6 +954,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         return items;
     }
 
+    @trace()
     protected async persistItemData_internal(data: any, linkedFields?: Array<string>): Promise<T> {
         let result = null;
         if (data) {
@@ -952,6 +966,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         return result;
     }
 
+    @trace()
     protected async persistItemsData_internal(data: any[], linkedFields?: Array<string>): Promise<T[]> {
         let result = null;
         if (data) {
@@ -964,6 +979,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
     }
 
 
+    @trace()
     public async getByRestQuery(restQuery: IEndPointBinding, data?: any, linkedFields?: Array<string>): Promise<Array<T>> {
         const keyCached = super.hashCode(restQuery).toString() + super.hashCode(data).toString() + super.hashCode(linkedFields).toString();
         let promise = this.getExistingPromise(keyCached);
@@ -991,7 +1007,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                             const tmp = await this.dbService.getItemsById(mapping.itemIds);
                             //if data exists trash them 
                             if (tmp && tmp.length > 0) {
-                                await Promise.all(tmp.map((dbItem) => { return this.dbService.deleteItem(dbItem); }));
+                                await this.dbService.deleteItems(tmp);
                             }
                         }
                         if(result && result.length > 0) {
@@ -1159,6 +1175,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
      * populate item from db storage
      * @param item - db item with links in internalLinks fields
      */
+    @trace()
     public async mapItems(items: Array<T>, linkedFields?: Array<string>): Promise<Array<T>> {
         const results: Array<T> = [];
         if (items && items.length > 0) {
@@ -1301,6 +1318,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         return nextTransactions;
     }
 
+    @trace()
     protected async updateLinksInDb(oldId: number, newId: number): Promise<void> {
         const allFields = assign({}, this.itemType["Fields"]);
         let parentType = this.itemType;
@@ -1374,12 +1392,6 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                 }
             }
         }
-    }
-
-    public async refreshData(): Promise<void>  {
-        this.initialized = false;
-        this.initValues = {};
-        return super.refreshData();
     }
 
     protected getRestQuery(query: IQuery): IRestQuery {

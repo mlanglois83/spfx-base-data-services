@@ -5,6 +5,9 @@ import { BaseDataService } from "./BaseDataService";
 import { ServicesConfiguration } from "../../configuration/ServicesConfiguration";
 import { cloneDeep } from "@microsoft/sp-lodash-subset";
 import { SPFile } from "../../models/base/SPFile";
+import { Decorators } from "../../decorators";
+
+const trace = Decorators.trace;
 /**
  * Base service for sp files operations
  */
@@ -31,6 +34,7 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
     /**
      * Retrieve all items
      */
+    @trace()
     public async getAll_Internal(): Promise<Array<T>> {
         const files = await this.list.items.filter('FSObjType eq 0').select('FileRef', 'FileLeafRef').get();
         return await Promise.all(files.map((file) => {
@@ -38,11 +42,13 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
         }));
     }
 
+    @trace()
     public async get_Internal(query: any): Promise<Array<T>> {
         console.log("[" + this.serviceName + ".get_Internal] - " + query.toString());
         throw new Error('Not Implemented');
     }
 
+    @trace()
     public async getItemById_Internal(id: string): Promise<T> {
         let result = null;
         const file = await sp.web.getFileByServerRelativeUrl(id).select('FileRef', 'FileLeafRef').get();
@@ -51,6 +57,7 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
         }
         return result;
     }
+    @trace()
     public async getItemsById_Internal(ids: Array<string>): Promise<Array<T>> {
         const results: Array<T> = [];
         const batches = [];
@@ -81,6 +88,7 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
         return resultFile;
     }
 
+    @trace()
     public async getFilesInFolder(folderListRelativeUrl): Promise<Array<T>> {
         let result = new Array<T>();
         const folderUrl = this.listRelativeUrl + folderListRelativeUrl;
@@ -95,6 +103,7 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
         return result;
     }
 
+    @trace()
     public async folderExists(folderUrl): Promise<boolean> {
         let result = false;
         if (folderUrl.indexOf(this.listRelativeUrl) === -1) {
@@ -109,6 +118,7 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
         return result;
     }
 
+    @trace()
     public async addOrUpdateItem_Internal(item: T): Promise<T> {
         const folderUrl = UtilsService.getParentFolderUrl(item.serverRelativeUrl);
         const folder: Folder = sp.web.getFolderByServerRelativeUrl(folderUrl);
@@ -138,6 +148,7 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
         return item;
     }
 
+    @trace()
     public async addOrUpdateItems_Internal(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void): Promise<Array<T>> {
         const result = [];
         const operations = items.map((item) => {
@@ -154,6 +165,7 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
         return items;
     }
 
+    @trace()
     public async deleteItem_Internal(item: T): Promise<T> {        
         if(item.id) {
             await sp.web.getFileByServerRelativeUrl(item.serverRelativeUrl).recycle();
@@ -170,6 +182,8 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
         }        
         return item;
     }
+
+    @trace()
     public async deleteItems_Internal(items: Array<T>): Promise<Array<T>> { 
         items.filter(i => !i.id).forEach(i => i.deleted = true);   
         const batch = sp.createBatch();   
@@ -197,11 +211,13 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
         return items;
     }
 
+    @trace()
     public persistItemData_internal(data: any): Promise<T> {
         return this.createFileObject(data);
     }
 
     
+    @trace()
     public async changeFolderInDb(oldFolderListRelativeUrl: string, newFolderListRelativeUrl: string): Promise<void> {
         const oldFolderRelativeUrl = this.listRelativeUrl + oldFolderListRelativeUrl;
         const newFolderRelativeUrl = this.listRelativeUrl + newFolderListRelativeUrl;

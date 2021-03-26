@@ -10,16 +10,22 @@ import { TransactionType, Constants, LogicalOperator, TestOperator, QueryToken, 
 import { ServicesConfiguration } from "../../configuration";
 import { stringIsNullOrEmpty } from "@pnp/common";
 import { ServiceFactory } from "../ServiceFactory";
-
+import { Decorators } from "../../decorators";
+const trace = Decorators.trace;
 
 /**
  * Base class for data service allowing automatic management of online/offline mode with links to db and sp 
  */
 export abstract class BaseDataService<T extends BaseItem> extends BaseService implements IDataService<T> {
     private itemModelType: (new (item?: any) => T);
+
     protected transactionService: TransactionService;
     protected dbService: BaseDbService<T>;
     protected cacheDuration = -1;      
+
+    protected get debug(): boolean {
+        return ServicesConfiguration.configuration.debug === true;
+    }
 
     public get serviceName(): string {
         return this.constructor["name"];
@@ -62,6 +68,31 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     protected async init_internal(): Promise<void> {
         return;
     }
+    
+    @trace()
+    private async initLinkedFields(): Promise<void> {
+        const fields = this.ItemFields;
+        const models: string[] = [];
+        for (const key in fields) {
+            if (fields.hasOwnProperty(key)) {
+                const fieldDescription = fields[key];
+                if (fieldDescription.modelName &&
+                    models.indexOf(fieldDescription.modelName) === -1 &&
+                    fieldDescription.fieldType !== FieldType.Lookup &&
+                    fieldDescription.fieldType !== FieldType.LookupMulti &&
+                    fieldDescription.fieldType !== FieldType.Json) {
+                    models.push(fieldDescription.modelName);
+                }
+            }
+        }
+        await Promise.all(models.map(async (modelName) => {
+            if (!this.initValues[modelName]) {
+                const service = ServiceFactory.getServiceByModelName(modelName);
+                const values = await service.getAll();
+                this.initValues[modelName] = values;
+            }
+        }));
+    }
 
     public async Init(): Promise<void> {
         if (!this.initPromise) {
@@ -75,27 +106,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
                         if (this.init_internal) {
                             await this.init_internal();
                         }
-                        const fields = this.ItemFields;
-                        const models: string[] = [];
-                        for (const key in fields) {
-                            if (fields.hasOwnProperty(key)) {
-                                const fieldDescription = fields[key];
-                                if (fieldDescription.modelName &&
-                                    models.indexOf(fieldDescription.modelName) === -1 &&
-                                    fieldDescription.fieldType !== FieldType.Lookup &&
-                                    fieldDescription.fieldType !== FieldType.LookupMulti &&
-                                    fieldDescription.fieldType !== FieldType.Json) {
-                                    models.push(fieldDescription.modelName);
-                                }
-                            }
-                        }
-                        await Promise.all(models.map(async (modelName) => {
-                            if (!this.initValues[modelName]) {
-                                const service = ServiceFactory.getServiceByModelName(modelName);
-                                const values = await service.getAll();
-                                this.initValues[modelName] = values;
-                            }
-                        }));
+                        await this.initLinkedFields();
                         this.initialized = true;
                         this.initPromise = null;
                         resolve();
@@ -307,10 +318,13 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
      * Retrieve all elements from datasource depending on connection is enabled
      * If service is not configured as offline, an exception is thrown;
      */
+    
+    @trace()
     public async getAll(linkedFields?: Array<string>): Promise<Array<T>> {
         let promise = this.getExistingPromise();
         if (promise) {
-            console.log(this.serviceName + " getAll : load allready called before, sharing promise");
+            if(this.debug)
+                console.log(this.serviceName + " getAll : load allready called before, sharing promise");
         }
         else {
             promise = new Promise<Array<T>>(async (resolve, reject) => {
@@ -353,14 +367,17 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
 
     }
 
+    
     protected abstract get_Internal(query: IQuery, linkedFields?: Array<string>): Promise<Array<T>>;
 
-
+    
+    @trace()
     public async get(query: IQuery, linkedFields?: Array<string>): Promise<Array<T>> {
         const keyCached = super.hashCode(query).toString() + super.hashCode(linkedFields).toString();
         let promise = this.getExistingPromise(keyCached);
         if (promise) {
-            console.log(this.serviceName + " " + keyCached + " : load allready called before, sharing promise");
+            if(this.debug)
+                console.log(this.serviceName + " " + keyCached + " : load allready called before, sharing promise");
         }
         else {
             promise = new Promise<Array<T>>(async (resolve, reject) => {
@@ -381,7 +398,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
 
                         //if data exists trash them 
                         if (tmp && tmp.length > 0) {
-                            await Promise.all(tmp.map((dbItem) => { return this.dbService.deleteItem(dbItem); }));
+                            await this.dbService.deleteItems(tmp);
                         }
 
                         const convresult = await Promise.all(result.map((res) => {
@@ -413,11 +430,14 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
 
     protected abstract getItemById_Internal(id: number | string, linkedFields?: Array<string>): Promise<T>;
 
+    
+    @trace()
     public async getItemById(id: number, linkedFields?: Array<string>): Promise<T> {
         const promiseKey = "getById_" + id.toString();
         let promise = this.getExistingPromise(promiseKey);
         if (promise) {
-            console.log(this.serviceName + " " + promiseKey + " : load allready called before, sharing promise");
+            if(this.debug)
+                console.log(this.serviceName + " " + promiseKey + " : load allready called before, sharing promise");
         }
         else {
             promise = new Promise<T>(async (resolve, reject) => {
@@ -459,11 +479,14 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
 
     protected abstract getItemsById_Internal(ids: Array<number | string>, linkedFields?: Array<string>): Promise<Array<T>>;
 
+    
+    @trace()
     public async getItemsById(ids: Array<number | string>, linkedFields?: Array<string>): Promise<Array<T>> {
         const promiseKey = "getByIds_" + ids.join();
         let promise = this.getExistingPromise(promiseKey);
         if (promise) {
-            console.log(this.serviceName + " " + promiseKey + " : load allready called before, sharing promise");
+            if(this.debug)
+                console.log(this.serviceName + " " + promiseKey + " : load allready called before, sharing promise");
         }
         else {
             promise = new Promise<Array<T>>(async (resolve, reject) => {
@@ -512,6 +535,8 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
 
     protected abstract addOrUpdateItem_Internal(item: T): Promise<T>;
 
+    
+    @trace()
     public async addOrUpdateItem(item: T): Promise<T> {
         let result: T = null;
         let itemResult: T = null;
@@ -571,6 +596,8 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
 
     protected abstract addOrUpdateItems_Internal(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void): Promise<Array<T>>;
 
+    
+    @trace()
     public async addOrUpdateItems(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void): Promise<Array<T>> {
         let results: Array<T> = [];
 
@@ -626,9 +653,10 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
         return results;
     }
 
-
     protected abstract deleteItem_Internal(item: T): Promise<T>;
 
+    
+    @trace()
     public async deleteItem(item: T): Promise<T> {
         if(typeof(item.id) === "number" && item.id === -1) {
             item.deleted = true;
@@ -662,7 +690,8 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     }
 
     protected abstract deleteItems_Internal(items: Array<T>): Promise<Array<T>>;
-
+    
+    @trace()
     public async deleteItems(items: Array<T>): Promise<Array<T>> {
         items.filter(i => (typeof(i.id) === "number" && i.id === -1)).forEach(i => {
             i.deleted = true;
@@ -693,6 +722,8 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
         return items;
     }
 
+    
+    @trace()
     public async persistItemData(data: any, linkedFields?: Array<string>): Promise<T> {
         const result = await this.persistItemData_internal(data, linkedFields);
         const convresult = await this.convertItemToDbFormat(result);
@@ -703,6 +734,8 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
 
     protected abstract persistItemData_internal(data: any, linkedFields?: Array<string>): Promise<T>;
 
+    
+    @trace()
     public async persistItemsData(data: any[], linkedFields?: Array<string>): Promise<T[]> {
         const result = await this.persistItemsData_internal(data, linkedFields);
         const convresult = await Promise.all(result.map(r => this.convertItemToDbFormat(r)));
@@ -729,11 +762,13 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
         return result;
     }
 
+    @trace()
     public async mapItems(items: Array<T>, linkedFields?: Array<string>): Promise<Array<T>> { // eslint-disable-line @typescript-eslint/no-unused-vars
         items.forEach(i => i.__clearEmptyInternalLinks());
         return items;
     }
 
+    @trace()
     public async updateLinkedTransactions(oldId: number | string, newId: number | string, nextTransactions: Array<OfflineTransaction>): Promise<Array<OfflineTransaction>> {
         return nextTransactions;
     }
@@ -751,12 +786,14 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     }
 
     /**
-     * Refresh the terms data
+     * Refresh cached data
      */
      public async refreshData(): Promise<void>  {
         // Invalidate cache
         const cacheKey = this.getCacheKey(); // Default key is "ALL"
-        window.sessionStorage.removeItem(cacheKey);      
+        window.sessionStorage.removeItem(cacheKey);    
+        // remove local cache
+        this.initValues = {};  
         // Reload all data
         await this.getAll();
     }

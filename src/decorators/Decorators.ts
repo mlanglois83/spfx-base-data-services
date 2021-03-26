@@ -3,6 +3,7 @@ import { IFieldDescriptor, IRestServiceDescriptor } from "../interfaces";
 
 
 export namespace Decorators {
+    
     /**
      * Decorator function used for SPItem derived models fields
      * @param declaration - field declaration for binding
@@ -30,6 +31,20 @@ export namespace Decorators {
             target.constructor.Fields[target.constructor["name"]][propertyKey] = declaration;
         };
     }
+
+
+    export function trace(): (target: any, propertyKey: string) => void {
+        return (target: any, propertyKey: string): void => {  
+            if(typeof(target[propertyKey] === "function")) {
+                target.constructor.tracedMembers = target.constructor.tracedMembers || [];
+                if(target.constructor.tracedMembers.indexOf(propertyKey) === -1) {
+                    target.constructor.tracedMembers.push(propertyKey);
+                }
+            }
+        };
+    }
+
+
     /**
      * Decorator function used for models fields
      * @param declaration - field declaration for binding

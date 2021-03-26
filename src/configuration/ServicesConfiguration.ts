@@ -58,6 +58,7 @@ export class ServicesConfiguration {
      */
     public static Init(configuration: IConfiguration): void {
         ServicesConfiguration.configurationInternal = configuration;
+        configuration.debug = configuration.debug === true;
         configuration.tableNames = Constants.tableNames.concat(configuration.tableNames || []);
         configuration.lastConnectionCheckResult = false;
         configuration.checkOnline = configuration.checkOnline === true;

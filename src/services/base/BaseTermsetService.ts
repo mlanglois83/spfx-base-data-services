@@ -8,8 +8,9 @@ import { ServicesConfiguration } from "../../configuration/ServicesConfiguration
 import { Constants } from "../../constants/index";
 import { TaxonomyHidden, TaxonomyTerm } from "../../models";
 import { BaseDataService } from "./BaseDataService";
+import { Decorators } from "../../decorators";
 
-
+const trace = Decorators.trace;
 const standardTermSetCacheDuration = 10;
 
 /**
@@ -64,6 +65,7 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
         this.isGlobal = isGlobal;
     }
 
+    @trace()
     public async getWssIds(termId: string): Promise<Array<number>> {
         const taxonomyHiddenItems = await ServiceFactory.getService(TaxonomyHidden).getAll();
         return taxonomyHiddenItems.filter((taxItem) => {
@@ -76,6 +78,7 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
     /**
      * Retrieve all terms
      */
+    @trace()
     protected async getAll_Internal(): Promise<Array<T>> {
 
         const batch = taxonomy.createBatch();
@@ -104,6 +107,7 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
         });
     }
 
+    @trace()
     public async getItemById_Internal(id: string): Promise<T> {
         let result = null;
         const spterm = await this.termset.terms.getById(id).select("Name", "Description", "Id", "PathOfTerm", "CustomSortOrder", "CustomProperties", "IsDeprecated");
@@ -112,6 +116,8 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
         }
         return result;
     }
+
+    @trace()
     public async getItemsById_Internal(ids: Array<string>): Promise<Array<T>> {
         const results: Array<T> = [];
         const batches = [];
@@ -161,6 +167,7 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
         throw new Error("Not implemented");
     }
 
+    @trace()
     protected async persistItemData_internal(data: any): Promise<T> {
         let result = null;
         if (data) {
@@ -201,6 +208,7 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
         return result;
     }
 
+    @trace()
     public async getAll(): Promise<Array<T>> {
         const items = await super.getAll();
         const result = [];

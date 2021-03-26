@@ -46,4 +46,6 @@ export interface IConfiguration {
      * Id of Azure AD app registered to get authentication token
      */
     aadAppId?: string;
+
+    debug?: boolean;
 }

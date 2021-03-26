@@ -12,6 +12,10 @@ import { UserService } from "../graph/UserService";
 import { isArray, stringIsNullOrEmpty } from "@pnp/common";
 import { BaseDbService } from "./BaseDbService";
 import { Semaphore } from "async-mutex";
+import { Decorators } from "../../decorators";
+
+
+const trace = Decorators.trace;
 
 /**
  * 
@@ -52,6 +56,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
     /********** init for taxo multi ************/
     private fieldsInitialized = false;
     private initFieldsPromise: Promise<void> = null;
+    @trace()
     private async initFields(): Promise<void> {
         if (!this.initFieldsPromise) {
             this.initFieldsPromise = new Promise<void>(async (resolve, reject) => {
@@ -478,6 +483,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
 
         return lastDataLoad;
     }
+    
     protected async  needRefreshCache(key = "all"): Promise<boolean> {
 
         //get parent need refresh information
@@ -659,6 +665,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         return result;
     }
 
+    @trace()
     private async populateLookups(items: Array<T>, loadLookups?: Array<string>): Promise<void> {
         await this.Init();
         // get lookup fields
@@ -794,6 +801,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
      * @returns {Promise<Array<T>>}
      * @memberof BaseListItemService
      */
+    @trace()
     protected async get_Internal(query: IQuery, linkedFields?: Array<string>): Promise<Array<T>> {
         const spQuery = this.getCamlQuery(query);
         let results = new Array<T>();
@@ -817,6 +825,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
      * Get an item by id
      * @param {number} id - item id
      */
+    @trace()
     protected async getItemById_Internal(id: number, linkedFields?: Array<string>): Promise<T> {
         let result = null;
         const selectFields = this.getOdataFieldNames();
@@ -839,6 +848,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
      * Get a list of items by id
      * @param ids - array of item id to retrieve
      */
+    @trace()
     protected async getItemsById_Internal(ids: Array<number>, linkedFields?: Array<string>): Promise<Array<T>> {
         const result: Array<T> = [];
         const promises: Promise<Array<T>>[] = [];
@@ -867,6 +877,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
      * Retrieve all items
      * 
      */
+    @trace()
     protected async getAll_Internal(linkedFields?: Array<string>): Promise<Array<T>> {
         let results: Array<T> = [];
         const selectFields = this.getOdataFieldNames();
@@ -885,11 +896,13 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         return results;
     }
 
+    @trace()
     public async addOrUpdateItem(item: T, loadLookups?: Array<string>): Promise<T> {
         this.updateInternalLinks(item, loadLookups);
         return super.addOrUpdateItem(item);
     }
 
+    @trace()
     public async addOrUpdateItems(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void, loadLookups?: Array<string>): Promise<Array<T>> {
         items.forEach(item => this.updateInternalLinks(item, loadLookups));
         return super.addOrUpdateItems(items, onItemUpdated);
@@ -899,6 +912,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
      * Add or update an item
      * @param item - SPItem derived object to be converted
      */
+    @trace()
     protected async addOrUpdateItem_Internal(item: T): Promise<T> {
         const result = cloneDeep(item);
         await this.initFields();
@@ -940,6 +954,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         return result;
     }
 
+    @trace()
     protected async addOrUpdateItems_Internal(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void): Promise<Array<T>> {
         const result:  Array<T> = cloneDeep(items);
         const itemsToAdd = result.filter((item) => {
@@ -1082,6 +1097,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
      * Delete an item
      * @param item - SPItem derived class to be deleted
      */
+    @trace()
     protected async deleteItem_Internal(item: T): Promise<T> {
         try {
             await this.list.items.getById(item.id).recycle();
@@ -1093,6 +1109,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         return item;
     }
 
+    @trace()
     protected async deleteItems_Internal(items: Array<T>): Promise<Array<T>> {
         const batch = sp.createBatch();
         items.forEach(item => {
@@ -1106,6 +1123,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         return items;
     }
 
+    @trace()
     protected async persistItemData_internal(data: any, linkedFields?: Array<string>): Promise<T> {
         let result = null;
         if (data) {
@@ -1117,6 +1135,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         return result;
     }
 
+    @trace()
     protected async persistItemsData_internal(data: any[], linkedFields?: Array<string>): Promise<T[]> {
         let result = null;
         if (data) {
@@ -1128,11 +1147,13 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         return result;
     }
 
+    @trace()
     private async getAttachmentContent(attachment: SPFile): Promise<void> {
         const content = await sp.web.getFileByServerRelativeUrl(attachment.serverRelativeUrl).getBuffer();
         attachment.content = content;
     }
 
+    @trace()
     public async cacheAttachmentsContent(): Promise<void> {
         const prop = this.attachmentProperty;
         if (prop !== null) {
@@ -1369,6 +1390,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
      * populate item from db storage
      * @param item - db item with links in internalLinks fields
      */
+    @trace()
     public async mapItems(items: Array<T>, linkedFields?: Array<string>): Promise<Array<T>> {
         const results: Array<T> = [];
         if (items && items.length > 0) {
@@ -1455,6 +1477,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         return results;
     }
 
+    @trace()
     public async updateLinkedTransactions(oldId: number, newId: number, nextTransactions: Array<OfflineTransaction>): Promise<Array<OfflineTransaction>> {
         // Update items pointing to this in transactions
         nextTransactions.forEach(transaction => {
@@ -1525,6 +1548,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         return nextTransactions;
     }
 
+    @trace()
     private async updateLinksInDb(oldId: number, newId: number): Promise<void> {
         const allFields = assign({}, this.itemType["Fields"]);
         let parentType = this.itemType;
@@ -1604,6 +1628,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
     
 
 
+    @trace()
     private async updateWssIds(item: T, spItem: any): Promise<void> {
         // if taxonomy field, store wssid in db (add or update) --> service + this.init
         const fields = this.ItemFields;
@@ -1681,6 +1706,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         }
     }
 
+    @trace()
     public async refreshData(): Promise<void>  {
         this.initialized = false;
         this.initValues = {};

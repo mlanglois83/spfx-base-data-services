@@ -9,6 +9,7 @@ export { BaseTermsetService } from "./base/BaseTermsetService";
 export { BaseService } from "./base/BaseService";
 
 export { UtilsService } from "./UtilsService";
+export { LoggingService } from "./LoggingService";
 
 export { SynchronizationService } from "./synchronization/SynchronizationService";
 export { TransactionService } from "./synchronization/TransactionService";

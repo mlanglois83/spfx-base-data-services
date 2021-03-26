@@ -1,5 +1,5 @@
 import { Text } from "@microsoft/sp-core-library";
-import { assign, cloneDeep } from "@microsoft/sp-lodash-subset";
+import { assign, cloneDeep, find } from "@microsoft/sp-lodash-subset";
 import { DB, ObjectStore, openDb } from "idb";
 import { IBaseItem, IDataService, IQuery } from "../../interfaces";
 import { BaseService } from "./BaseService";
@@ -8,7 +8,9 @@ import { ServicesConfiguration } from "../../configuration";
 
 import { Mutex } from 'async-mutex';
 import { BaseFile } from "../../models";
+import { Decorators } from "../../decorators";
 
+const trace = Decorators.trace;
 /**
  * Base classe for indexedDB interraction using SP repository
  */
@@ -16,6 +18,10 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
     protected tableName: string;
     protected db: DB;
     protected itemType: (new (item?: any) => T);
+
+    protected get logFormat(): string {
+        return "%Time% - [%ClassName%<%Property:itemType.name%> (%Property:tableName%)] --> %Function%: %Duration%ms";
+    }
 
     /**
      * 
@@ -103,6 +109,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
      * Add or update an item in DB and returns updated item
      * @param item - item to add or update
      */
+    @trace()
     public async addOrUpdateItem(item: T): Promise<T> {
         await this.OpenDb();
         const nextid = await this.getNextAvailableKey();
@@ -160,6 +167,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
         }
     }
 
+    @trace()
     public async deleteItem(item: T): Promise<T> {
         await this.OpenDb();
         const tx = this.db.transaction(this.tableName, 'readwrite');
@@ -192,6 +200,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
         return item;
     }
 
+    @trace()
     public async deleteItems(items: Array<T>): Promise<Array<T>> {
         await this.OpenDb();        
         for (const item of items) {
@@ -228,6 +237,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
     }
 
 
+    @trace()
     public async get(query: IQuery): Promise<Array<T>> { // eslint-disable-line @typescript-eslint/no-unused-vars
         const items = await this.getAll();
         return items;
@@ -238,6 +248,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
      * add items in table (ids updated)
      * @param newItems - items to add or update
      */
+    @trace()
     public async addOrUpdateItems(newItems: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void): Promise<Array<T>> {
         await this.OpenDb();
         let nextid = await this.getNextAvailableKey();
@@ -303,6 +314,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
     /**
      * Retrieve all items from db table
      */
+    @trace()
     public async getAll(): Promise<Array<T>> {
         const result = new Array<T>();
         await this.OpenDb();
@@ -358,6 +370,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
      * Clear table and insert new items
      * @param newItems - items to insert in place of existing
      */
+    @trace()
     public async replaceAll(newItems: Array<T>): Promise<void> {
         await this.clear();
         await this.addOrUpdateItems(newItems);
@@ -366,6 +379,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
     /**
      * Clear table
      */
+    @trace()
     public async clear(): Promise<void> {
         await this.OpenDb();
         const tx = this.db.transaction(this.tableName, 'readwrite');
@@ -384,6 +398,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
         }
     }
 
+    @trace()
     public async getItemById(id: number | string): Promise<T> {
         let result: T = null;
         await this.OpenDb();
@@ -427,10 +442,56 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
             return null;
         }
     }
+
+    @trace()
     public async getItemsById(ids: Array<number | string>): Promise<Array<T>> {
-        const results: Array<T> = await Promise.all(ids.map((id) => {
-            return this.getItemById(id);
-        }));
-        return results.filter(r => { return r !== null && r !== undefined; });
+        const results: T[] = [];
+        await this.OpenDb();
+        const tx = this.db.transaction(this.tableName, 'readonly');
+        const store = tx.objectStore(this.tableName);
+        try {
+            const allRows = await store.getAll();
+            ids.forEach(id => {
+                let result = null;
+                const obj = find(allRows, r => r.id === id);
+                if (obj) {
+                    result = assign(new this.itemType(), obj);
+                    if (result instanceof BaseFile) {
+                        // item is a part of another file
+                        const chunkparts = (/^.*_chunk_\d+$/g).test(result.id.toString());
+                        if (!chunkparts) {                            
+                            // verify if there are other parts
+                            const chunkRegex = this.getChunksRegexp(result.id);
+                            const chunks = allRows.filter((chunkedrow) => {
+                                const match = chunkedrow.id.match(chunkRegex);
+                                return match && match.length > 0;
+                            });
+                            if (chunks.length > 0) {
+                                chunks.sort((a, b) => {
+                                    return parseInt(a.id.replace(/^.*_chunk_(\d+)$/g, "$1")) - parseInt(b.id.replace(/^.*_chunk_(\d+)$/g, "$1"));
+                                });
+                                result.content = UtilsService.concatArrayBuffers(result.content, ...chunks.map(c => {
+                                    const file = assign(new this.itemType(), c);
+                                    return file.content;
+                                }));
+                            }
+                        }
+                        else {
+                            // no chunked parts here
+                            result = null;
+                        }
+                    }
+                }
+                if(result) {
+                    results.push(result);                    
+                }
+            });
+            
+            await tx.complete;
+            return results;
+        } catch (error) {
+            // key not found
+            return [];
+        }
     }
 }
