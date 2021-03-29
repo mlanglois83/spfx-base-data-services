@@ -203,11 +203,10 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
     @trace()
     public async deleteItems(items: Array<T>): Promise<Array<T>> {
         await this.OpenDb();        
-        for (const item of items) {
-            const tx = this.db.transaction(this.tableName, 'readwrite');
-            const store = tx.objectStore(this.tableName);
-            try {
-
+        const tx = this.db.transaction(this.tableName, 'readwrite');
+        const store = tx.objectStore(this.tableName);
+        try {
+            for (const item of items) {   
                 const deleteKeys = [item.id];
                 if (item instanceof BaseFile) {
                     const keys: string[] = await this.getAllKeysInternal(store);
@@ -221,18 +220,18 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                 await Promise.all(deleteKeys.map(async (k) => {
                     await store.delete(k);
                     item.deleted = true;
-                }));
-                await tx.complete;
-            } catch (error) {
-                console.error(error.message + " - " + error.Name);
-                try {
-                    tx.abort();
-                } catch {
-                    // error allready thrown
-                }
-                throw error;
+                }));         
+            }    
+            await tx.complete;   
+        } catch (error) {
+            console.error(error.message + " - " + error.Name);
+            try {
+                tx.abort();
+            } catch {
+                // error allready thrown
             }
-        }        
+            throw error;
+        }    
         return items;
     }
 

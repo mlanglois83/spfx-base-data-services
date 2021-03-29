@@ -11,7 +11,6 @@ export { IItemSynchronized } from "./IItemSynchronized";
 export { IRestQuery, IRestLogicalSequence, IRestPredicate } from "./IRestQuery";
 export { ISynchronizationEnded } from "./ISynchronizationEnded";
 export { IFactoryMapping } from "./IFactoryMapping";
-export { IPreloadedData } from "./IPreloadedData";
 
 export { ILogicalSequence } from "./ILogicalSequence";
 export { IOrderBy } from "./IOrderBy";

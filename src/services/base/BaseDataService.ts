@@ -480,6 +480,11 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     protected abstract getItemsById_Internal(ids: Array<number | string>, linkedFields?: Array<string>): Promise<Array<T>>;
 
     
+    public async getItemsFromCacheById(ids: Array<number | string>, linkedFields?: Array<string>): Promise<Array<T>> {
+        const tmp = await this.dbService.getItemsById(ids);
+        return this.mapItems(tmp, linkedFields);
+    }
+    
     @trace()
     public async getItemsById(ids: Array<number | string>, linkedFields?: Array<string>): Promise<Array<T>> {
         const promiseKey = "getByIds_" + ids.join();
@@ -724,30 +729,30 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
 
     
     @trace()
-    public async persistItemData(data: any, linkedFields?: Array<string>): Promise<T> {
-        const result = await this.persistItemData_internal(data, linkedFields);
+    public async persistItemData(data: any, linkedFields?: Array<string>, lookupLoaded?: boolean): Promise<T> {
+        const result = await this.persistItemData_internal(data, linkedFields, lookupLoaded);
         const convresult = await this.convertItemToDbFormat(result);
         await this.dbService.addOrUpdateItem(convresult);
         this.UpdateIdsLastLoad(convresult.id);  
         return result;
     }
 
-    protected abstract persistItemData_internal(data: any, linkedFields?: Array<string>): Promise<T>;
+    protected abstract persistItemData_internal(data: any, linkedFields?: Array<string>, lookupLoaded?: boolean): Promise<T>;
 
     
     @trace()
-    public async persistItemsData(data: any[], linkedFields?: Array<string>): Promise<T[]> {
-        const result = await this.persistItemsData_internal(data, linkedFields);
+    public async persistItemsData(data: any[], linkedFields?: Array<string>, lookupLoaded?: boolean): Promise<T[]> {
+        const result = await this.persistItemsData_internal(data, linkedFields, lookupLoaded);
         const convresult = await Promise.all(result.map(r => this.convertItemToDbFormat(r)));
         await this.dbService.addOrUpdateItems(convresult);
         this.UpdateIdsLastLoad(...convresult.map(cr => cr.id));  
         return result;
     }
 
-    protected async persistItemsData_internal(data: any[], linkedFields?: Array<string>): Promise<T[]> {
+    protected async persistItemsData_internal(data: any[], linkedFields?: Array<string>, lookupLoaded?: boolean): Promise<T[]> {
         let result = null;
         if (data) {
-            result = await Promise.all(data.map(d => this.persistItemData_internal(d, linkedFields)));
+            result = await Promise.all(data.map(d => this.persistItemData_internal(d, linkedFields, lookupLoaded)));
         }
         return result;
     }
@@ -773,7 +778,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
         return nextTransactions;
     }
 
-    public __getFromCache(id: string): Promise<T> {
+    public __getFromCache(id: number | string): Promise<T> {
         return this.dbService.getItemById(id);
     }
 
