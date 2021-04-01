@@ -24,4 +24,5 @@ export abstract class RestItem extends BaseItem {
      */ 
     @field({fieldName: Constants.commonRestFields.uniqueid, defaultValue: Guid.newGuid().toString()})
     public uniqueId: string = Guid.newGuid().toString();  
+
 }

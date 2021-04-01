@@ -10,11 +10,14 @@ import { Constants } from "..";
  */
 export class ServicesConfiguration {
 
+
+
     public static __factory: IFactoryMapping = {
         models: {},
         services: {},
         objects: {}
     };
+
     /**
      * Web Part Context
      */

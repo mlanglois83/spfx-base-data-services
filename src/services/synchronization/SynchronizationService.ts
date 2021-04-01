@@ -1,6 +1,5 @@
 
 import { BaseService } from "../base/BaseService";
-import { BaseDbService } from "../base/BaseDbService";
 import { BaseItem, OfflineTransaction, SPFile } from "../../models/index";
 import { TransactionType, Constants } from "../../constants/index";
 import { assign } from "@microsoft/sp-lodash-subset";
@@ -12,7 +11,7 @@ import { ServiceFactory } from "../ServiceFactory";
 
 
 export class SynchronizationService extends BaseService {
-    private transactionService: BaseDbService<OfflineTransaction>;
+    private transactionService: TransactionService;
 
     private static itemSynchroCallbacks = {};
     private static synchroCallbacks = {};

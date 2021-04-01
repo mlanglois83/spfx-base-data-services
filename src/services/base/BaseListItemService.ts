@@ -1,13 +1,13 @@
 import { ServicesConfiguration } from "../../configuration/ServicesConfiguration";
 import { SPHttpClient } from '@microsoft/sp-http';
-import { cloneDeep, find, assign, findIndex } from "@microsoft/sp-lodash-subset";
+import { cloneDeep, find, findIndex } from "@microsoft/sp-lodash-subset";
 import { CamlQuery, List, sp } from "@pnp/sp";
 import { Constants, FieldType, TestOperator, QueryToken, LogicalOperator } from "../../constants/index";
 import { IFieldDescriptor, IQuery, IPredicate, ILogicalSequence, IOrderBy } from "../../interfaces/index";
 import { BaseDataService } from "./BaseDataService";
 import { ServiceFactory } from "../ServiceFactory";
 import { UtilsService } from "../UtilsService";
-import { SPItem, User, TaxonomyTerm, OfflineTransaction, SPFile, BaseItem } from "../../models";
+import { SPItem, User, TaxonomyTerm, SPFile, BaseItem } from "../../models";
 import { UserService } from "../graph/UserService";
 import { isArray, stringIsNullOrEmpty } from "@pnp/common";
 import { BaseDbService } from "./BaseDbService";
@@ -101,19 +101,9 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
     }
 
     /****************************** get item methods ***********************************/
-    protected async getItemFromRest(spitem: any): Promise<T> {
-        const item = new this.itemType();
-        for (const propertyName in this.ItemFields) {
-            if (this.ItemFields.hasOwnProperty(propertyName)) {
-                const fieldDescription = this.ItemFields[propertyName];
-                await this.setFieldValue(spitem, item, propertyName, fieldDescription);
-            }
-        }
-        return item;
-    }
-
-    private async setFieldValue(spitem: any, destItem: T, propertyName: string, fieldDescriptor: IFieldDescriptor): Promise<void> {
-        fieldDescriptor.fieldType = fieldDescriptor.fieldType || FieldType.Simple;
+    
+    protected async populateFieldValue(spitem: any, destItem: T, propertyName: string, fieldDescriptor: IFieldDescriptor): Promise<void> {
+        await super.populateFieldValue(spitem, destItem, propertyName, fieldDescriptor);
         switch (fieldDescriptor.fieldType) {
             case FieldType.Simple:
                 if (fieldDescriptor.fieldName === Constants.commonFields.version) {
@@ -122,12 +112,6 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                 else if (fieldDescriptor.fieldName === Constants.commonFields.attachments) {
                     destItem[propertyName] = spitem[fieldDescriptor.fieldName] ? spitem[fieldDescriptor.fieldName].map((fileobj) => { return new SPFile(fileobj); }) : fieldDescriptor.defaultValue;
                 }
-                else {
-                    destItem[propertyName] = spitem[fieldDescriptor.fieldName] !== null && spitem[fieldDescriptor.fieldName] !== undefined ? spitem[fieldDescriptor.fieldName] : fieldDescriptor.defaultValue;
-                }
-                break;
-            case FieldType.Date:
-                destItem[propertyName] = spitem[fieldDescriptor.fieldName] ? new Date(spitem[fieldDescriptor.fieldName]) : fieldDescriptor.defaultValue;
                 break;
             case FieldType.Lookup:
                 if(fieldDescriptor.containsFullObject && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
@@ -271,54 +255,26 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                     destItem[propertyName] = fieldDescriptor.defaultValue;
                 }
                 break;
-            case FieldType.Json:   
-                if(spitem[fieldDescriptor.fieldName]) {
-                    try {
-                        const jsonObj = JSON.parse(spitem[fieldDescriptor.fieldName]);
-                        if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                            const itemType = ServiceFactory.getObjectTypeByName(fieldDescriptor.modelName);
-                            destItem[propertyName] = assign(new itemType(), jsonObj);
-                        }
-                        else {
-                            destItem[propertyName] = jsonObj;
-                        }
-                    }
-                    catch(error) {
-                        console.error(error);
-                        destItem[propertyName] = fieldDescriptor.defaultValue;
-                    }
-                }
-                else {
-                    destItem[propertyName] = fieldDescriptor.defaultValue;
-                }
-                break;
+            default: break;
         }
     }
     /****************************** Send item methods ***********************************/
-    protected async getSPRestItem(item: T): Promise<any> {
-        const spitem = {};
-        await Promise.all(Object.keys(this.ItemFields).map(async (propertyName) => {
-            const fieldDescription = this.ItemFields[propertyName];
-            await this.setRestFieldValue(item, spitem, propertyName, fieldDescription);
-        }));
-        return spitem;
+    protected get ignoredFields(): string[]{
+        return [
+            Constants.commonFields.created,
+            Constants.commonFields.author,
+            Constants.commonFields.editor,
+            Constants.commonFields.modified,
+            Constants.commonFields.version
+        ];
     }
-    private async setRestFieldValue(item: T, destItem: any, propertyName: string, fieldDescriptor: IFieldDescriptor): Promise<void> {
+
+
+    protected async convertFieldValue(item: T, destItem: any, propertyName: string, fieldDescriptor: IFieldDescriptor): Promise<void> {
+        await super.convertFieldValue(item, destItem, propertyName, fieldDescriptor);
         const itemValue = item[propertyName];
-        fieldDescriptor.fieldType = fieldDescriptor.fieldType || FieldType.Simple;
-        
-        if (fieldDescriptor.fieldName !== Constants.commonFields.author &&
-            fieldDescriptor.fieldName !== Constants.commonFields.created &&
-            fieldDescriptor.fieldName !== Constants.commonFields.editor &&
-            fieldDescriptor.fieldName !== Constants.commonFields.modified &&
-            fieldDescriptor.fieldName !== Constants.commonFields.version &&
-            (fieldDescriptor.fieldName !== Constants.commonFields.id || itemValue > 0)) 
-        {
+        if (!this.isFieldIgnored(item, propertyName, fieldDescriptor)) {
             switch (fieldDescriptor.fieldType) {
-                case FieldType.Simple:
-                case FieldType.Date:
-                    destItem[fieldDescriptor.fieldName] = itemValue;
-                    break;
                 case FieldType.Lookup:
                     const link = item.__getInternalLinks(propertyName);
                     if (itemValue) {
@@ -395,9 +351,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                         destItem[hiddenFieldName] = null;
                     }
                     break;
-                case FieldType.Json:
-                    destItem[fieldDescriptor.fieldName] = itemValue ? JSON.stringify(itemValue) : null;
-                    break;
+                default: break;
             }
         }
     }
@@ -612,8 +566,8 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
      * Retrieve id of items to be reloaded
      * @param ids - id if items to check
      */
-    protected async getExpiredIds(...ids: Array<number | string>): Promise<Array<number | string>> {
-        let result: Array<number | string> = await super.getExpiredIds(...ids);
+    protected async getExpiredIds(...ids: Array<number>): Promise<Array<number>> {
+        let result: Array<number> = await super.getExpiredIds(...ids) as number[];
 
         if (result.length < ids.length) {
 
@@ -646,179 +600,18 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
 
     /**********************************Service specific calls  *******************************/
 
-
-    /********************************** Link to lookups  *************************************/
-    private linkedLookupFields(loadLookups?: Array<string>): Array<IFieldDescriptor> {
-        const result: Array<IFieldDescriptor> = [];
-        const fields = this.ItemFields;
-        for (const key in fields) {
-            if (fields.hasOwnProperty(key)) {
-                const fieldDesc = fields[key];
-                if ((fieldDesc.fieldType === FieldType.Lookup || fieldDesc.fieldType === FieldType.LookupMulti) && !stringIsNullOrEmpty(fieldDesc.modelName)) {
-                    if (!loadLookups || loadLookups.indexOf(fieldDesc.fieldName) !== -1) {
-                        result[key] = fieldDesc;
-                    }
-                }
-            }
-        }
-
-        return result;
-    }
-
-    @trace()
-    private async populateLookups(items: Array<T>, loadLookups?: Array<string>): Promise<void> {
-        await this.Init();
-        // get lookup fields
-        const lookupFields = this.linkedLookupFields(loadLookups);
-        // init values and retrieve all ids by model
-        const allIds = {};
-        for (const key in lookupFields) {
-            if (lookupFields.hasOwnProperty(key)) {
-                const fieldDesc = lookupFields[key];
-                if(!fieldDesc.containsFullObject) {
-                    allIds[fieldDesc.modelName] = allIds[fieldDesc.modelName] || [];
-                    const ids = allIds[fieldDesc.modelName];
-                    items.forEach((item: T) => {
-                        const links = item.__getInternalLinks(key);
-                        //init value 
-                        if (fieldDesc.fieldType === FieldType.Lookup || fieldDesc.fieldType === FieldType.LookupMulti) {
-                            item[key] = fieldDesc.defaultValue;
-                        }
-                        if (fieldDesc.fieldType === FieldType.Lookup &&
-                            // lookup has value
-                            links &&
-                            links !== -1 &&
-                            // not allready loaded (local cache)
-                            (!this.initValues[fieldDesc.modelName]
-                                ||
-                                !find(this.initValues[fieldDesc.modelName], { id: links })
-                            ) &&
-                            // not allready in load list
-                            ids.indexOf(links) === -1
-                        ) {
-
-                            ids.push(links);
-                        }
-                        else if (fieldDesc.fieldType === FieldType.LookupMulti &&
-                            links &&
-                            links.length > 0) {
-                            links.forEach((id) => {
-                                if (// not allready loaded (local cache)
-                                    (!this.initValues[fieldDesc.modelName]
-                                        ||
-                                        !find(this.initValues[fieldDesc.modelName], { id: id })
-                                    ) &&
-                                    // not allready in load list
-                                    ids.indexOf(id) === -1) {
-                                    ids.push(id);
-                                }
-                            });
-                        }
-                    });
-                }
-            }
-        }
-        // Init queries       
-        const promises: Array<Promise<BaseItem[]>> = [];
-        for (const modelName in allIds) {
-            if (allIds.hasOwnProperty(modelName)) {
-                const ids = allIds[modelName];
-                if (ids && ids.length > 0) {
-                    const service = ServiceFactory.getServiceByModelName(modelName);
-                    promises.push(service.getItemsById(ids));
-                }
-            }
-        }
-        // execute and store
-        const results = await UtilsService.runPromisesInStacks(promises, 3);
-        results.forEach(itemsTab => {
-            if (itemsTab.length > 0) {
-                const modelName = itemsTab[0].constructor["name"];
-                this.initValues[modelName] = this.initValues[modelName] || [];
-                this.initValues[modelName].push(...itemsTab);
-            }
-        });
-        // Associate to items
-        for (const propertyName in lookupFields) {
-            if (lookupFields.hasOwnProperty(propertyName)) {
-                const fieldDesc = lookupFields[propertyName];
-                const refCol = this.initValues[fieldDesc.modelName];
-                items.forEach((item: T) => {
-                    const links = item.__getInternalLinks(propertyName);
-                    if (fieldDesc.fieldType === FieldType.Lookup &&
-                        links &&
-                        links !== -1) {
-                        const litem = find(refCol, { id: links });
-                        if (litem) {
-                            item[propertyName] = litem;
-                        }
-
-                    }
-                    else if (fieldDesc.fieldType === FieldType.LookupMulti &&
-                        links &&
-                        links.length > 0) {
-                        item[propertyName] = [];
-                        links.forEach((id) => {
-                            const litem = find(refCol, { id: id });
-                            if (litem) {
-                                item[propertyName].push(litem);
-                            }
-                        });
-                    }
-                });
-            }
-        }
-    }
-
-    private updateInternalLinks(item: T, loadLookups?: Array<string>): void {
-        const lookupFields = this.linkedLookupFields(loadLookups);
-        for (const propertyName in lookupFields) {
-            if (lookupFields.hasOwnProperty(propertyName)) {
-                const fieldDesc = lookupFields[propertyName];
-                if (!loadLookups || loadLookups.indexOf(fieldDesc.fieldName) !== -1) {
-                    if (fieldDesc.fieldType === FieldType.Lookup) {
-                        item.__deleteInternalLinks(propertyName);
-                        if (item[propertyName] && item[propertyName].id > -1) {
-                            item.__setInternalLinks(propertyName, item[propertyName].id);
-                        }
-                    }
-                    else if (fieldDesc.fieldType === FieldType.LookupMulti) {
-                        item.__deleteInternalLinks(propertyName);
-                        if (item[propertyName] && item[propertyName].length > 0) {
-                            item.__setInternalLinks(propertyName, item[propertyName].filter(l => l.id !== -1).map(l => l.id));
-                        }
-                    }
-                }
-            }
-        }
-    }
+    
     /***************** SP Calls associated to service standard operations ********************/
 
-    /**
-     * Get items by query
-     * @protected
-     * @param {IQuery} query - query used to retrieve items
-     * @returns {Promise<Array<T>>}
-     * @memberof BaseListItemService
-     */
-    @trace()
-    protected async get_Internal(query: IQuery, linkedFields?: Array<string>): Promise<Array<T>> {
+    
+    protected async get_Query(query: IQuery, linkedFields?: Array<string>): Promise<Array<any>> {
         const spQuery = this.getCamlQuery(query);
-        let results = new Array<T>();
-        const selectFields = this.getOdataFieldNames();
+        const selectFields = this.getOdataFieldNames(linkedFields);
         let itemsQuery = this.list.select(...selectFields);
         if (this.hasAttachments) {
             itemsQuery = itemsQuery.expand(Constants.commonFields.attachments);
         }
-        const items = await itemsQuery.getItemsByCAMLQuery(spQuery);
-        if (items && items.length > 0) {
-            await this.Init();
-            results = await Promise.all(items.map((r) => {
-                return this.getItemFromRest(r);
-            }));
-        }
-        await this.populateLookups(results, linkedFields);
-        return results;
+        return itemsQuery.getItemsByCAMLQuery(spQuery);
     }
 
     /**
@@ -826,21 +619,13 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
      * @param {number} id - item id
      */
     @trace()
-    protected async getItemById_Internal(id: number, linkedFields?: Array<string>): Promise<T> {
-        let result = null;
-        const selectFields = this.getOdataFieldNames();
+    protected async getItemById_Query(id: number, linkedFields?: Array<string>): Promise<any> {
+        const selectFields = this.getOdataFieldNames(linkedFields);
         let itemsQuery = this.list.items.getById(id).select(...selectFields);
         if (this.hasAttachments) {
             itemsQuery = itemsQuery.expand(Constants.commonFields.attachments);
         }
-        const temp = await itemsQuery.get();
-        if (temp) {
-            await this.Init();
-            result = await this.getItemFromRest(temp);
-            await this.populateLookups([result], linkedFields);
-        }
-
-        return result;
+        return itemsQuery.get();
     }
 
 
@@ -849,13 +634,13 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
      * @param ids - array of item id to retrieve
      */
     @trace()
-    protected async getItemsById_Internal(ids: Array<number>, linkedFields?: Array<string>): Promise<Array<T>> {
-        const result: Array<T> = [];
-        const promises: Promise<Array<T>>[] = [];
+    protected async getItemsById_Query(ids: Array<number>, linkedFields?: Array<string>): Promise<Array<any>> {
+        const result: Array<any> = [];
+        const promises: Promise<Array<any>>[] = [];
         const copy = cloneDeep(ids);
         while (copy.length > 0) {
             const sub = copy.splice(0, 2000);
-            promises.push(this.get_Internal({
+            promises.push(this.get_Query({
                 test: {
                     type: "predicate",
                     operator: TestOperator.In,
@@ -863,13 +648,12 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                     value: sub
                 },
                 limit: 2000
-            }));
+            }, linkedFields));
         }
         const res = await UtilsService.runPromisesInStacks(promises, 3);
         for (const tmp of res) {
             result.push(...tmp.filter(i => { return i !== null && i !== undefined; }));
         }
-        await this.populateLookups(result, linkedFields);
         return result;
     }
 
@@ -878,34 +662,13 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
      * 
      */
     @trace()
-    protected async getAll_Internal(linkedFields?: Array<string>): Promise<Array<T>> {
-        let results: Array<T> = [];
-        const selectFields = this.getOdataFieldNames();
+    protected async getAll_Query(linkedFields?: Array<string>): Promise<Array<any>> {
+        const selectFields = this.getOdataFieldNames(linkedFields);
         let itemsQuery = this.list.items.select(...selectFields);
         if (this.hasAttachments) {
             itemsQuery = itemsQuery.expand(Constants.commonFields.attachments);
         }
-        const items = await itemsQuery.getAll();
-        if (items && items.length > 0) {
-            await this.Init();
-            results = await Promise.all(items.map((r) => {
-                return this.getItemFromRest(r);
-            }));
-        }
-        await this.populateLookups(results, linkedFields);
-        return results;
-    }
-
-    @trace()
-    public async addOrUpdateItem(item: T, loadLookups?: Array<string>): Promise<T> {
-        this.updateInternalLinks(item, loadLookups);
-        return super.addOrUpdateItem(item);
-    }
-
-    @trace()
-    public async addOrUpdateItems(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void, loadLookups?: Array<string>): Promise<Array<T>> {
-        items.forEach(item => this.updateInternalLinks(item, loadLookups));
-        return super.addOrUpdateItems(items, onItemUpdated);
+        return itemsQuery.getAll();
     }
 
     /**
@@ -918,7 +681,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         await this.initFields();
         const selectFields = this.getOdataCommonFieldNames();
         if (item.id < 0) {
-            const converted = await this.getSPRestItem(item);
+            const converted = await this.convertItem(item);
             const addResult = await this.list.items.select(...selectFields).add(converted);
             await this.populateCommonFields(result, addResult.data);
             await this.updateWssIds(result, addResult.data);
@@ -936,7 +699,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                     throw error;
                 }
                 else {
-                    const converted = await this.getSPRestItem(item);
+                    const converted = await this.convertItem(item);
                     const updateResult = await this.list.items.getById(item.id).select(...selectFields).update(converted);
                     const version = await updateResult.item.select(...selectFields).get();
                     await this.populateCommonFields(result, version);
@@ -944,7 +707,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                 }
             }
             else {
-                const converted = await this.getSPRestItem(item);
+                const converted = await this.convertItem(item);
                 const updateResult = await this.list.items.getById(item.id).update(converted);
                 const version = await updateResult.item.select(...selectFields).get();
                 await this.populateCommonFields(result, version);
@@ -980,7 +743,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                 for (const item of sub) {
                     const currentIdx = idx;
                     const itemId = item.id;
-                    const converted = await this.getSPRestItem(item);
+                    const converted = await this.convertItem(item);
                     this.list.items.select(...selectFields).inBatch(batch).add(converted, entityTypeFullName).then(async (addResult) => {
                         await this.populateCommonFields(item, addResult.data);
                         await this.updateWssIds(item, addResult.data);
@@ -1046,7 +809,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                 const batch = sp.createBatch();
                 for (const item of sub) {
                     const currentIdx = idx;
-                    const converted = await this.getSPRestItem(item);
+                    const converted = await this.convertItem(item);
                     this.list.items.getById(item.id).select(...selectFields).inBatch(batch).update(converted, '*', entityTypeFullName).then(async () => {
                         resultItems.push(item);
 
@@ -1123,29 +886,6 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         return items;
     }
 
-    @trace()
-    protected async persistItemData_internal(data: any, linkedFields?: Array<string>): Promise<T> {
-        let result = null;
-        if (data) {
-            await this.Init();
-            result = await this.getItemFromRest(data);
-            await this.populateLookups([result], linkedFields);
-            this.updateInternalLinks(result, linkedFields); 
-        }
-        return result;
-    }
-
-    @trace()
-    protected async persistItemsData_internal(data: any[], linkedFields?: Array<string>): Promise<T[]> {
-        let result = null;
-        if (data) {
-            await this.Init();            
-            result = await Promise.all(data.map(d => this.getItemFromRest(d)));
-            await this.populateLookups(result, linkedFields);
-            result.forEach(r => this.updateInternalLinks(r, linkedFields)); 
-        }
-        return result;
-    }
 
     @trace()
     private async getAttachmentContent(attachment: SPFile): Promise<void> {
@@ -1221,10 +961,11 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
     /**
      * Retrive all fields to include in odata setect parameter
      */
-    private getOdataFieldNames(): Array<string> {
+    private getOdataFieldNames(linkedFields?: Array<string>): Array<string> {
         const fields = this.ItemFields;
         const fieldNames = Object.keys(fields).filter((propertyName) => {
-            return fields.hasOwnProperty(propertyName);
+            return fields.hasOwnProperty(propertyName) && 
+            (!linkedFields || (linkedFields.length === 1 && linkedFields[0] === 'loadAll') || linkedFields.indexOf(fields[propertyName].fieldName) !== -1);
         }).map((prop) => {
             let result: string = fields[prop].fieldName;
             switch (fields[prop].fieldType) {
@@ -1312,320 +1053,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
             }
         }));
 
-    }
-
-
-
-    /**
-     * convert full item to db format (with links only)
-     * @param item - full provisionned item
-     */
-    protected async convertItemToDbFormat(item: T): Promise<T> {
-        const result: T = await super.convertItemToDbFormat(item);
-        for (const propertyName in result) {
-            if (result.hasOwnProperty(propertyName)) {
-                if (this.ItemFields.hasOwnProperty(propertyName)) {
-                    const fieldDescriptor = this.ItemFields[propertyName];
-                    switch (fieldDescriptor.fieldType) {
-                        case FieldType.User:
-                        case FieldType.Taxonomy:
-                            if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                                //link defered
-                                if (item[propertyName]) {
-                                    result.__setInternalLinks(propertyName, (item[propertyName] as unknown as BaseItem).id);
-                                }
-                                delete result[propertyName];
-                            }
-                            break;
-                        case FieldType.UserMulti:
-                        case FieldType.TaxonomyMulti:
-                            if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                                const ids = [];
-                                if (item[propertyName]) {
-                                    (item[propertyName] as unknown as BaseItem[]).forEach(element => {
-                                        if (element.id) {
-                                            if ((typeof (element.id) === "number" && element.id > 0) || (typeof (element.id) === "string" && !stringIsNullOrEmpty(element.id))) {
-                                                ids.push(element.id);
-                                            }
-                                        }
-                                    });
-                                }
-                                result.__setInternalLinks(propertyName, ids.length > 0 ? ids : []);
-                                delete result[propertyName];
-                            }
-                            break;
-                        case FieldType.Lookup:
-                        case FieldType.LookupMulti:
-                            // internal links allready updated before (used for rest calls)
-                            if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                                delete result[propertyName];
-                                result.__setInternalLinks(propertyName, item.__getInternalLinks(propertyName));
-                            }
-                            break;
-                        default:
-                            if (fieldDescriptor.fieldName === Constants.commonFields.attachments) {
-                                let ids = [];
-                                if (item[propertyName] && (item[propertyName] as unknown as SPFile[]).length > 0) {
-                                    const files = await this.attachmentsService.addOrUpdateItems(item[propertyName] as unknown as SPFile[]);
-                                    ids = files.map((f) => {
-                                        return f.id;
-                                    });
-                                }
-                                result.__setInternalLinks(propertyName, ids.length > 0 ? ids : []);
-                                delete result[propertyName];
-                            }
-                            break;
-                    }
-
-                }
-                else if(typeof(result[propertyName]) === "function") {
-                    delete result[propertyName];
-                }
-            }
-        }
-        return result;
-    }
-
-    /**
-     * populate item from db storage
-     * @param item - db item with links in internalLinks fields
-     */
-    @trace()
-    public async mapItems(items: Array<T>, linkedFields?: Array<string>): Promise<Array<T>> {
-        const results: Array<T> = [];
-        if (items && items.length > 0) {
-            await this.Init();
-            for (const item of items) {
-                const result: T = cloneDeep(item);
-                if (item) {
-                    for (const propertyName in this.ItemFields) {
-                        if (this.ItemFields.hasOwnProperty(propertyName)) {
-                            const fieldDescriptor = this.ItemFields[propertyName];
-                            if (//fieldDescriptor.fieldType === FieldType.Lookup ||
-                                fieldDescriptor.fieldType === FieldType.User ||
-                                fieldDescriptor.fieldType === FieldType.Taxonomy) {
-                                if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                                    // get values from init values
-                                    const id: number = item.__getInternalLinks(propertyName);
-                                    if (id !== null) {
-                                        const destElements = this.getServiceInitValuesByName(fieldDescriptor.modelName);
-                                        const existing = find(destElements, (destElement) => {
-                                            return destElement.id === id;
-                                        });
-                                        result[propertyName] = existing ? existing : fieldDescriptor.defaultValue;
-                                    }
-                                    else {
-                                        result[propertyName] = fieldDescriptor.defaultValue;
-                                    }
-                                }
-                                result.__deleteInternalLinks(propertyName);
-                            }
-                            else if (//fieldDescriptor.fieldType === FieldType.LookupMulti ||
-                                fieldDescriptor.fieldType === FieldType.UserMulti ||
-                                fieldDescriptor.fieldType === FieldType.TaxonomyMulti) {
-                                if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                                    // get values from init values
-                                    const ids = item.__getInternalLinks(propertyName) || [];
-                                    if (ids.length > 0) {
-                                        const val = [];
-                                        const targetItems = this.getServiceInitValuesByName(fieldDescriptor.modelName);
-                                        ids.forEach(id => {
-                                            const existing = find(targetItems, (tmpitem) => {
-                                                return tmpitem.id === id;
-                                            });
-                                            if (existing) {
-                                                val.push(existing);
-                                            }
-                                        });
-                                        result[propertyName] = val;
-                                    }
-                                    else {
-                                        result[propertyName] = fieldDescriptor.defaultValue;
-                                    }
-                                }
-                                result.__deleteInternalLinks(propertyName);
-                            }
-                            else if(fieldDescriptor.fieldType === FieldType.Json && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                                const itemType = ServiceFactory.getObjectTypeByName(fieldDescriptor.modelName);
-                                result[propertyName] = assign(new itemType(), item[propertyName]);
-                            }
-                            else {
-                                if (fieldDescriptor.fieldName === Constants.commonFields.attachments) {
-                                    // get values from init values
-                                    const urls = item.__getInternalLinks(propertyName) || [];
-                                    if (urls.length > 0) {
-                                        const files = await this.attachmentsService.getItemsById(urls);
-                                        result[propertyName] = files;
-                                    }
-                                    else {
-                                        result[propertyName] = fieldDescriptor.defaultValue;
-                                    }
-                                    result.__deleteInternalLinks(propertyName);
-                                }
-                                else {
-                                    result[propertyName] = item[propertyName];
-                                }
-                            }
-                        }
-                    }
-                }
-                result.__clearEmptyInternalLinks();
-                results.push(result);
-            }
-        }
-        await this.populateLookups(results, linkedFields);
-        return results;
-    }
-
-    @trace()
-    public async updateLinkedTransactions(oldId: number, newId: number, nextTransactions: Array<OfflineTransaction>): Promise<Array<OfflineTransaction>> {
-        // Update items pointing to this in transactions
-        nextTransactions.forEach(transaction => {
-            let currentObject = null;
-            let needUpdate = false;
-            const service = ServiceFactory.getServiceByModelName(transaction.itemType);
-            const fields = service.ItemFields;
-            // search for lookup fields
-            for (const propertyName in fields) {
-                if (fields.hasOwnProperty(propertyName)) {
-                    const fieldDescription: IFieldDescriptor = fields[propertyName];
-                    if (fieldDescription.refItemName === this.itemType["name"] || fieldDescription.modelName === this.itemType["name"]) {
-                        // get object if not done yet
-                        if (!currentObject) {
-                            currentObject = ServiceFactory.getItemByName(transaction.itemType);
-                            assign(currentObject, transaction.itemData);
-                        }
-                        if (fieldDescription.fieldType === FieldType.Lookup) {
-                            if (fieldDescription.modelName) {
-                                // search in internalLinks
-                                const link = currentObject.__getInternalLinks(propertyName);
-                                if (link && link === oldId) {
-                                    currentObject.__setInternalLinks(propertyName, newId);
-                                    needUpdate = true;
-                                }
-                            }
-                            else if (currentObject[propertyName] === oldId) {
-                                // change field
-                                currentObject[propertyName] = newId;
-                                needUpdate = true;
-                            }
-                        }
-                        else if (fieldDescription.fieldType === FieldType.LookupMulti) {
-                            if (fieldDescription.modelName) {
-                                // serch in internalLinks
-                                const links = currentObject.__getInternalLinks(propertyName);
-                                if (links && isArray(links)) {
-                                    // find item
-                                    const lookupidx = findIndex(links, (id) => { return id === oldId; });
-                                    // change id
-                                    if (lookupidx > -1) {
-                                        currentObject.__setReplaceInternalLinks(propertyName, oldId, newId);
-                                        needUpdate = true;
-                                    }
-                                }
-                            }
-                            else if (currentObject[propertyName] && isArray(currentObject[propertyName])) {
-                                // find index
-                                const lookupidx = findIndex(currentObject[propertyName], (id) => { return id === oldId; });
-                                // change field
-                                // change id
-                                if (lookupidx > -1) {
-                                    currentObject[propertyName] = newId;
-                                    needUpdate = true;
-                                }
-                            }
-                        }
-
-                    }
-
-                }
-            }
-            if (needUpdate) {
-                transaction.itemData = assign({}, currentObject);
-                this.transactionService.addOrUpdateItem(transaction);
-            }
-        });
-        return nextTransactions;
-    }
-
-    @trace()
-    private async updateLinksInDb(oldId: number, newId: number): Promise<void> {
-        const allFields = assign({}, this.itemType["Fields"]);
-        let parentType = this.itemType;
-        do {
-            delete allFields[parentType["name"] ];
-            parentType = Object.getPrototypeOf(parentType);
-        } while(parentType["name"] !== BaseItem["name"]);
-        for (const modelName in allFields) {
-            if (allFields.hasOwnProperty(modelName)) {
-                const modelFields = allFields[modelName];
-                const lookupProperties = Object.keys(modelFields).filter((prop) => {
-                    return (modelFields[prop].refItemName &&
-                        modelFields[prop].refItemName === this.itemType["name"] || modelFields[prop].modelName === this.itemType["name"]);
-                });
-                if (lookupProperties.length > 0) {
-                    const service = ServiceFactory.getServiceByModelName(modelName);
-                    const allitems = await service.__getAllFromCache();
-                    const updated = [];
-                    allitems.forEach(element => {
-                        let needUpdate = false;
-                        lookupProperties.forEach(propertyName => {
-                            const fieldDescription = modelFields[propertyName];
-                            if (fieldDescription.fieldType === FieldType.Lookup) {
-                                if (fieldDescription.modelName) {
-                                    // serch in internalLinks
-                                    const link = element.__getInternalLinks(propertyName);
-                                    if (link && link === oldId) {
-                                        element.__setInternalLinks(propertyName, newId);
-                                        needUpdate = true;
-                                    }
-                                }
-                                else if (element[propertyName] === oldId) {
-                                    // change field
-                                    element[propertyName] = newId;
-                                    needUpdate = true;
-                                }
-                            }
-                            else if (fieldDescription.fieldType === FieldType.LookupMulti) {
-                                if (fieldDescription.modelName) {
-                                    // search in internalLinks
-                                    const links = element.__getInternalLinks(propertyName);
-                                    if (links && isArray(links)) {
-                                        // find item
-                                        const lookupidx = findIndex(links, (id) => { return id === oldId; });
-                                        // change id
-                                        if (lookupidx > -1) {
-                                            element.__setInternalLinks(propertyName, newId);
-                                            needUpdate = true;
-                                        }
-                                    }
-                                }
-                                else if (element[propertyName] && isArray(element[propertyName])) {
-                                    // find index
-                                    const lookupidx = findIndex(element[propertyName], (id) => { return id === oldId; });
-                                    // change field
-                                    // change id
-                                    if (lookupidx > -1) {
-                                        element[propertyName] = newId;
-                                        needUpdate = true;
-                                    }
-                                }
-                            }
-                        });
-                        if (needUpdate) {
-                            updated.push(element);
-                        }
-                    });
-                    if (updated.length > 0) {
-                        await service.__updateCache(...updated);
-                    }
-                }
-            }
-        }
-
-    }
-
-    
+    } 
 
 
     @trace()

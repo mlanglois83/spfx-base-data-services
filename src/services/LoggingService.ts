@@ -75,7 +75,12 @@ export class LoggingService {
             }
             return result;
         });
-        console.log(logText);
+        if(duration > 1000) {
+            console.warn(logText);
+        }
+        else {            
+            console.log(logText);
+        }
     }
 
     private static formatValue(value: any): string {

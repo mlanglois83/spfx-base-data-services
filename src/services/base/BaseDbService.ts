@@ -1,5 +1,5 @@
 import { Text } from "@microsoft/sp-core-library";
-import { assign, cloneDeep, find } from "@microsoft/sp-lodash-subset";
+import { assign, cloneDeep } from "@microsoft/sp-lodash-subset";
 import { DB, ObjectStore, openDb } from "idb";
 import { IBaseItem, IDataService, IQuery } from "../../interfaces";
 import { BaseService } from "./BaseService";
@@ -39,7 +39,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
         return new RegExp("^" + escapedUrl + "_chunk_\\d+$", "g");
     }
 
-    protected async getAllKeysInternal<TKey extends string | number>(store: ObjectStore<T, TKey>): Promise<Array<TKey>> {
+    protected async getAllKeysInternal<TKey extends number | string>(store: ObjectStore<T, TKey>): Promise<Array<TKey>> {
         let result: Array<TKey> = [];
         if (store.getAllKeys) {
             result = await store.getAllKeys();
@@ -56,31 +56,24 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
 
     private static mutex = new Mutex();
 
-    protected async getNextAvailableKey(): Promise<number> {
+    protected async getNextAvailableKey(store: ObjectStore<T, number>): Promise<number> {
         let result: number;
-
-
-        const release = await BaseDbService.mutex.acquire();
-        try {
-            await this.OpenDb();
-            const tx = this.db.transaction(this.tableName, 'readonly');
-            const store = tx.objectStore<T, number>(this.tableName);
-            const keys = await this.getAllKeysInternal(store);
-            if (keys.length > 0) {
-                const minKey = Math.min(...keys);
-                result = Math.min(-2, minKey - 1);
+        const tmp = new this.itemType();
+        if(typeof(tmp.id) === "number") {
+            const release = await BaseDbService.mutex.acquire();
+            try {
+                const keys = await this.getAllKeysInternal(store);
+                if (keys.length > 0) {
+                    const minKey = Math.min(...keys);
+                    result = Math.min(-2, minKey - 1);
+                }
+                else {
+                    result = -2;
+                }
+            } finally {
+                release();
             }
-            else {
-                result = -2;
-            }
-            await tx.complete;
-        } finally {
-            release();
         }
-
-
-
-
         return result;
     }
 
@@ -111,17 +104,17 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
      */
     @trace()
     public async addOrUpdateItem(item: T): Promise<T> {
-        await this.OpenDb();
-        const nextid = await this.getNextAvailableKey();
+        await this.OpenDb();        
         const tx = this.db.transaction(this.tableName, 'readwrite');
         const store = tx.objectStore(this.tableName);
         try {
             if (typeof (item.id) === "number" && !store.autoIncrement && item.id === -1) {
+                const nextid = await this.getNextAvailableKey(store as ObjectStore<T, number>);
                 item.id = nextid;
             }
             if (item instanceof BaseFile && item.content && item.content.byteLength >= 10485760) {
                 // remove existing chunks
-                const keys: string[] = await this.getAllKeysInternal(store);
+                const keys = await this.getAllKeysInternal(store);
                 const chunkRegex = this.getChunksRegexp(item.id);
                 const chunkkeys = keys.filter((k) => {
                     const match = k.toString().match(chunkRegex);
@@ -175,7 +168,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
         try {
             const deleteKeys = [item.id];
             if (item instanceof BaseFile) {
-                const keys: string[] = await this.getAllKeysInternal(store);
+                const keys = await this.getAllKeysInternal(store);
                 const chunkRegex = this.getChunksRegexp(item.id);
                 const chunkkeys = keys.filter((k) => {
                     const match = k.toString().match(chunkRegex);
@@ -209,7 +202,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
             for (const item of items) {   
                 const deleteKeys = [item.id];
                 if (item instanceof BaseFile) {
-                    const keys: string[] = await this.getAllKeysInternal(store);
+                    const keys = await this.getAllKeysInternal(store);
                     const chunkRegex = this.getChunksRegexp(item.id);
                     const chunkkeys = keys.filter((k) => {
                         const match = k.toString().match(chunkRegex);
@@ -250,18 +243,21 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
     @trace()
     public async addOrUpdateItems(newItems: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void): Promise<Array<T>> {
         await this.OpenDb();
-        let nextid = await this.getNextAvailableKey();
+        let nextid = undefined;
         const tx = this.db.transaction(this.tableName, 'readwrite');
         const store = tx.objectStore(this.tableName);
         const copy = cloneDeep(newItems);
         try {
             await Promise.all(copy.map(async (item, itemIdx) => {
                 if (typeof (item.id) === "number" && !store.autoIncrement && item.id === -1) {
+                    if(nextid === undefined) {
+                        nextid = await this.getNextAvailableKey(store as ObjectStore<T, number>);
+                    }
                     item.id = nextid--;
                 }
                 if (item instanceof BaseFile && item.content && item.content.byteLength >= 10485760) {
                     // remove existing chunks
-                    const keys: string[] = await this.getAllKeysInternal(store);
+                    const keys = await this.getAllKeysInternal(store);
                     const chunkRegex = this.getChunksRegexp(item.id);
                     const chunkkeys = keys.filter((k) => {
                         const match = k.toString().match(chunkRegex);
@@ -411,19 +407,25 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                     // item is a part of another file
                     const chunkparts = (/^.*_chunk_\d+$/g).test(result.id.toString());
                     if (!chunkparts) {
-                        const allRows = await store.getAll();
                         // verify if there are other parts
+                        const keys = await this.getAllKeysInternal(store);
                         const chunkRegex = this.getChunksRegexp(result.id);
-                        const chunks = allRows.filter((chunkedrow) => {
-                            const match = chunkedrow.id.match(chunkRegex);
+                        const chunkkeys = keys.filter((k) => {
+                            const match = k.toString().match(chunkRegex);
                             return match && match.length > 0;
                         });
+                        const chunks = await Promise.all(chunkkeys.map((key) => store.get(key)));
+                        await Promise.all(chunkkeys.map((k) => {
+                            return store.delete(k);
+                        }));
+
+
                         if (chunks.length > 0) {
                             chunks.sort((a, b) => {
                                 return parseInt(a.id.replace(/^.*_chunk_(\d+)$/g, "$1")) - parseInt(b.id.replace(/^.*_chunk_(\d+)$/g, "$1"));
                             });
                             result.content = UtilsService.concatArrayBuffers(result.content, ...chunks.map(c => {
-                                const file = assign(new this.itemType(), c);
+                                const file: BaseFile = assign(new this.itemType(), c);
                                 return file.content;
                             }));
                         }
@@ -447,12 +449,11 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
         const results: T[] = [];
         await this.OpenDb();
         const tx = this.db.transaction(this.tableName, 'readonly');
-        const store = tx.objectStore(this.tableName);
+        const store = tx.objectStore(this.tableName);        
         try {
-            const allRows = await store.getAll();
-            ids.forEach(id => {
+            await Promise.all(ids.map(async (id) => {
                 let result = null;
-                const obj = find(allRows, r => r.id === id);
+                const obj = await store.get(id);
                 if (obj) {
                     result = assign(new this.itemType(), obj);
                     if (result instanceof BaseFile) {
@@ -460,11 +461,13 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                         const chunkparts = (/^.*_chunk_\d+$/g).test(result.id.toString());
                         if (!chunkparts) {                            
                             // verify if there are other parts
+                            const keys = await this.getAllKeysInternal(store);
                             const chunkRegex = this.getChunksRegexp(result.id);
-                            const chunks = allRows.filter((chunkedrow) => {
-                                const match = chunkedrow.id.match(chunkRegex);
+                            const chunkkeys = keys.filter((k) => {
+                                const match = k.toString().match(chunkRegex);
                                 return match && match.length > 0;
                             });
+                            const chunks = await Promise.all(chunkkeys.map((key) => store.get(key)));
                             if (chunks.length > 0) {
                                 chunks.sort((a, b) => {
                                     return parseInt(a.id.replace(/^.*_chunk_(\d+)$/g, "$1")) - parseInt(b.id.replace(/^.*_chunk_(\d+)$/g, "$1"));
@@ -484,8 +487,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                 if(result) {
                     results.push(result);                    
                 }
-            });
-            
+            }));    
             await tx.complete;
             return results;
         } catch (error) {

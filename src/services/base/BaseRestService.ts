@@ -1,11 +1,10 @@
 import { ServicesConfiguration } from "../../configuration";
-import { cloneDeep, find, assign, findIndex } from "@microsoft/sp-lodash-subset";
+import { cloneDeep, find } from "@microsoft/sp-lodash-subset";
 import { Constants, FieldType, TestOperator } from "../../constants/index";
 import { IFieldDescriptor, IQuery, ILogicalSequence, IRestQuery, IRestLogicalSequence, IEndPointBindings, IPredicate, IRestPredicate, IOrderBy } from "../../interfaces/index";
 import { BaseDataService } from "./BaseDataService";
 import { UtilsService } from "../UtilsService";
-import { RestItem, User, OfflineTransaction, RestResultMapping } from "../../models";
-import { BaseItem } from "../../models/base/BaseItem";
+import { RestItem, User, RestResultMapping } from "../../models";
 import { UserService } from "../graph/UserService";
 import { isArray, stringIsNullOrEmpty } from "@pnp/common";
 import { RestFile } from "../../models/base/RestFile";
@@ -56,39 +55,18 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
     }   
 
     /****************************** get item methods ***********************************/
-    protected async getItemFromRest(restItem: any): Promise<T> {
-        const item = new this.itemType();
-        const allProperties = Object.keys(this.ItemFields);
-        // id used for links, should be populated first
-        const idx = allProperties.indexOf(Constants.commonRestFields.id);
-        if(idx !== -1) {
-            allProperties.splice(idx, 1);
-            allProperties.unshift(Constants.commonRestFields.id);
-        }
-        // set field values
-        for (const propertyName of allProperties) {
-            if (this.ItemFields.hasOwnProperty(propertyName)) {
-                const fieldDescription = this.ItemFields[propertyName];
-                await this.setFieldValue(restItem, item, propertyName, fieldDescription);
-            }
-        }
-        // 
+    protected async populateItem(restItem: any): Promise<T> {
+        const item = await super.populateItem(restItem);
         if (item instanceof RestFile) {
             item.mimeType = (mime.lookup(item.title) as string) || 'application/octet-stream';
         }
         return item;
     }
 
-    // TODO : test
-    private async setFieldValue(restItem: any, destItem: T, propertyName: string, fieldDescriptor: IFieldDescriptor): Promise<void> {
+    protected async populateFieldValue(restItem: any, destItem: T, propertyName: string, fieldDescriptor: IFieldDescriptor): Promise<void> {
+        await super.populateFieldValue(restItem, destItem, propertyName, fieldDescriptor);
         fieldDescriptor.fieldType = fieldDescriptor.fieldType || FieldType.Simple;
-        switch (fieldDescriptor.fieldType) {
-            case FieldType.Simple:
-                destItem[propertyName] = restItem[fieldDescriptor.fieldName] !== null && restItem[fieldDescriptor.fieldName] !== undefined ? restItem[fieldDescriptor.fieldName] : fieldDescriptor.defaultValue;
-                break;
-            case FieldType.Date:
-                destItem[propertyName] = restItem[fieldDescriptor.fieldName] ? new Date(restItem[fieldDescriptor.fieldName]) : fieldDescriptor.defaultValue;
-                break;
+        switch (fieldDescriptor.fieldType) {            
             case FieldType.Lookup:
                 if (fieldDescriptor.containsFullObject && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                     const obj = restItem[fieldDescriptor.fieldName] ? restItem[fieldDescriptor.fieldName] : null;
@@ -232,69 +210,27 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                     destItem[propertyName] = fieldDescriptor.defaultValue;
                 }
                 break;
-            case FieldType.Json:
-                if (restItem[fieldDescriptor.fieldName]) {
-                    try {
-                        if(fieldDescriptor.containsFullObject) {
-                            if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                                const itemType = ServiceFactory.getObjectTypeByName(fieldDescriptor.modelName);
-                                destItem[propertyName] = assign(new itemType(), restItem[fieldDescriptor.fieldName]);
-                            }
-                            else {
-                                destItem[propertyName] = restItem[fieldDescriptor.fieldName];
-                            }
-                        }
-                        else {
-                            const jsonObj = JSON.parse(restItem[fieldDescriptor.fieldName]);
-                            if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                                const itemType = ServiceFactory.getObjectTypeByName(fieldDescriptor.modelName);
-                                destItem[propertyName] = assign(new itemType(), jsonObj);
-                            }
-                            else {
-                                destItem[propertyName] = jsonObj;
-                            }
-                        }
-                    }
-                    catch (error) {
-                        console.error(error);
-                        destItem[propertyName] = fieldDescriptor.defaultValue;
-                    }
-                }
-                else {
-                    destItem[propertyName] = fieldDescriptor.defaultValue;
-                }
-                break;
+            default: break;
         }
     }
     /****************************** Send item methods ***********************************/
-    protected async getRestItem(item: T): Promise<any> {
-        const restItem = {};
-        await Promise.all(Object.keys(this.ItemFields).map(async (propertyName) => {
-            const fieldDescription = this.ItemFields[propertyName];
-            await this.setRestFieldValue(item, restItem, propertyName, fieldDescription);
-        }));
-        return restItem;
+    
+    protected get ignoredFields(): string[]{
+        return [
+            Constants.commonRestFields.created,
+            Constants.commonRestFields.author,
+            Constants.commonRestFields.editor,
+            Constants.commonRestFields.modified,
+            Constants.commonRestFields.version,
+            Constants.commonRestFields.uniqueid
+        ];
     }
 
-
-    // TODO : test
-    private async setRestFieldValue(item: T, destItem: any, propertyName: string, fieldDescriptor: IFieldDescriptor): Promise<void> {
+    protected async convertFieldValue(item: T, destItem: any, propertyName: string, fieldDescriptor: IFieldDescriptor): Promise<void> {
+        await super.convertFieldValue(item, destItem, propertyName, fieldDescriptor);
         const itemValue = item[propertyName];
-        fieldDescriptor.fieldType = fieldDescriptor.fieldType || FieldType.Simple;
-
-        if (fieldDescriptor.fieldName !== Constants.commonRestFields.created &&
-            fieldDescriptor.fieldName !== Constants.commonRestFields.author &&
-            fieldDescriptor.fieldName !== Constants.commonRestFields.editor &&
-            fieldDescriptor.fieldName !== Constants.commonRestFields.modified &&
-            fieldDescriptor.fieldName !== Constants.commonRestFields.version &&
-            (fieldDescriptor.fieldName !== Constants.commonRestFields.id || itemValue > 0) &&
-            (fieldDescriptor.fieldName !== Constants.commonRestFields.uniqueid || item.id <= 0)
-        ) {
-            switch (fieldDescriptor.fieldType) {
-                case FieldType.Simple:
-                case FieldType.Date:
-                    destItem[fieldDescriptor.fieldName] = itemValue;
-                    break;
+        if (!this.isFieldIgnored(item, propertyName, fieldDescriptor)) {
+            switch (fieldDescriptor.fieldType) {                
                 case FieldType.Lookup:
                     const link = item.__getInternalLinks(propertyName);
                     if (itemValue) {
@@ -352,13 +288,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                         destItem[fieldDescriptor.fieldName] = null;
                     }
                     break;
-                case FieldType.Json:
-                    if (fieldDescriptor.containsFullObject) {
-                        destItem[fieldDescriptor.fieldName] = itemValue;
-                    }
-                    else {
-                        destItem[fieldDescriptor.fieldName] = itemValue ? JSON.stringify(itemValue) : null;
-                    }
+                default:
                     break;
             }
         }
@@ -379,202 +309,16 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         return result;
     }
 
-    /**********************************Service specific calls  *******************************/
-
-
-    /********************************** Link to lookups  *************************************/
-    private linkedLookupFields(loadLookups?: Array<string>): Array<IFieldDescriptor> {
-        const result: Array<IFieldDescriptor> = [];
-        const fields = this.ItemFields;
-        for (const key in fields) {
-            if (fields.hasOwnProperty(key)) {
-                const fieldDesc = fields[key];
-                if ((fieldDesc.fieldType === FieldType.Lookup || fieldDesc.fieldType === FieldType.LookupMulti) && !stringIsNullOrEmpty(fieldDesc.modelName)) {
-                    if (!loadLookups || (loadLookups.length === 1 && loadLookups[0] === 'loadAll') || loadLookups.indexOf(fieldDesc.fieldName) !== -1) {
-                        result[key] = fieldDesc;
-                    }
-                }
-            }
-        }
-
-        return result;
-    }    
-
-    @trace()
-    protected async populateLookups(items: Array<T>, loadLookups?: Array<string>): Promise<void> {
-        await this.Init();
-        // get lookup fields
-        const lookupFields = this.linkedLookupFields(loadLookups);
-                
-        // init values and retrieve all ids by model
-        const allIds = {};
-        const cachedIds = {};
-        for (const key in lookupFields) {
-            if (lookupFields.hasOwnProperty(key)) {
-                const fieldDesc = lookupFields[key];
-                allIds[fieldDesc.modelName] = allIds[fieldDesc.modelName] || [];
-                cachedIds[fieldDesc.modelName] = cachedIds[fieldDesc.modelName] || [];
-                const ids = allIds[fieldDesc.modelName];
-                const cached = cachedIds[fieldDesc.modelName];
-                items.forEach((item: T) => {
-                    const links = item.__getInternalLinks(key);
-                    //init value 
-                    if (fieldDesc.fieldType === FieldType.Lookup || fieldDesc.fieldType === FieldType.LookupMulti) {
-                        item[key] = fieldDesc.defaultValue;
-                    }
-                    if (fieldDesc.fieldType === FieldType.Lookup &&
-                        // lookup has value
-                        links &&
-                        links !== -1 &&
-                        // not allready loaded (local cache)
-                        (!this.initValues[fieldDesc.modelName]
-                            ||
-                            !find(this.initValues[fieldDesc.modelName], { id: links })
-                        ) &&
-                        // not allready in load list
-                        ids.indexOf(links) === -1
-                    ) {
-                        (fieldDesc.containsFullObject ? cached : ids).push(links);
-                    }
-                    else if (fieldDesc.fieldType === FieldType.LookupMulti &&
-                        links &&
-                        links.length > 0) {
-                        links.forEach((id) => {
-                            if (// not allready loaded (local cache)
-                                (!this.initValues[fieldDesc.modelName]
-                                    ||
-                                    !find(this.initValues[fieldDesc.modelName], { id: id })
-                                ) &&
-                                // not allready in load list
-                                ids.indexOf(id) === -1)
-                            {
-                                (fieldDesc.containsFullObject ? cached : ids).push(id);
-                            }
-                        });
-                    }
-                });
-                
-            }
-        }
-        // get from cache for lookups with containsFullObject
-        // Init queries       
-        const cachedpromises: Array<Promise<BaseItem[]>> = [];
-        for (const modelName in cachedIds) {
-            if (cachedIds.hasOwnProperty(modelName)) {
-                const ids = cachedIds[modelName];
-                if (ids && ids.length > 0) {
-                    const service = ServiceFactory.getServiceByModelName(modelName);
-                    cachedpromises.push(service.getItemsFromCacheById(ids));
-                }
-            }
-        }
-        // execute and store
-        const cachedresults = await UtilsService.runPromisesInStacks(cachedpromises, 3);
-        cachedresults.forEach(itemsTab => {
-            if (itemsTab.length > 0) {
-                this.updateInitValues(itemsTab[0].constructor["name"], ...itemsTab);
-            }
-        });
-
-        // Init queries       
-        const promises: Array<Promise<BaseItem[]>> = [];
-        for (const modelName in allIds) {
-            if (allIds.hasOwnProperty(modelName)) {
-                const ids = allIds[modelName];
-                if (ids && ids.length > 0) {
-                    const service = ServiceFactory.getServiceByModelName(modelName);
-                    promises.push(service.getItemsById(ids));
-                }
-            }
-        }
-        // execute and store
-        const results = await UtilsService.runPromisesInStacks(promises, 3);
-        results.forEach(itemsTab => {
-            if (itemsTab.length > 0) {
-                this.updateInitValues(itemsTab[0].constructor["name"], ...itemsTab);
-            }
-        });
-
-        // Associate to items
-        for (const propertyName in lookupFields) {
-            if (lookupFields.hasOwnProperty(propertyName)) {
-                const fieldDesc = lookupFields[propertyName];
-                const refCol = this.initValues[fieldDesc.modelName];
-                items.forEach((item: T) => {
-                    const links = item.__getInternalLinks(propertyName);
-                    if (fieldDesc.fieldType === FieldType.Lookup &&
-                        links &&
-                        links !== -1) {
-                        const litem = find(refCol, { id: links });
-                        if (litem) {
-                            item[propertyName] = litem;
-                        }
-
-                    }
-                    else if (fieldDesc.fieldType === FieldType.LookupMulti &&
-                        links &&
-                        links.length > 0) {
-                        item[propertyName] = [];
-                        links.forEach((id) => {
-                            const litem = find(refCol, { id: id });
-                            if (litem) {
-                                item[propertyName].push(litem);
-                            }
-                        });
-                    }
-                });
-            }
-        }
-    }
-
-    protected updateInternalLinks(item: T, loadLookups?: Array<string>): void {
-        const lookupFields = this.linkedLookupFields(loadLookups);
-        for (const propertyName in lookupFields) {
-            if (lookupFields.hasOwnProperty(propertyName)) {
-                const fieldDesc = lookupFields[propertyName];
-                if (!loadLookups || loadLookups.indexOf(fieldDesc.fieldName) !== -1) {
-                    if (fieldDesc.fieldType === FieldType.Lookup) {
-                        item.__deleteInternalLinks(propertyName);
-                        if (item[propertyName] && item[propertyName].id > -1) {
-                            item.__setInternalLinks(propertyName, item[propertyName].id);
-                        }
-                    }
-                    else if (fieldDesc.fieldType === FieldType.LookupMulti) {
-                        item.__deleteInternalLinks(propertyName);
-                        if (item[propertyName] && item[propertyName].length > 0) {
-                            item.__setInternalLinks(propertyName, item[propertyName].filter(l => l.id !== -1).map(l => l.id));
-                        }
-                    }
-                }
-            }
-        }
-    }
+    
     /***************** SP Calls associated to service standard operations ********************/
     
-    /**
-     * Get items by query
-     * @protected
-     * @param {IQuery} query - query used to retrieve items
-     * @returns {Promise<Array<T>>}
-     * @memberof BaseListItemService
-     */
     @trace()
-    protected async get_Internal(query: IQuery, linkedFields?: Array<string>): Promise<Array<T>> {
+    protected async get_Query(query: IQuery, linkedFields?: Array<string>): Promise<Array<T>> {
         const restQuery = this.getRestQuery(query);
         if (linkedFields && linkedFields.length === 1 && linkedFields[0] === 'loadAll') {
             restQuery.loadAll = true;
         }
-        let results = new Array<T>();
-        const items = await this.executeRequest(`${this.serviceUrl}${this.Bindings.get.url}`, this.Bindings.get.method, restQuery);
-        if (items && items.length > 0) {
-            await this.Init();            
-            await this.persistInner(items,linkedFields);
-            results = await Promise.all(items.map((r) => {
-                return this.getItemFromRest(r);
-            }));
-            await this.populateLookups(results, linkedFields);
-        }
-        return results;
+        return this.executeRequest(`${this.serviceUrl}${this.Bindings.get.url}`, this.Bindings.get.method, restQuery);
     }
 
     /**
@@ -582,16 +326,8 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
      * @param {number} id - item id
      */
     @trace()
-    protected async getItemById_Internal(id: number, linkedFields?: Array<string>): Promise<T> {
-        let result = null;
-        const temp = await this.executeRequest(`${this.serviceUrl}${this.Bindings.getItemById.url}/${id}`, this.Bindings.getItemById.method);
-        if (temp) {
-            await this.Init();            
-            await this.persistInner([temp], linkedFields);
-            result = await this.getItemFromRest(temp);
-            await this.populateLookups([result], linkedFields);
-        }
-        return result;
+    protected async getItemById_Query(id: number, linkedFields?: Array<string>): Promise<any> {// eslint-disable-line @typescript-eslint/no-unused-vars
+        return this.executeRequest(`${this.serviceUrl}${this.Bindings.getItemById.url}/${id}`, this.Bindings.getItemById.method);
     }
 
 
@@ -600,13 +336,13 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
      * @param ids - array of item id to retrieve
      */
     @trace()
-    protected async getItemsById_Internal(ids: Array<number>, linkedFields?: Array<string>): Promise<Array<T>> {
+    protected async getItemsById_Query(ids: Array<number>, linkedFields?: Array<string>): Promise<Array<any>> {
         const result: Array<T> = [];
-        const promises: Promise<Array<T>>[] = [];
+        const promises: Promise<Array<any>>[] = [];
         const copy = cloneDeep(ids);
         while (copy.length > 0) {
             const sub = copy.splice(0, 2000);
-            promises.push(this.get_Internal({
+            promises.push(this.get_Query({
                 test: {
                     type: "predicate",
                     operator: TestOperator.In,
@@ -620,9 +356,6 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         for (const tmp of res) {
             result.push(...tmp.filter(i => { return i !== null && i !== undefined; }));
         }
-        if(result.length > 0) {
-            await this.populateLookups(result, linkedFields);
-        }
         return result;
     }
 
@@ -631,28 +364,8 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
      * 
      */
     @trace()
-    protected async getAll_Internal(linkedFields?: Array<string>): Promise<Array<T>> {
-        let results: Array<T> = [];
-        const items = await this.executeRequest(`${this.serviceUrl}${this.Bindings.getAll.url}`, this.Bindings.getAll.method);
-        if (items && items.length > 0) {
-            await this.Init();
-            await this.persistInner(items, linkedFields);
-            results = await Promise.all(items.map((r) => {
-                return this.getItemFromRest(r);
-            }));
-            await this.populateLookups(results, linkedFields);
-        }
-        return results;
-    }
-
-    public async addOrUpdateItem(item: T, loadLookups?: Array<string>): Promise<T> {
-        this.updateInternalLinks(item, loadLookups);
-        return super.addOrUpdateItem(item);
-    }
-
-    public async addOrUpdateItems(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void, loadLookups?: Array<string>): Promise<Array<T>> {
-        items.forEach(item => this.updateInternalLinks(item, loadLookups));
-        return super.addOrUpdateItems(items, onItemUpdated);
+    protected async getAll_Query(linkedFields?: Array<string>): Promise<Array<any>> {// eslint-disable-line @typescript-eslint/no-unused-vars
+        return this.executeRequest(`${this.serviceUrl}${this.Bindings.getAll.url}`, this.Bindings.getAll.method);
     }
 
     /**
@@ -663,7 +376,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
     protected async addOrUpdateItem_Internal(item: T): Promise<T> {
         const result = cloneDeep(item);
         if (item.id < 0) {
-            const converted = await this.getRestItem(item);
+            const converted = await this.convertItem(item);
             const addResult = await this.executeRequest(`${this.serviceUrl}${this.Bindings.addOrUpdateItem.url}`, this.Bindings.addOrUpdateItem.method, converted);
             await this.populateCommonFields(result, addResult);
             if (item.id < -1) {
@@ -680,13 +393,13 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                     throw error;
                 }
                 else {
-                    const converted = await this.getRestItem(item);
+                    const converted = await this.convertItem(item);
                     const updateResult = await this.executeRequest(`${this.serviceUrl}${this.Bindings.addOrUpdateItem.url}`, this.Bindings.addOrUpdateItem.method, converted);
                     await this.populateCommonFields(result, updateResult);
                 }
             }
             else {
-                const converted = await this.getRestItem(item);
+                const converted = await this.convertItem(item);
                 try {
                     const updateResult = await this.executeRequest(`${this.serviceUrl}${this.Bindings.addOrUpdateItem.url}`, this.Bindings.addOrUpdateItem.method, converted);
                     await this.populateCommonFields(result, updateResult);
@@ -729,7 +442,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
             // TODO call stacks
             while (itemsToAdd.length > 0) {
                 const sub = itemsToAdd.splice(0, 100);
-                const converted = await Promise.all(sub.map(item => this.getRestItem(item)));
+                const converted = await Promise.all(sub.map(item => this.convertItem(item)));
                 try {
                     const addResult = await this.executeRequest(`${this.serviceUrl}${this.Bindings.addOrUpdateItems.url}`, this.Bindings.addOrUpdateItems.method, converted);
                     for (let index = 0; index < sub.length; index++) {
@@ -814,7 +527,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                 const sub = updatedItems.splice(0, 100);
                 try {
                     // TODO : Manage version conflicts in batch
-                    const converted = await Promise.all(sub.map(item => this.getRestItem(item)));
+                    const converted = await Promise.all(sub.map(item => this.convertItem(item)));
                     const results = await this.executeRequest(`${this.serviceUrl}${this.Bindings.addOrUpdateItems.url}`, this.Bindings.addOrUpdateItems.method, converted);
                     for (let index = 0; index < sub.length; index++) {
                         const subitem = sub[index];
@@ -855,8 +568,8 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
     @trace()
     protected async deleteItem_Internal(item: T): Promise<T> {
         try {
-            await this.executeRequest(`${this.serviceUrl}${this.Bindings.deleteItem.url}/${item.id}`, this.Bindings.deleteItem.method);
-            item.deleted = true;
+            const result = await this.executeRequest(`${this.serviceUrl}${this.Bindings.deleteItem.url}/${item.id}`, this.Bindings.deleteItem.method);
+            item.deleted = result;
         }
         catch (error) {
             item.error = error;
@@ -881,136 +594,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         return items;
     }
 
-    @trace()
-    protected async persistItemData_internal(data: any, linkedFields?: Array<string>, lookupLoaded?: boolean): Promise<T> {
-        let result = null;
-        if (data) {
-            await this.Init();
-            if(!lookupLoaded) {
-                await this.persistInner([data], linkedFields);
-            }
-            result = await this.getItemFromRest(data);
-            await this.populateLookups([result], linkedFields);
-        }
-        return result;
-    }
-
-    @trace()
-    protected async persistItemsData_internal(data: any[], linkedFields?: Array<string>, lookupLoaded?: boolean): Promise<T[]> {
-        let result = null;
-        if (data) {
-            await this.Init();
-            if(!lookupLoaded) {
-                await this.persistInner(data, linkedFields);
-            }
-            result = await Promise.all(data.map(d => this.getItemFromRest(d)));
-            await this.populateLookups(result, linkedFields);
-        }
-        return result;
-    }
-
     
-
-    @trace()
-    protected async persistInner(objects: any[], linkedFields?: Array<string>): Promise<void> {
-        let level = 0;
-        let sortedByLevel = undefined;
-        // get inner objects sorted with level in tree
-        let innerItems = this.getInnerValuesForLevel({[this.itemType["name"]]: objects}, linkedFields);
-        while (innerItems !== undefined) {            
-            level++;
-            sortedByLevel = sortedByLevel || {};
-            for (const key in innerItems) {
-                if (innerItems.hasOwnProperty(key)) {
-                    // init
-                    sortedByLevel[key] = sortedByLevel[key] || {};
-                    // set max level
-                    sortedByLevel[key].maxLevel = level;
-                    // add objects
-                    sortedByLevel[key].objects = sortedByLevel[key].objects || [];
-                    sortedByLevel[key].objects.push(...innerItems[key]);
-                }
-            }
-            innerItems = this.getInnerValuesForLevel(innerItems);
-        }
-        // persist by level desc
-        for (let index = level; index > 0; index--) {
-            // get models for level
-            const keys = Object.keys(sortedByLevel).filter(k => sortedByLevel.hasOwnProperty(k) && 
-                sortedByLevel[k].maxLevel === index);
-            // persist by model
-            await Promise.all(keys.map(k => {
-                // get service
-                const service = ServiceFactory.getServiceByModelName(k);
-                return service.persistItemsData(sortedByLevel[k].objects, undefined, true);
-            }));
-        }
-    }
-
-    protected getInnerValuesForLevel(objects: {[modelName: string]: any[]}, linkedFields?: Array<string>): {[modelName: string]: any[]} {
-        let result: {[modelName: string]: any[]} = undefined;
-        if(objects) {
-            // get inner lookups by model name
-            const inner = [];
-            for (const key in objects) {
-                if (objects.hasOwnProperty(key) && objects[key] && objects[key].length > 0) {
-                    const innerResult = this.getInnerValuesForSingleType(key, objects[key], linkedFields);
-                    if(innerResult) {
-                        inner.push(innerResult);
-                    }
-                }
-            }
-            // merge results
-            inner.forEach(i => {
-                for (const key in i) {
-                    if (i.hasOwnProperty(key) && i[key] && i[key].length > 0) {
-                        result = result || {};
-                        result[key] = result[key] || [];
-                        result[key].push(...i[key]);
-                    }
-                }
-            });
-
-        }
-        return result;
-    }
-
-
-
-    protected getInnerValuesForSingleType(modelName: string, objects: any[], linkedFields?: Array<string>): {[modelName: string]: any[]} {
-        let result: {[modelName: string]: any[]} = undefined;
-        if(objects && objects.length > 0) {
-            // get service to find fields
-            const service = ServiceFactory.getServiceByModelName(modelName);
-            const fields = service.ItemFields;
-            const keys = Object.keys(fields).filter(k => fields.hasOwnProperty(k) &&                 
-                (!linkedFields || (linkedFields.length === 1 && linkedFields[0] === 'loadAll') || linkedFields.indexOf(fields[k].fieldName) !== -1) && 
-                (fields[k].fieldType === FieldType.Lookup || fields[k].fieldType === FieldType.LookupMulti) &&
-                fields[k].containsFullObject && 
-                !stringIsNullOrEmpty(fields[k].modelName)
-            );
-            for (const key of keys) {
-                const descriptor = fields[key];
-                const destModelName = descriptor.modelName;
-                objects.forEach(o => {
-                    if(o[descriptor.fieldName]) {
-                        if(descriptor.fieldType === FieldType.Lookup) {                            
-                            result = result || {};
-                            result[destModelName] = result[destModelName] || [];
-                            result[destModelName].push(o[descriptor.fieldName]);
-                        }
-                        else if(Array.isArray(o[descriptor.fieldName]) && o[descriptor.fieldName].length > 0){                            
-                            result = result || {};
-                            result[destModelName] = result[destModelName] || [];
-                            result[destModelName].push(...o[descriptor.fieldName]);
-                        }
-                    }
-                });
-            }
-        }
-        return result;
-    }
-
 
     @trace()
     public async getByRestQuery(restQuery: IEndPointBinding, data?: any, linkedFields?: Array<string>): Promise<Array<T>> {
@@ -1138,293 +722,6 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
             }
         }));
 
-    }
-
-
-
-    /**
-     * convert full item to db format (with links only)
-     * @param item - full provisionned item
-     */
-    protected async convertItemToDbFormat(item: T): Promise<T> {
-        const result: T = await super.convertItemToDbFormat(item);
-        result.__clearInternalLinks();
-        for (const propertyName in result) {
-            if (result.hasOwnProperty(propertyName)) {
-                if (this.ItemFields.hasOwnProperty(propertyName)) {
-                    const fieldDescriptor = this.ItemFields[propertyName];
-                    switch (fieldDescriptor.fieldType) {
-                        case FieldType.User:
-                        case FieldType.Taxonomy:
-                            if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                                //link defered
-                                if (item[propertyName]) {
-                                    result.__setInternalLinks(propertyName, (item[propertyName] as unknown as BaseItem).id);
-                                }
-                                delete result[propertyName];
-                            }
-                            break;
-                        case FieldType.UserMulti:
-                        case FieldType.TaxonomyMulti:
-                            if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                                const ids = [];
-                                if (item[propertyName]) {
-                                    (item[propertyName] as unknown as BaseItem[]).forEach(element => {
-                                        if (element.id) {
-                                            if ((typeof (element.id) === "number" && element.id > 0) || (typeof (element.id) === "string" && !stringIsNullOrEmpty(element.id))) {
-                                                ids.push(element.id);
-                                            }
-                                        }
-                                    });
-                                }
-                                if(ids.length > 0) {
-                                    result.__setInternalLinks(propertyName, ids.length > 0 ? ids : []);
-                                }
-                                delete result[propertyName];
-                            }
-                            break;
-                        case FieldType.Lookup:
-                        case FieldType.LookupMulti:
-                            // internal links allready updated before (used for rest calls)
-                            if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                                delete result[propertyName];
-                                result.__setInternalLinks(propertyName, item.__getInternalLinks(propertyName));
-                            }
-                            break;
-                        default:
-                            break;
-                    }
-                } else if (typeof (result[propertyName]) === "function") {
-                    delete result[propertyName];
-                }
-
-
-            }
-        }
-        return result;
-    }
-
-    /**
-     * populate item from db storage
-     * @param item - db item with links in internalLinks fields
-     */
-    @trace()
-    public async mapItems(items: Array<T>, linkedFields?: Array<string>): Promise<Array<T>> {
-        const results: Array<T> = [];
-        if (items && items.length > 0) {
-            await this.Init();
-            for (const item of items) {
-                const result: T = cloneDeep(item);
-                if (item) {
-                    for (const propertyName in this.ItemFields) {
-                        if (this.ItemFields.hasOwnProperty(propertyName)) {
-                            const fieldDescriptor = this.ItemFields[propertyName];
-                            if (//fieldDescriptor.fieldType === FieldType.Lookup ||
-                                fieldDescriptor.fieldType === FieldType.User ||
-                                fieldDescriptor.fieldType === FieldType.Taxonomy) {
-                                if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                                    // get values from init values
-                                    const id: number = item.__getInternalLinks(propertyName);
-                                    if (id !== null) {
-                                        const destElements = this.getServiceInitValuesByName(fieldDescriptor.modelName);
-                                        const existing = find(destElements, (destElement) => {
-                                            return destElement.id === id;
-                                        });
-                                        result[propertyName] = existing ? existing : fieldDescriptor.defaultValue;
-                                    }
-                                    else {
-                                        result[propertyName] = fieldDescriptor.defaultValue;
-                                    }
-                                }
-                                result.__deleteInternalLinks(propertyName);
-                            }
-                            else if (//fieldDescriptor.fieldType === FieldType.LookupMulti ||
-                                fieldDescriptor.fieldType === FieldType.UserMulti ||
-                                fieldDescriptor.fieldType === FieldType.TaxonomyMulti) {
-                                if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                                    // get values from init values
-                                    const ids = item.__getInternalLinks(propertyName) || [];
-                                    if (ids.length > 0) {
-                                        const val = [];
-                                        const targetItems = this.getServiceInitValuesByName(fieldDescriptor.modelName);
-                                        ids.forEach(id => {
-                                            const existing = find(targetItems, (tmpitem) => {
-                                                return tmpitem.id === id;
-                                            });
-                                            if (existing) {
-                                                val.push(existing);
-                                            }
-                                        });
-                                        result[propertyName] = val;
-                                    }
-                                    else {
-                                        result[propertyName] = fieldDescriptor.defaultValue;
-                                    }
-                                }
-                                result.__deleteInternalLinks(propertyName);
-                            }
-                            else if(fieldDescriptor.fieldType === FieldType.Json && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                                const itemType = ServiceFactory.getObjectTypeByName(fieldDescriptor.modelName);
-                                result[propertyName] = assign(new itemType(), item[propertyName]);
-                            }
-                            else {
-                                result[propertyName] = item[propertyName];
-                            }
-                        }
-                    }
-                }
-                result.__clearEmptyInternalLinks();
-                results.push(result);
-            }
-        }
-        await this.populateLookups(results, linkedFields);
-        return results;
-    }
-
-    public async updateLinkedTransactions(oldId: number, newId: number, nextTransactions: Array<OfflineTransaction>): Promise<Array<OfflineTransaction>> {
-        // Update items pointing to this in transactions
-        nextTransactions.forEach(transaction => {
-            let currentObject = null;
-            let needUpdate = false;
-            const service = ServiceFactory.getServiceByModelName(transaction.itemType);
-            const fields = service.ItemFields;
-            // search for lookup fields
-            for (const propertyName in fields) {
-                if (fields.hasOwnProperty(propertyName)) {
-                    const fieldDescription: IFieldDescriptor = fields[propertyName];
-                    if (fieldDescription.refItemName === this.itemType["name"] || fieldDescription.modelName === this.itemType["name"]) {
-                        // get object if not done yet
-                        if (!currentObject) {
-                            currentObject = ServiceFactory.getItemByName(transaction.itemType);
-                            assign(currentObject, transaction.itemData);
-                        }
-                        if (fieldDescription.fieldType === FieldType.Lookup) {
-                            if (fieldDescription.modelName) {
-                                // search in internalLinks
-                                const link = currentObject.__getInternalLinks(propertyName);
-                                if (link && link === oldId) {
-                                    currentObject.__setInternalLinks(propertyName, newId);
-                                    needUpdate = true;
-                                }
-                            }
-                            else if (currentObject[propertyName] === oldId) {
-                                // change field
-                                currentObject[propertyName] = newId;
-                                needUpdate = true;
-                            }
-                        }
-                        else if (fieldDescription.fieldType === FieldType.LookupMulti) {
-                            if (fieldDescription.modelName) {
-                                // serch in internalLinks
-                                const links = currentObject.__getInternalLinks(propertyName);
-                                if (links && isArray(links)) {
-                                    // find item
-                                    const lookupidx = findIndex(links, (id) => { return id === oldId; });
-                                    // change id
-                                    if (lookupidx > -1) {
-                                        currentObject.__setReplaceInternalLinks(propertyName, oldId, newId);
-                                        needUpdate = true;
-                                    }
-                                }
-                            }
-                            else if (currentObject[propertyName] && isArray(currentObject[propertyName])) {
-                                // find index
-                                const lookupidx = findIndex(currentObject[propertyName], (id) => { return id === oldId; });
-                                // change field
-                                // change id
-                                if (lookupidx > -1) {
-                                    currentObject[propertyName] = newId;
-                                    needUpdate = true;
-                                }
-                            }
-                        }
-
-                    }
-
-                }
-            }
-            if (needUpdate) {
-                transaction.itemData = assign({}, currentObject);
-                this.transactionService.addOrUpdateItem(transaction);
-            }
-        });
-        return nextTransactions;
-    }
-
-    @trace()
-    protected async updateLinksInDb(oldId: number, newId: number): Promise<void> {
-        const allFields = assign({}, this.itemType["Fields"]);
-        let parentType = this.itemType;
-        do {
-            delete allFields[parentType["name"]];
-            parentType = Object.getPrototypeOf(parentType);
-        } while (parentType["name"] !== BaseItem["name"]);
-        for (const modelName in allFields) {
-            if (allFields.hasOwnProperty(modelName)) {
-                const modelFields = allFields[modelName];
-                const lookupProperties = Object.keys(modelFields).filter((prop) => {
-                    return (modelFields[prop].refItemName &&
-                        modelFields[prop].refItemName === this.itemType["name"] || modelFields[prop].modelName === this.itemType["name"]);
-                });
-                if (lookupProperties.length > 0) {
-                    const service = ServiceFactory.getServiceByModelName(modelName);
-                    const allitems = await service.__getAllFromCache();
-                    const updated = [];
-                    allitems.forEach(element => {
-                        let needUpdate = false;
-                        lookupProperties.forEach(propertyName => {
-                            const fieldDescription = modelFields[propertyName];
-                            if (fieldDescription.fieldType === FieldType.Lookup) {
-                                if (fieldDescription.modelName) {
-                                    // serch in internalLinks
-                                    const link = element.__getInternalLinks(propertyName);
-                                    if (link && link === oldId) {
-                                        element.__setInternalLinks(propertyName, newId);
-                                        needUpdate = true;
-                                    }
-                                }
-                                else if (element[propertyName] === oldId) {
-                                    // change field
-                                    element[propertyName] = newId;
-                                    needUpdate = true;
-                                }
-                            }
-                            else if (fieldDescription.fieldType === FieldType.LookupMulti) {
-                                if (fieldDescription.modelName) {
-                                    // search in internalLinks
-                                    const links = element.__getInternalLinks(propertyName);
-                                    if (links && isArray(links)) {
-                                        // find item
-                                        const lookupidx = findIndex(links, (id) => { return id === oldId; });
-                                        // change id
-                                        if (lookupidx > -1) {
-                                            element.__setInternalLinks(propertyName, newId);
-                                            needUpdate = true;
-                                        }
-                                    }
-                                }
-                                else if (element[propertyName] && isArray(element[propertyName])) {
-                                    // find index
-                                    const lookupidx = findIndex(element[propertyName], (id) => { return id === oldId; });
-                                    // change field
-                                    // change id
-                                    if (lookupidx > -1) {
-                                        element[propertyName] = newId;
-                                        needUpdate = true;
-                                    }
-                                }
-                            }
-                        });
-                        if (needUpdate) {
-                            updated.push(element);
-                        }
-                    });
-                    if (updated.length > 0) {
-                        await service.__updateCache(...updated);
-                    }
-                }
-            }
-        }
     }
 
     protected getRestQuery(query: IQuery): IRestQuery {

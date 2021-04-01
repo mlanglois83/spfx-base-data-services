@@ -1,7 +1,7 @@
 import { Text } from "@microsoft/sp-core-library";
 import { cloneDeep, find } from "@microsoft/sp-lodash-subset";
 import { stringIsNullOrEmpty } from "@pnp/common";
-import { ITerm, ITermSet, taxonomy } from "@pnp/sp-taxonomy";
+import { ITermSet, taxonomy } from "@pnp/sp-taxonomy";
 import { ServiceFactory } from "../ServiceFactory";
 import { UtilsService } from "../UtilsService";
 import { ServicesConfiguration } from "../../configuration/ServicesConfiguration";
@@ -65,61 +65,51 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
         this.isGlobal = isGlobal;
     }
 
+    protected async init_internal(): Promise<void> {
+        await super.init_internal();
+        const [ts, taxonomyHiddenItems] = await Promise.all([this.termset.select("CustomSortOrder").get(), ServiceFactory.getService(TaxonomyHidden).getAll()]);
+        this.customSortOrder = ts.CustomSortOrder;
+        this.updateInitValues(TaxonomyHidden["name"], ...taxonomyHiddenItems);
+    }
+
+    protected async populateItem(data: any): Promise<T> {
+        const result = new this.itemType(data);
+        const taxonomyHiddenItems = this.getServiceInitValues(TaxonomyHidden);
+        result.wssids = [];
+        for (const taxonomyHiddenItem of taxonomyHiddenItems) {
+            if (taxonomyHiddenItem.termId == result.id) { result.wssids.push(taxonomyHiddenItem.id); }
+        }
+        return result;
+    }
+
+    protected async convertItem(item: T): Promise<any> {// eslint-disable-line @typescript-eslint/no-unused-vars
+        throw Error("Not implemented");
+    }
+
     @trace()
     public async getWssIds(termId: string): Promise<Array<number>> {
-        const taxonomyHiddenItems = await ServiceFactory.getService(TaxonomyHidden).getAll();
+        await this.Init();
+        const taxonomyHiddenItems = this.getServiceInitValues(TaxonomyHidden);
         return taxonomyHiddenItems.filter((taxItem) => {
             return taxItem.termId === termId;
         }).map((filteredItem) => {
             return filteredItem.id;
         });
     }
-
-    /**
-     * Retrieve all terms
-     */
     @trace()
-    protected async getAll_Internal(): Promise<Array<T>> {
+    protected async getAll_Query(): Promise<Array<any>> {
+        return this.termset.terms.select("Name", "Description", "Id", "PathOfTerm", "CustomSortOrder", "CustomProperties", "IsDeprecated").get();
+    }
+    
 
-        const batch = taxonomy.createBatch();
-
-        let spterms: ITerm[];
-        let ts: any;
-        this.termset.terms.select("Name", "Description", "Id", "PathOfTerm", "CustomSortOrder", "CustomProperties", "IsDeprecated").inBatch(batch).get().then((results) => {
-            spterms = results;   
-        });
-        this.termset.select("CustomSortOrder").inBatch(batch).get().then((result) => {
-            ts = result;
-        });
-
-        await batch.execute();
-
-        this.customSortOrder = ts.CustomSortOrder;
-        const taxonomyHiddenItems = await ServiceFactory.getService(TaxonomyHidden).getAll();
-        return spterms.map((term) => {
-            const result = new this.itemType(term);
-            result.wssids = [];
-            for (const taxonomyHiddenItem of taxonomyHiddenItems) {
-                if (taxonomyHiddenItem.termId == result.id) { result.wssids.push(taxonomyHiddenItem.id); }
-            }
-
-            return result;
-        });
+    @trace()
+    public async getItemById_Query(id: string): Promise<any> {
+        return  this.termset.terms.getById(id).select("Name", "Description", "Id", "PathOfTerm", "CustomSortOrder", "CustomProperties", "IsDeprecated");
     }
 
     @trace()
-    public async getItemById_Internal(id: string): Promise<T> {
-        let result = null;
-        const spterm = await this.termset.terms.getById(id).select("Name", "Description", "Id", "PathOfTerm", "CustomSortOrder", "CustomProperties", "IsDeprecated");
-        if (spterm) {
-            result = new this.itemType(spterm);
-        }
-        return result;
-    }
-
-    @trace()
-    public async getItemsById_Internal(ids: Array<string>): Promise<Array<T>> {
-        const results: Array<T> = [];
+    public async getItemsById_Query(ids: Array<string>): Promise<Array<any>> {
+        const results: Array<any> = [];
         const batches = [];
         const copy = cloneDeep(ids);
         while (copy.length > 0) {
@@ -128,7 +118,7 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
             sub.forEach((id) => {
                 this.termset.terms.getById(id).select("Name", "Description", "Id", "PathOfTerm", "CustomSortOrder", "CustomProperties", "IsDeprecated").inBatch(batch).get().then((term) => {
                     if (term) {
-                        results.push(new this.itemType(term));
+                        results.push(term);
                     }
                     else {
                         console.log(`[${this.serviceName}] - term with id ${id} not found`);
@@ -141,8 +131,7 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
         return results;
     }
 
-    protected async get_Internal(query: any): Promise<Array<T>> {
-        console.log("[" + this.serviceName + ".get_Internal] - " + query.toString());
+    protected async get_Query(query: any): Promise<Array<any>> {// eslint-disable-line @typescript-eslint/no-unused-vars
         throw new Error('Not Implemented');
     }
 
@@ -166,17 +155,6 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
         console.log("[" + this.serviceName + ".deleteItems_Internal] - " + JSON.stringify(items));
         throw new Error("Not implemented");
     }
-
-    @trace()
-    protected async persistItemData_internal(data: any): Promise<T> {
-        let result = null;
-        if (data) {
-            result = new this.itemType(data);
-        }
-        return result;
-    }
-
-
 
     private getOrderedChildTerms(term: T, allTerms: Array<T>): Array<T> {
         //items.sort((a: T,b: T) => {return a.path.localeCompare(b.path);});
@@ -236,4 +214,5 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
         });
         return result;
     }
+    
 }

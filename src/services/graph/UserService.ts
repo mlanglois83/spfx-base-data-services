@@ -33,7 +33,7 @@ export class UserService extends BaseDataService<User> {
         return result;
     }
 
-    protected async get_Internal(query: IQuery): Promise<Array<User>> {
+    protected async get_Query(query: IQuery): Promise<Array<any>> {
         let queryStr = (query.test as IPredicate).value;
         queryStr = queryStr.trim();
         let reverseFilter = queryStr;
@@ -55,11 +55,10 @@ export class UserService extends BaseDataService<User> {
         
         return users.map((u) => {
             const spuser = find(spUsers, (spu: any) => { return spu.UserPrincipalName?.toLowerCase() === u.userPrincipalName?.toLowerCase(); });
-            const result = new User(u);
             if (spuser) {
-                result.id = spuser.Id;
+                u['id'] = spuser.Id;
             }
-            return result;
+            return u;
         });
     }
 
@@ -84,31 +83,20 @@ export class UserService extends BaseDataService<User> {
         throw new Error("Not implemented");
     }
 
-    protected async persistItemData_internal(data: any): Promise<User> {
-        let result = null;
-        if (data) {
-            result = new User(data);
-        }
-        return result;
-    }
-
     /**
      * Retrieve all users (sp)
      */
-    protected async getAll_Internal(): Promise<Array<User>> {
+    protected async getAll_Query(): Promise<Array<any>> {
         const spUsers = await sp.web.siteUsers.select("Id", "UserPrincipalName", "Email", "Title", "IsSiteAdmin").get();
-        return spUsers.filter(u => !stringIsNullOrEmpty(u.UserPrincipalName)).map(spu => new User(spu));
+        return spUsers.filter(u => !stringIsNullOrEmpty(u.UserPrincipalName));
     }
 
-    public async getItemById_Internal(id: number): Promise<User> {
-        const spu = await sp.web.siteUsers.getById(id).select("Id", "UserPrincipalName", "Email", "Title", "IsSiteAdmin").get();
-        if (spu)
-            return new User(spu);
-        return null;
+    public async getItemById_Query(id: number): Promise<any> {
+        return sp.web.siteUsers.getById(id).select("Id", "UserPrincipalName", "Email", "Title", "IsSiteAdmin").get();
     }
 
-    public async getItemsById_Internal(ids: Array<number>): Promise<Array<User>> {
-        const results: Array<User> = [];
+    public async getItemsById_Query(ids: Array<number>): Promise<Array<any>> {
+        const results: Array<any> = [];
         const batches = [];
         const copy = cloneDeep(ids);
         while (copy.length > 0) {
@@ -117,8 +105,7 @@ export class UserService extends BaseDataService<User> {
             sub.forEach((id) => {
                 sp.web.siteUsers.getById(id).select("Id", "UserPrincipalName", "Email", "Title", "IsSiteAdmin").inBatch(batch).get().then((spu) => {
                     if (spu) {
-                        const result = new User(spu);
-                        results.push(result);
+                        results.push(spu);
                     }
                     else {
                         console.log(`[${this.serviceName}] - user with id ${id} not found`);

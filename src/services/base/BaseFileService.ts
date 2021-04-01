@@ -35,31 +35,23 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
      * Retrieve all items
      */
     @trace()
-    public async getAll_Internal(): Promise<Array<T>> {
-        const files = await this.list.items.filter('FSObjType eq 0').select('FileRef', 'FileLeafRef').get();
-        return await Promise.all(files.map((file) => {
-            return this.createFileObject(file);
-        }));
+    public async getAll_Query(): Promise<Array<any>> {
+        return this.list.items.filter('FSObjType eq 0').select('FileRef', 'FileLeafRef').get();        
     }
 
     @trace()
-    public async get_Internal(query: any): Promise<Array<T>> {
-        console.log("[" + this.serviceName + ".get_Internal] - " + query.toString());
+    public async get_Query(query: any): Promise<Array<any>> {// eslint-disable-line @typescript-eslint/no-unused-vars
         throw new Error('Not Implemented');
     }
 
     @trace()
-    public async getItemById_Internal(id: string): Promise<T> {
-        let result = null;
-        const file = await sp.web.getFileByServerRelativeUrl(id).select('FileRef', 'FileLeafRef').get();
-        if(file) {
-            result = this.createFileObject(file);
-        }
-        return result;
+    public async getItemById_Query(id: string): Promise<any> {
+        return sp.web.getFileByServerRelativeUrl(id).select('FileRef', 'FileLeafRef').get();
     }
+
     @trace()
-    public async getItemsById_Internal(ids: Array<string>): Promise<Array<T>> {
-        const results: Array<T> = [];
+    public async getItemsById_Query(ids: Array<string>): Promise<Array<any>> {
+        const results: Array<any> = [];
         const batches = [];
         const copy = cloneDeep(ids);
         while(copy.length > 0) {
@@ -68,8 +60,7 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
             sub.forEach((id) => {
                 sp.web.getFileByServerRelativeUrl(id).select('FileRef', 'FileLeafRef').get().then(async (item)=> {
                     if(item) {                        
-                        const fo = await this.createFileObject(item);
-                        results.push(fo);
+                        results.push(item);
                     }
                     else {                        
                         console.log(`[${this.serviceName}] - file with url ${id} not found`);
@@ -82,11 +73,15 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
         return results;
     }
 
-    private async createFileObject(file: any): Promise<T> {
+    protected async populateItem(file: any): Promise<T> {
         const resultFile = new this.itemType(file);
         resultFile.mimeType = (mime.lookup(resultFile.title) as string) || 'application/octet-stream';
         return resultFile;
     }
+    protected async convertItem(item: T): Promise<any> {// eslint-disable-line @typescript-eslint/no-unused-vars
+        throw Error("Not implemented");
+    }
+
 
     @trace()
     public async getFilesInFolder(folderListRelativeUrl): Promise<Array<T>> {
@@ -96,7 +91,7 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
         if (folderExists) {
             const files = await sp.web.getFolderByServerRelativeUrl(folderUrl).files.get();
             result = await await Promise.all(files.map((file) => {
-                return this.createFileObject(file);
+                return this.populateItem(file);
             }));
         }
 
@@ -210,12 +205,6 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
         });   
         return items;
     }
-
-    @trace()
-    public persistItemData_internal(data: any): Promise<T> {
-        return this.createFileObject(data);
-    }
-
     
     @trace()
     public async changeFolderInDb(oldFolderListRelativeUrl: string, newFolderListRelativeUrl: string): Promise<void> {
