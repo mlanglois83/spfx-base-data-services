@@ -6,7 +6,7 @@ import { TransactionService } from "../synchronization/TransactionService";
 import { BaseDbService } from "./BaseDbService";
 import { BaseService } from "./BaseService";
 import { Text } from "@microsoft/sp-core-library";
-import { TransactionType, Constants, LogicalOperator, TestOperator, QueryToken, FieldType } from "../../constants";
+import { TransactionType, Constants, LogicalOperator, TestOperator, QueryToken, FieldType, TraceLevel } from "../../constants";
 import { ServicesConfiguration } from "../../configuration";
 import { isArray, stringIsNullOrEmpty } from "@pnp/common";
 import { ServiceFactory } from "../ServiceFactory";
@@ -24,7 +24,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     protected cacheDuration = -1;      
 
     protected get debug(): boolean {
-        return ServicesConfiguration.configuration.debug === true;
+        return ServicesConfiguration.configuration.traceLevel !== TraceLevel.None;
     }
 
     public get serviceName(): string {
@@ -118,7 +118,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
         return;
     }
     
-    @trace()
+    @trace(TraceLevel.ServiceUtilities)
     private async initLinkedFields(): Promise<void> {
         const fields = this.ItemFields;
         const models: string[] = [];
@@ -443,7 +443,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
 
     protected abstract getAll_Query(linkedFields?: Array<string>): Promise<Array<any>>;
 
-    @trace()
+    @trace(TraceLevel.Internal)
     protected async getAll_Internal(linkedFields?: Array<string>): Promise<Array<T>> {
         let results: Array<T> = [];
         const items = await this.getAll_Query(linkedFields);
@@ -463,7 +463,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
      * If service is not configured as offline, an exception is thrown;
      */
     
-    @trace()
+    @trace(TraceLevel.Service)
     public async getAll(linkedFields?: Array<string>): Promise<Array<T>> {
         let promise = this.getExistingPromise();
         if (promise) {
@@ -520,7 +520,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
      * @returns {Promise<Array<T>>}
      * @memberof BaseListItemService
      */
-     @trace()
+     @trace(TraceLevel.Internal)
      protected async get_Internal(query: IQuery, linkedFields?: Array<string>): Promise<Array<T>> {         
          let results = new Array<T>();
          const items = await this.get_Query(query, linkedFields);
@@ -536,7 +536,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
      }
 
     
-    @trace()
+    @trace(TraceLevel.Service)
     public async get(query: IQuery, linkedFields?: Array<string>): Promise<Array<T>> {
         const keyCached = super.hashCode(query).toString() + super.hashCode(linkedFields).toString();
         let promise = this.getExistingPromise(keyCached);
@@ -595,7 +595,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
 
     protected abstract getItemById_Query(id: number | string, linkedFields?: Array<string>): Promise<any>;
 
-    @trace()
+    @trace(TraceLevel.Internal)
     protected async getItemById_Internal(id: number | string, linkedFields?: Array<string>): Promise<T> {
         let result = null;
         const temp = await this.getItemById_Query(id, linkedFields);
@@ -609,7 +609,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     }
 
     
-    @trace()
+    @trace(TraceLevel.Service)
     public async getItemById(id: number | string, linkedFields?: Array<string>): Promise<T> {
         const promiseKey = "getById_" + id.toString();
         let promise = this.getExistingPromise(promiseKey);
@@ -662,7 +662,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
      * Get a list of items by id
      * @param ids - array of item id to retrieve
      */
-     @trace()
+     @trace(TraceLevel.Internal)
      protected async getItemsById_Internal(ids: Array<number | string>, linkedFields?: Array<string>): Promise<Array<T>> {
 
         let results = new Array<T>();
@@ -678,13 +678,12 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
          return results;         
      }
 
-    
     public async getItemsFromCacheById(ids: Array<number | string>, linkedFields?: Array<string>): Promise<Array<T>> {
         const tmp = await this.dbService.getItemsById(ids);
         return this.mapItems(tmp, linkedFields);
     }
     
-    @trace()
+    @trace(TraceLevel.Service)
     public async getItemsById(ids: Array<number | string>, linkedFields?: Array<string>): Promise<Array<T>> {
         const promiseKey = "getByIds_" + ids.join();
         let promise = this.getExistingPromise(promiseKey);
@@ -740,7 +739,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     protected abstract addOrUpdateItem_Internal(item: T): Promise<T>;
 
     
-    @trace()
+    @trace(TraceLevel.Service)
     public async addOrUpdateItem(item: T): Promise<T> {
         this.updateInternalLinks(item);
         let result: T = null;
@@ -802,7 +801,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     protected abstract addOrUpdateItems_Internal(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void): Promise<Array<T>>;
 
     
-    @trace()
+    @trace(TraceLevel.Service)
     public async addOrUpdateItems(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void): Promise<Array<T>> {
         
         items.forEach(item => this.updateInternalLinks(item));
@@ -863,7 +862,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     protected abstract deleteItem_Internal(item: T): Promise<T>;
 
     // TODO: remove cached ids
-    @trace()
+    @trace(TraceLevel.Service)
     public async deleteItem(item: T): Promise<T> {
         if(typeof(item.id) === "number" && item.id === -1) {
             item.deleted = true;
@@ -898,7 +897,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
 
     protected abstract deleteItems_Internal(items: Array<T>): Promise<Array<T>>;
     
-    @trace()
+    @trace(TraceLevel.Service)
     public async deleteItems(items: Array<T>): Promise<Array<T>> {
         items.filter(i => (typeof(i.id) === "number" && i.id === -1)).forEach(i => {
             i.deleted = true;
@@ -930,7 +929,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     }
 
     
-    @trace()
+    @trace(TraceLevel.Service)
     public async persistItemData(data: any, linkedFields?: Array<string>, preloaded?: {[modelName: string]: BaseItem[]}): Promise<T> {
         const result = await this.persistItemData_internal(data, linkedFields, preloaded);
         const convresult = await this.convertItemToDbFormat(result);
@@ -939,7 +938,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
         return result;
     }
 
-    @trace()
+    @trace(TraceLevel.Internal)
     protected async persistItemData_internal(data: any, linkedFields?: Array<string>, preloaded?: {[modelName: string]: BaseItem[]}): Promise<T> {
         let result = null;
         if (data) {
@@ -954,7 +953,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     }
 
     
-    @trace()
+    @trace(TraceLevel.Service)
     public async persistItemsData(data: any[], linkedFields?: Array<string>, preloaded?: {[modelName: string]: BaseItem[]}): Promise<T[]> {
         const result = await this.persistItemsData_internal(data, linkedFields, preloaded);
         const convresult = await Promise.all(result.map(r => this.convertItemToDbFormat(r)));
@@ -963,7 +962,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
         return result;
     }
 
-    @trace()
+    @trace(TraceLevel.Internal)
     protected async persistItemsData_internal(data: any[], linkedFields?: Array<string>, preloaded?: {[modelName: string]: BaseItem[]}): Promise<T[]> {
         let result = null;
         if (data) {
@@ -972,28 +971,34 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
                 preloaded = await this.persistInner(data, linkedFields);
             }
             result = await Promise.all(data.map(d => this.populateItem(d)));
-            await this.populateLookups(result, linkedFields);
+            await this.populateLookups(result, linkedFields, preloaded);
         }
         return result;
     }
 
     protected async persistInner(objects: any[], linkedFields?: Array<string>): Promise<{[modelName: string]: BaseItem[]}> {
         let level = 0;
+        let result: {[modelName: string]: BaseItem[]} = undefined;
         let sortedByLevel = undefined;
         // get inner objects sorted with level in tree
         let innerItems = this.getInnerValuesForLevel({[this.itemType["name"]]: objects}, linkedFields);
         while (innerItems !== undefined) {            
             level++;
             sortedByLevel = sortedByLevel || {};
+            result = result || {};
             for (const key in innerItems) {
                 if (innerItems.hasOwnProperty(key)) {
                     // init
                     sortedByLevel[key] = sortedByLevel[key] || {};
+                    result[key] = result[key] || [];
                     // set max level
                     sortedByLevel[key].maxLevel = level;
                     // add objects
                     sortedByLevel[key].objects = sortedByLevel[key].objects || [];
                     sortedByLevel[key].objects.push(...innerItems[key]);
+                    result[key].push(...innerItems[key]);
+
+
                 }
             }
             innerItems = this.getInnerValuesForLevel(innerItems);
@@ -1008,10 +1013,10 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
             await Promise.all(keys.map(k => {
                 // get service
                 const service = ServiceFactory.getServiceByModelName(k);
-                return service.persistItemsData(sortedByLevel[k].objects, undefined, innerItems);
+                return service.persistItemsData(sortedByLevel[k].objects, undefined, result);
             }));
         }
-        return innerItems;
+        return result;
     }
     protected getInnerValuesForLevel(objects: {[modelName: string]: any[]}, linkedFields?: Array<string>): {[modelName: string]: any[]} {
         let result: {[modelName: string]: any[]} = undefined;
@@ -1098,7 +1103,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
         return result;
     }    
 
-    @trace()
+    @trace(TraceLevel.ServiceUtilities)
     protected async populateLookups(items: Array<T>, loadLookups?: Array<string>, innerItems?: {[modelName: string]: BaseItem[]}): Promise<void> {
         await this.Init();
         // get lookup fields
@@ -1126,43 +1131,46 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
                         links &&
                         links !== -1)
                     {
-                        if(this.isServiceLookupIdCached(fieldDesc.modelName, links)) {
-                            let inner = undefined;
-                            if(innerItems && innerItems[fieldDesc.modelName]) {
-                                inner = find(innerItems[fieldDesc.modelName], ii => ii.id === links);
-                            }
-                            if(!inner) {
+                        // check in preloaded
+                        let inner = undefined;
+                        if(innerItems && innerItems[fieldDesc.modelName]) {
+                            inner = find(innerItems[fieldDesc.modelName], ii => ii.id === links);
+                        }
+                        // inner found
+                        if(inner) {
+                            innerResult[fieldDesc.modelName] = innerResult[fieldDesc.modelName] || [];
+                            innerResult[fieldDesc.modelName].push(inner);
+                        }
+                        else {
+                            if(this.isServiceLookupIdCached(fieldDesc.modelName, links)) {
                                 cached.push(links);
                             }
                             else {
-                                innerResult[fieldDesc.modelName] = innerResult[fieldDesc.modelName] || [];
-                                innerResult[fieldDesc.modelName].push(inner);
+                                ids.push(links);
                             }
-                        }
-                        else {
-                            ids.push(links);
-                        }
+                        }                        
                     }
                     else if (fieldDesc.fieldType === FieldType.LookupMulti &&
                         links &&
                         links.length > 0) {
                         links.forEach((id) => {
-                            if(this.isServiceLookupIdCached(fieldDesc.modelName, id)) {
-                                let inner = undefined;
-                                if(innerItems && innerItems[fieldDesc.modelName]) {
-                                    inner = find(innerItems[fieldDesc.modelName], ii => ii.id === id);
-                                }
-                                if(!inner) {
+                            let inner = undefined;
+                            if(innerItems && innerItems[fieldDesc.modelName]) {
+                                inner = find(innerItems[fieldDesc.modelName], ii => ii.id === id);
+                            }
+                            // inner found
+                            if(inner) {
+                                innerResult[fieldDesc.modelName] = innerResult[fieldDesc.modelName] || [];
+                                innerResult[fieldDesc.modelName].push(inner);
+                            }
+                            else {
+                                if(this.isServiceLookupIdCached(fieldDesc.modelName, id)) {
                                     cached.push(id);
                                 }
                                 else {
-                                    innerResult[fieldDesc.modelName] = innerResult[fieldDesc.modelName] || [];
-                                    innerResult[fieldDesc.modelName].push(inner);
+                                    ids.push(id);
                                 }
-                            }
-                            else {
-                                ids.push(id);
-                            }
+                            } 
                         });
                     }
                 });
@@ -1347,7 +1355,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
      * populate item from db storage
      * @param item - db item with links in internalLinks fields
      */
-    @trace()
+    @trace(TraceLevel.ServiceUtilities)
     public async mapItems(items: Array<T>, linkedFields?: Array<string>): Promise<Array<T>> {
         const results: Array<T> = [];
         if (items && items.length > 0) {
@@ -1490,7 +1498,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
         return nextTransactions;
     }
 
-    @trace()
+    @trace(TraceLevel.ServiceUtilities)
     protected async updateLinksInDb(oldId: number, newId: number): Promise<void> {
         const allFields = assign({}, this.itemType["Fields"]);
         let parentType = this.itemType;

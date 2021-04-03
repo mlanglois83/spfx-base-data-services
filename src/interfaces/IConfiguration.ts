@@ -1,4 +1,5 @@
 import { BaseComponentContext } from "@microsoft/sp-component-base";
+import { TraceLevel } from "../constants";
 import { ITranslationLabels } from "./";
 
 /**
@@ -47,5 +48,5 @@ export interface IConfiguration {
      */
     aadAppId?: string;
 
-    debug?: boolean;
+    traceLevel?: TraceLevel;
 }

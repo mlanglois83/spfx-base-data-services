@@ -6,6 +6,7 @@ import { ServicesConfiguration } from "../../configuration/ServicesConfiguration
 import { cloneDeep } from "@microsoft/sp-lodash-subset";
 import { SPFile } from "../../models/base/SPFile";
 import { Decorators } from "../../decorators";
+import { TraceLevel } from "../../constants";
 
 const trace = Decorators.trace;
 /**
@@ -34,22 +35,22 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
     /**
      * Retrieve all items
      */
-    @trace()
+    @trace(TraceLevel.Queries)
     public async getAll_Query(): Promise<Array<any>> {
         return this.list.items.filter('FSObjType eq 0').select('FileRef', 'FileLeafRef').get();        
     }
 
-    @trace()
+    @trace(TraceLevel.Queries)
     public async get_Query(query: any): Promise<Array<any>> {// eslint-disable-line @typescript-eslint/no-unused-vars
         throw new Error('Not Implemented');
     }
 
-    @trace()
+    @trace(TraceLevel.Queries)
     public async getItemById_Query(id: string): Promise<any> {
         return sp.web.getFileByServerRelativeUrl(id).select('FileRef', 'FileLeafRef').get();
     }
 
-    @trace()
+    @trace(TraceLevel.Queries)
     public async getItemsById_Query(ids: Array<string>): Promise<Array<any>> {
         const results: Array<any> = [];
         const batches = [];
@@ -83,7 +84,7 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
     }
 
 
-    @trace()
+    @trace(TraceLevel.Service)
     public async getFilesInFolder(folderListRelativeUrl): Promise<Array<T>> {
         let result = new Array<T>();
         const folderUrl = this.listRelativeUrl + folderListRelativeUrl;
@@ -98,7 +99,7 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
         return result;
     }
 
-    @trace()
+    @trace(TraceLevel.Service)
     public async folderExists(folderUrl): Promise<boolean> {
         let result = false;
         if (folderUrl.indexOf(this.listRelativeUrl) === -1) {
@@ -113,7 +114,7 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
         return result;
     }
 
-    @trace()
+    @trace(TraceLevel.Internal)
     public async addOrUpdateItem_Internal(item: T): Promise<T> {
         const folderUrl = UtilsService.getParentFolderUrl(item.serverRelativeUrl);
         const folder: Folder = sp.web.getFolderByServerRelativeUrl(folderUrl);
@@ -143,7 +144,7 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
         return item;
     }
 
-    @trace()
+    @trace(TraceLevel.Internal)
     public async addOrUpdateItems_Internal(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void): Promise<Array<T>> {
         const result = [];
         const operations = items.map((item) => {
@@ -160,7 +161,7 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
         return items;
     }
 
-    @trace()
+    @trace(TraceLevel.Internal)
     public async deleteItem_Internal(item: T): Promise<T> {        
         if(item.id) {
             await sp.web.getFileByServerRelativeUrl(item.serverRelativeUrl).recycle();
@@ -178,7 +179,7 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
         return item;
     }
 
-    @trace()
+    @trace(TraceLevel.Internal)
     public async deleteItems_Internal(items: Array<T>): Promise<Array<T>> { 
         items.filter(i => !i.id).forEach(i => i.deleted = true);   
         const batch = sp.createBatch();   
@@ -206,7 +207,7 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
         return items;
     }
     
-    @trace()
+    @trace(TraceLevel.Service)
     public async changeFolderInDb(oldFolderListRelativeUrl: string, newFolderListRelativeUrl: string): Promise<void> {
         const oldFolderRelativeUrl = this.listRelativeUrl + oldFolderListRelativeUrl;
         const newFolderRelativeUrl = this.listRelativeUrl + newFolderListRelativeUrl;

@@ -1,6 +1,6 @@
 import { ServicesConfiguration } from "../../configuration";
 import { cloneDeep, find } from "@microsoft/sp-lodash-subset";
-import { Constants, FieldType, TestOperator } from "../../constants/index";
+import { Constants, FieldType, TestOperator, TraceLevel } from "../../constants/index";
 import { IFieldDescriptor, IQuery, ILogicalSequence, IRestQuery, IRestLogicalSequence, IEndPointBindings, IPredicate, IRestPredicate, IOrderBy } from "../../interfaces/index";
 import { BaseDataService } from "./BaseDataService";
 import { UtilsService } from "../UtilsService";
@@ -312,7 +312,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
     
     /***************** SP Calls associated to service standard operations ********************/
     
-    @trace()
+    @trace(TraceLevel.Queries)
     protected async get_Query(query: IQuery, linkedFields?: Array<string>): Promise<Array<T>> {
         const restQuery = this.getRestQuery(query);
         if (linkedFields && linkedFields.length === 1 && linkedFields[0] === 'loadAll') {
@@ -325,7 +325,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
      * Get an item by id
      * @param {number} id - item id
      */
-    @trace()
+    @trace(TraceLevel.Queries)
     protected async getItemById_Query(id: number, linkedFields?: Array<string>): Promise<any> {// eslint-disable-line @typescript-eslint/no-unused-vars
         return this.executeRequest(`${this.serviceUrl}${this.Bindings.getItemById.url}/${id}`, this.Bindings.getItemById.method);
     }
@@ -335,7 +335,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
      * Get a list of items by id
      * @param ids - array of item id to retrieve
      */
-    @trace()
+    @trace(TraceLevel.Queries)
     protected async getItemsById_Query(ids: Array<number>, linkedFields?: Array<string>): Promise<Array<any>> {
         const result: Array<T> = [];
         const promises: Promise<Array<any>>[] = [];
@@ -363,7 +363,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
      * Retrieve all items
      * 
      */
-    @trace()
+    @trace(TraceLevel.Queries)
     protected async getAll_Query(linkedFields?: Array<string>): Promise<Array<any>> {// eslint-disable-line @typescript-eslint/no-unused-vars
         return this.executeRequest(`${this.serviceUrl}${this.Bindings.getAll.url}`, this.Bindings.getAll.method);
     }
@@ -372,7 +372,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
      * Add or update an item
      * @param item - SPItem derived object to be converted
      */
-    @trace()
+    @trace(TraceLevel.Internal)
     protected async addOrUpdateItem_Internal(item: T): Promise<T> {
         const result = cloneDeep(item);
         if (item.id < 0) {
@@ -423,7 +423,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
      * @param items Array of model type to be added or updated
      * @param onItemUpdated callback function called when an item has been added or updated
      */
-    @trace()
+    @trace(TraceLevel.Internal)
     protected async addOrUpdateItems_Internal(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void): Promise<Array<T>> {
         const result = cloneDeep(items);
         const itemsToAdd = result.filter((item) => {
@@ -565,7 +565,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
      * Delete an item
      * @param item - SPItem derived class to be deleted
      */
-    @trace()
+    @trace(TraceLevel.Internal)
     protected async deleteItem_Internal(item: T): Promise<T> {
         try {
             const result = await this.executeRequest(`${this.serviceUrl}${this.Bindings.deleteItem.url}/${item.id}`, this.Bindings.deleteItem.method);
@@ -581,7 +581,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
      * Delete an item
      * @param item - SPItem derived class to be deleted
      */
-    @trace()
+    @trace(TraceLevel.Internal)
     protected async deleteItems_Internal(items: Array<T>): Promise<Array<T>> {
         try {
             const results = await this.executeRequest(`${this.serviceUrl}${this.Bindings.deleteItems.url}`, this.Bindings.deleteItems.method, items.map(i => i.id));
@@ -596,7 +596,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
 
     
 
-    @trace()
+    @trace(TraceLevel.Service)
     public async getByRestQuery(restQuery: IEndPointBinding, data?: any, linkedFields?: Array<string>): Promise<Array<T>> {
         const keyCached = super.hashCode(restQuery).toString() + super.hashCode(data).toString() + super.hashCode(linkedFields).toString();
         let promise = this.getExistingPromise(keyCached);

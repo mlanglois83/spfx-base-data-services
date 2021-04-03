@@ -9,6 +9,7 @@ import { ServicesConfiguration } from "../../configuration";
 import { Mutex } from 'async-mutex';
 import { BaseFile } from "../../models";
 import { Decorators } from "../../decorators";
+import { TraceLevel } from "../../constants";
 
 const trace = Decorators.trace;
 /**
@@ -102,7 +103,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
      * Add or update an item in DB and returns updated item
      * @param item - item to add or update
      */
-    @trace()
+    @trace(TraceLevel.DataBase)
     public async addOrUpdateItem(item: T): Promise<T> {
         await this.OpenDb();        
         const tx = this.db.transaction(this.tableName, 'readwrite');
@@ -160,7 +161,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
         }
     }
 
-    @trace()
+    @trace(TraceLevel.DataBase)
     public async deleteItem(item: T): Promise<T> {
         await this.OpenDb();
         const tx = this.db.transaction(this.tableName, 'readwrite');
@@ -193,7 +194,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
         return item;
     }
 
-    @trace()
+    @trace(TraceLevel.DataBase)
     public async deleteItems(items: Array<T>): Promise<Array<T>> {
         await this.OpenDb();        
         const tx = this.db.transaction(this.tableName, 'readwrite');
@@ -229,7 +230,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
     }
 
 
-    @trace()
+    @trace(TraceLevel.DataBase)
     public async get(query: IQuery): Promise<Array<T>> { // eslint-disable-line @typescript-eslint/no-unused-vars
         const items = await this.getAll();
         return items;
@@ -240,7 +241,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
      * add items in table (ids updated)
      * @param newItems - items to add or update
      */
-    @trace()
+    @trace(TraceLevel.DataBase)
     public async addOrUpdateItems(newItems: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void): Promise<Array<T>> {
         await this.OpenDb();
         let nextid = undefined;
@@ -309,7 +310,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
     /**
      * Retrieve all items from db table
      */
-    @trace()
+    @trace(TraceLevel.DataBase)
     public async getAll(): Promise<Array<T>> {
         const result = new Array<T>();
         await this.OpenDb();
@@ -365,7 +366,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
      * Clear table and insert new items
      * @param newItems - items to insert in place of existing
      */
-    @trace()
+    @trace(TraceLevel.DataBase)
     public async replaceAll(newItems: Array<T>): Promise<void> {
         await this.clear();
         await this.addOrUpdateItems(newItems);
@@ -374,7 +375,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
     /**
      * Clear table
      */
-    @trace()
+    @trace(TraceLevel.DataBase)
     public async clear(): Promise<void> {
         await this.OpenDb();
         const tx = this.db.transaction(this.tableName, 'readwrite');
@@ -393,7 +394,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
         }
     }
 
-    @trace()
+    @trace(TraceLevel.DataBase)
     public async getItemById(id: number | string): Promise<T> {
         let result: T = null;
         await this.OpenDb();
@@ -444,7 +445,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
         }
     }
 
-    @trace()
+    @trace(TraceLevel.DataBase)
     public async getItemsById(ids: Array<number | string>): Promise<Array<T>> {
         const results: T[] = [];
         await this.OpenDb();

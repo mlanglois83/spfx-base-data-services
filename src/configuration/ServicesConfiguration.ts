@@ -4,6 +4,7 @@ import { taxonomy } from "@pnp/sp-taxonomy";
 import { IConfiguration, IFactoryMapping } from "../interfaces";
 import { graph } from "@pnp/graph";
 import { Constants } from "..";
+import { TraceLevel } from "../constants";
 
 /**
  * Configuration class for spfx base data services
@@ -61,7 +62,7 @@ export class ServicesConfiguration {
      */
     public static Init(configuration: IConfiguration): void {
         ServicesConfiguration.configurationInternal = configuration;
-        configuration.debug = configuration.debug === true;
+        configuration.traceLevel = configuration.traceLevel || TraceLevel.None;
         configuration.tableNames = Constants.tableNames.concat(configuration.tableNames || []);
         configuration.lastConnectionCheckResult = false;
         configuration.checkOnline = configuration.checkOnline === true;

@@ -1,5 +1,6 @@
 import { SPWeb } from "@microsoft/sp-page-context";
 import { ServicesConfiguration } from "../../configuration/ServicesConfiguration";
+import { TraceLevel } from "../../constants";
 import { LoggingService } from "../LoggingService";
 
 
@@ -8,7 +9,7 @@ export abstract class BaseService {
         return LoggingService.defaultLogFormat;
     }
     constructor() {        
-        if(ServicesConfiguration.configuration.debug) {
+        if(ServicesConfiguration.configuration.traceLevel !== TraceLevel.None) {
             LoggingService.addLoggingToTaggedMembers(this, this.logFormat);
         }
     }

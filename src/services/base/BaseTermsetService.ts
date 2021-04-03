@@ -5,7 +5,7 @@ import { ITermSet, taxonomy } from "@pnp/sp-taxonomy";
 import { ServiceFactory } from "../ServiceFactory";
 import { UtilsService } from "../UtilsService";
 import { ServicesConfiguration } from "../../configuration/ServicesConfiguration";
-import { Constants } from "../../constants/index";
+import { Constants, TraceLevel } from "../../constants/index";
 import { TaxonomyHidden, TaxonomyTerm } from "../../models";
 import { BaseDataService } from "./BaseDataService";
 import { Decorators } from "../../decorators";
@@ -65,6 +65,7 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
         this.isGlobal = isGlobal;
     }
 
+    @trace(TraceLevel.ServiceUtilities)
     protected async init_internal(): Promise<void> {
         await super.init_internal();
         const [ts, taxonomyHiddenItems] = await Promise.all([this.termset.select("CustomSortOrder").get(), ServiceFactory.getService(TaxonomyHidden).getAll()]);
@@ -86,7 +87,7 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
         throw Error("Not implemented");
     }
 
-    @trace()
+    @trace(TraceLevel.Service)
     public async getWssIds(termId: string): Promise<Array<number>> {
         await this.Init();
         const taxonomyHiddenItems = this.getServiceInitValues(TaxonomyHidden);
@@ -96,18 +97,18 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
             return filteredItem.id;
         });
     }
-    @trace()
+    @trace(TraceLevel.Queries)
     protected async getAll_Query(): Promise<Array<any>> {
         return this.termset.terms.select("Name", "Description", "Id", "PathOfTerm", "CustomSortOrder", "CustomProperties", "IsDeprecated").get();
     }
     
 
-    @trace()
+    @trace(TraceLevel.Queries)
     public async getItemById_Query(id: string): Promise<any> {
         return  this.termset.terms.getById(id).select("Name", "Description", "Id", "PathOfTerm", "CustomSortOrder", "CustomProperties", "IsDeprecated");
     }
 
-    @trace()
+    @trace(TraceLevel.Queries)
     public async getItemsById_Query(ids: Array<string>): Promise<Array<any>> {
         const results: Array<any> = [];
         const batches = [];
@@ -186,7 +187,7 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
         return result;
     }
 
-    @trace()
+    @trace(TraceLevel.Service)
     public async getAll(): Promise<Array<T>> {
         const items = await super.getAll();
         const result = [];

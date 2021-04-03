@@ -1,11 +1,15 @@
+import { ServicesConfiguration } from "../configuration";
+
 export class LoggingService {
     public static addLoggingToTaggedMembers(instance: any, logFormat?: string): void {  
         const instanceConstructor = instance.constructor;
         const className = instanceConstructor["name"] || "object"; 
-        if(instanceConstructor.tracedMembers && instanceConstructor.tracedMembers.length > 0) {
-            instanceConstructor.tracedMembers.forEach(tracedMember => {
-                instance[tracedMember] = LoggingService.getLoggableFunction(instance, className, instance[tracedMember], tracedMember, logFormat);
-            });
+        if(instanceConstructor.tracedMembers) {
+            for (const key in instanceConstructor.tracedMembers) {
+                if (instanceConstructor.tracedMembers.hasOwnProperty(key) && ((instanceConstructor.tracedMembers[key] & ServicesConfiguration.configuration.traceLevel) === instanceConstructor.tracedMembers[key])) {
+                    instance[key] = LoggingService.getLoggableFunction(instance, className, instance[key], key, logFormat);                    
+                }
+            }
         }        
     }
 

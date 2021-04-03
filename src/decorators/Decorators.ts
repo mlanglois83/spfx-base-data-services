@@ -1,4 +1,5 @@
 import { ServicesConfiguration } from "../configuration/ServicesConfiguration";
+import { TraceLevel } from "../constants";
 import { IFieldDescriptor, IRestServiceDescriptor } from "../interfaces";
 
 
@@ -33,12 +34,12 @@ export namespace Decorators {
     }
 
 
-    export function trace(): (target: any, propertyKey: string) => void {
+    export function trace(traceLevel: TraceLevel): (target: any, propertyKey: string) => void {
         return (target: any, propertyKey: string): void => {  
             if(typeof(target[propertyKey] === "function")) {
-                target.constructor.tracedMembers = target.constructor.tracedMembers || [];
-                if(target.constructor.tracedMembers.indexOf(propertyKey) === -1) {
-                    target.constructor.tracedMembers.push(propertyKey);
+                target.constructor.tracedMembers = target.constructor.tracedMembers || {};
+                if(!target.constructor.tracedMembers[propertyKey]) {
+                    target.constructor.tracedMembers[propertyKey] = traceLevel;
                 }
             }
         };

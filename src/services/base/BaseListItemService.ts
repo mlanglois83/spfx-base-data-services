@@ -2,7 +2,7 @@ import { ServicesConfiguration } from "../../configuration/ServicesConfiguration
 import { SPHttpClient } from '@microsoft/sp-http';
 import { cloneDeep, find, findIndex } from "@microsoft/sp-lodash-subset";
 import { CamlQuery, List, sp } from "@pnp/sp";
-import { Constants, FieldType, TestOperator, QueryToken, LogicalOperator } from "../../constants/index";
+import { Constants, FieldType, TestOperator, QueryToken, LogicalOperator, TraceLevel } from "../../constants/index";
 import { IFieldDescriptor, IQuery, IPredicate, ILogicalSequence, IOrderBy } from "../../interfaces/index";
 import { BaseDataService } from "./BaseDataService";
 import { ServiceFactory } from "../ServiceFactory";
@@ -26,6 +26,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
     /***************************** Fields and properties **************************************/
     protected listRelativeUrl: string;    
     protected taxoMultiFieldNames: { [fieldName: string]: string } = {};
+    protected checkLastModify = true;
 
     /* AttachmentService */
     protected attachmentsService: BaseDbService<SPFile>;
@@ -46,17 +47,22 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
      * @param tableName - name of table in local db
      * @param cacheDuration - cache duration in minutes
      */
-    constructor(type: (new (item?: any) => T), listRelativeUrl: string, cacheDuration?: number) {
+    constructor(type: (new (item?: any) => T), listRelativeUrl: string, cacheDuration?: number, checkLastModify?: boolean) {
         super(type, cacheDuration);
         this.listRelativeUrl = ServicesConfiguration.context.pageContext.web.serverRelativeUrl + listRelativeUrl;
-        this.attachmentsService = new BaseDbService<SPFile>(SPFile, "ListAttachments");
+        if(this.hasAttachments) {
+            this.attachmentsService = new BaseDbService<SPFile>(SPFile, "ListAttachments");
+        }
+        if(checkLastModify !== undefined) {
+            this.checkLastModify = checkLastModify;
+        }
 
     }
     
     /********** init for taxo multi ************/
     private fieldsInitialized = false;
     private initFieldsPromise: Promise<void> = null;
-    @trace()
+    @trace(TraceLevel.ServiceUtilities)
     private async initFields(): Promise<void> {
         if (!this.initFieldsPromise) {
             this.initFieldsPromise = new Promise<void>(async (resolve, reject) => {
@@ -403,9 +409,6 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         });
     }
 
-    //avoid to call x time the lastmodified during 10 seconds
-    //
-
 
 
     /******************************************* Cache Management *************************************************/
@@ -439,27 +442,27 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
     }
     
     protected async  needRefreshCache(key = "all"): Promise<boolean> {
-
         //get parent need refresh information
         let result: boolean = await super.needRefreshCache(key);
+        if(this.checkLastModify) {
+            //if not need refresh cache, test, last modified list modified
+            if (!result) {
 
-        //if not need refresh cache, test, last modified list modified
-        if (!result) {
+                //check online
+                const isconnected = await UtilsService.CheckOnline();
 
-            //check online
-            const isconnected = await UtilsService.CheckOnline();
+                if (isconnected) {
 
-            if (isconnected) {
+                    //get last cache date
+                    const cachedDataDate = await super.getCachedData(key);
+                    //if a date existe, check if renew necessary
+                    //else load data
+                    if (cachedDataDate) {
 
-                //get last cache date
-                const cachedDataDate = await super.getCachedData(key);
-                //if a date existe, check if renew necessary
-                //else load data
-                if (cachedDataDate) {
+                        const lastModifiedDate = await this.LastModfiedList();
 
-                    const lastModifiedDate = await this.LastModfiedList();
-
-                    result = lastModifiedDate > cachedDataDate;
+                        result = lastModifiedDate > cachedDataDate;
+                    }
                 }
             }
         }
@@ -568,30 +571,31 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
      */
     protected async getExpiredIds(...ids: Array<number>): Promise<Array<number>> {
         let result: Array<number> = await super.getExpiredIds(...ids) as number[];
+        if(this.checkLastModify) {
+            if (result.length < ids.length) {
 
-        if (result.length < ids.length) {
+                const isconnected = await UtilsService.CheckOnline();
+                if (isconnected) {
 
-            const isconnected = await UtilsService.CheckOnline();
-            if (isconnected) {
+                    try {
 
-                try {
+                        const lastModifiedDate = await this.LastModfiedList();
 
-                    const lastModifiedDate = await this.LastModfiedList();
-
-                    result = [];
-                    ids.forEach((id) => {
-                        const lastLoad = this.getIdLastLoad(id);
-                        if (!lastLoad || lastLoad < lastModifiedDate) {
-                            result.push(id);
-                        }
-                    });
+                        result = [];
+                        ids.forEach((id) => {
+                            const lastLoad = this.getIdLastLoad(id);
+                            if (!lastLoad || lastLoad < lastModifiedDate) {
+                                result.push(id);
+                            }
+                        });
 
 
-                } catch (error) {
-                    console.error(error);
+                    } catch (error) {
+                        console.error(error);
+                    }
+
+
                 }
-
-
             }
         }
 
@@ -618,7 +622,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
      * Get an item by id
      * @param {number} id - item id
      */
-    @trace()
+    @trace(TraceLevel.Queries)
     protected async getItemById_Query(id: number, linkedFields?: Array<string>): Promise<any> {
         const selectFields = this.getOdataFieldNames(linkedFields);
         let itemsQuery = this.list.items.getById(id).select(...selectFields);
@@ -633,7 +637,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
      * Get a list of items by id
      * @param ids - array of item id to retrieve
      */
-    @trace()
+    @trace(TraceLevel.Queries)
     protected async getItemsById_Query(ids: Array<number>, linkedFields?: Array<string>): Promise<Array<any>> {
         const result: Array<any> = [];
         const promises: Promise<Array<any>>[] = [];
@@ -661,7 +665,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
      * Retrieve all items
      * 
      */
-    @trace()
+    @trace(TraceLevel.Queries)
     protected async getAll_Query(linkedFields?: Array<string>): Promise<Array<any>> {
         const selectFields = this.getOdataFieldNames(linkedFields);
         let itemsQuery = this.list.items.select(...selectFields);
@@ -675,7 +679,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
      * Add or update an item
      * @param item - SPItem derived object to be converted
      */
-    @trace()
+    @trace(TraceLevel.Internal)
     protected async addOrUpdateItem_Internal(item: T): Promise<T> {
         const result = cloneDeep(item);
         await this.initFields();
@@ -717,7 +721,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         return result;
     }
 
-    @trace()
+    @trace(TraceLevel.Internal)
     protected async addOrUpdateItems_Internal(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void): Promise<Array<T>> {
         const result:  Array<T> = cloneDeep(items);
         const itemsToAdd = result.filter((item) => {
@@ -860,7 +864,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
      * Delete an item
      * @param item - SPItem derived class to be deleted
      */
-    @trace()
+    @trace(TraceLevel.Internal)
     protected async deleteItem_Internal(item: T): Promise<T> {
         try {
             await this.list.items.getById(item.id).recycle();
@@ -872,7 +876,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         return item;
     }
 
-    @trace()
+    @trace(TraceLevel.Internal)
     protected async deleteItems_Internal(items: Array<T>): Promise<Array<T>> {
         const batch = sp.createBatch();
         items.forEach(item => {
@@ -887,13 +891,13 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
     }
 
 
-    @trace()
+    @trace(TraceLevel.ServiceUtilities)
     private async getAttachmentContent(attachment: SPFile): Promise<void> {
         const content = await sp.web.getFileByServerRelativeUrl(attachment.serverRelativeUrl).getBuffer();
         attachment.content = content;
     }
 
-    @trace()
+    @trace(TraceLevel.Service)
     public async cacheAttachmentsContent(): Promise<void> {
         const prop = this.attachmentProperty;
         if (prop !== null) {
@@ -1056,7 +1060,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
     } 
 
 
-    @trace()
+    @trace(TraceLevel.ServiceUtilities)
     private async updateWssIds(item: T, spItem: any): Promise<void> {
         // if taxonomy field, store wssid in db (add or update) --> service + this.init
         const fields = this.ItemFields;
@@ -1134,7 +1138,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         }
     }
 
-    @trace()
+    @trace(TraceLevel.Service)
     public async refreshData(): Promise<void>  {
         this.initialized = false;
         this.initValues = {};

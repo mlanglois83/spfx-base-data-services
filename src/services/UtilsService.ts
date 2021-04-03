@@ -15,23 +15,28 @@ export class UtilsService extends BaseService {
         super();
     }
 
+    
+    private static checkOnlinePromise: Promise<boolean> = undefined;
     /**
      * check is user has connexion
      */
     public static async CheckOnline(): Promise<boolean> {
-        let result = false;
-
-
-        try {
-            const response = await fetch(ServicesConfiguration.context.pageContext.web.absoluteUrl + (ServicesConfiguration.configuration.onlineCheckPage || ""), { method: 'HEAD', mode: 'no-cors' }); // head method not cached
-            result = (response && (response.ok || response.type === 'opaque'));
-        }
-        catch (ex) {
-            result = false;
-        }
-        ServicesConfiguration.configuration.lastConnectionCheckResult = result;
-        return result;
-
+        if(!UtilsService.checkOnlinePromise) {            
+            UtilsService.checkOnlinePromise = new Promise<boolean>(async (resolve) => {                
+                let result = false;
+                try {
+                    const response = await fetch(ServicesConfiguration.context.pageContext.web.absoluteUrl + (ServicesConfiguration.configuration.onlineCheckPage || ""), { method: 'HEAD', mode: 'no-cors' }); // head method not cached
+                    result = (response && (response.ok || response.type === 'opaque'));
+                }
+                catch (ex) {
+                    result = false;
+                }
+                ServicesConfiguration.configuration.lastConnectionCheckResult = result;
+                UtilsService.checkOnlinePromise = undefined;
+                resolve(result);
+            });            
+        }        
+        return UtilsService.checkOnlinePromise;
     }
 
     /**
