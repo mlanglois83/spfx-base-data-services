@@ -87,14 +87,20 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                 throw new Error(ServicesConfiguration.configuration.translations.IndexedDBNotDefined);
             }
             const dbName = Text.format(ServicesConfiguration.configuration.dbName, ServicesConfiguration.context.pageContext.web.serverRelativeUrl);
-            this.db = await openDb(dbName, ServicesConfiguration.configuration.dbVersion, (UpgradeDB) => {   
+            this.db = await openDb(dbName, ServicesConfiguration.configuration.dbVersion, (UpgradeDB) => {                  
+                // remove old tables
+                for (let index = 0; index < UpgradeDB.objectStoreNames.length; index++) {
+                    const element = UpgradeDB.objectStoreNames.item(index);
+                    if(ServicesConfiguration.configuration.tableNames.indexOf(element) === -1) {
+                        UpgradeDB.deleteObjectStore(element);
+                    }                    
+                } 
                 // add new tables
                 for (const tableName of ServicesConfiguration.configuration.tableNames) {
                     if (!UpgradeDB.objectStoreNames.contains(tableName)) {
-                        UpgradeDB.createObjectStore(tableName, { keyPath: 'id', autoIncrement: tableName == "Transaction" });
+                        UpgradeDB.createObjectStore(tableName, { keyPath: 'id', autoIncrement: tableName == "OfflineTransaction" });
                     }
                 }
-                // TODO : remove old tables
             });
         }
     }

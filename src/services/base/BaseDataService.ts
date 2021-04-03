@@ -985,18 +985,15 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
         while (innerItems !== undefined) {            
             level++;
             sortedByLevel = sortedByLevel || {};
-            result = result || {};
             for (const key in innerItems) {
                 if (innerItems.hasOwnProperty(key)) {
                     // init
                     sortedByLevel[key] = sortedByLevel[key] || {};
-                    result[key] = result[key] || [];
                     // set max level
                     sortedByLevel[key].maxLevel = level;
                     // add objects
                     sortedByLevel[key].objects = sortedByLevel[key].objects || [];
                     sortedByLevel[key].objects.push(...innerItems[key]);
-                    result[key].push(...innerItems[key]);
 
 
                 }
@@ -1005,16 +1002,21 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
         }
 
         // persist by level desc
-        for (let index = level; index > 0; index--) {
+        for (let index = level; index > 0; index--) {            
+            result = result || {};
             // get models for level
             const keys = Object.keys(sortedByLevel).filter(k => sortedByLevel.hasOwnProperty(k) && 
                 sortedByLevel[k].maxLevel === index);
             // persist by model
-            await Promise.all(keys.map(k => {
+            await Promise.all(keys.map(async k => {                
+                result[k] = result[k] || [];
                 // get service
                 const service = ServiceFactory.getServiceByModelName(k);
-                return service.persistItemsData(sortedByLevel[k].objects, undefined, result);
+                const persisted = await service.persistItemsData(sortedByLevel[k].objects, undefined, result);
+                result[k].push(...persisted);
             }));
+            
+            
         }
         return result;
     }

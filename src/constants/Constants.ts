@@ -61,8 +61,8 @@ export const Constants = {
      * Standard table names
      */
     tableNames: [
-        "Transaction",
-        "TransactionFiles",
+        "OfflineTransaction",
+        "OfflineTransactionFiles",
         "ListAttachments",
         "RestMapping"
     ]

@@ -7,8 +7,8 @@ export class TransactionService extends BaseDbService<OfflineTransaction> {
     private transactionFileService: BaseDbService<BaseFile>;
 
     constructor() {
-        super( OfflineTransaction, "Transaction");
-        this.transactionFileService = new BaseDbService<BaseFile>(BaseFile, "TransactionFiles");
+        super( OfflineTransaction, "OfflineTransaction");
+        this.transactionFileService = new BaseDbService<BaseFile>(BaseFile, "OfflineTransactionFiles");
     }
 
 
