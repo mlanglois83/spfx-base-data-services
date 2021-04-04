@@ -541,14 +541,8 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                                 console.error(error);
                             }
                         }
-
-                        await semaphore.acquire();
-                        this.removePromise(this.lastModifiedDate);
                         resolve(lastModifiedSave);
-
                     } catch (error) {
-                        await semaphore.acquire();
-                        this.removePromise(this.lastModifiedDate);
                         reject(error);
                     }
                 });
