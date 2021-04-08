@@ -112,7 +112,6 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     protected get isInitialized(): boolean {
         return this.initialized;
     }
-    private initPromise: Promise<void> = null;
 
     protected async init_internal(): Promise<void> {
         return;
@@ -143,9 +142,10 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
         }));
     }
 
-    public async Init(): Promise<void> {
-        if (!this.initPromise) {
-            this.initPromise = new Promise<void>(async (resolve, reject) => {
+    public async Init(): Promise<void> {        
+        let initPromise = this.getExistingPromise("init");
+        if (!initPromise) {
+            initPromise = new Promise<void>(async (resolve, reject) => {
                 if (this.initialized) {
                     resolve();
                 }
@@ -157,17 +157,16 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
                         }
                         await this.initLinkedFields();
                         this.initialized = true;
-                        this.initPromise = null;
                         resolve();
                     }
                     catch (error) {
-                        this.initPromise = null;
                         reject(error);
                     }
                 }
             });
         }
-        return this.initPromise;
+        this.storePromise(initPromise, "init");
+        return initPromise;
 
     }
 
@@ -216,16 +215,19 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
         else return null;
     }
 
-    ///add semaphore for store and remove
     protected storePromise(promise: Promise<any>, key = "all"): void {
         const pkey = this.serviceName + "-" + key;
         BaseDataService.promises[pkey] = promise;
+        promise.then(() => {
+            this.removePromise(key);
+        }).catch(() => {
+            this.removePromise(key);
+        });
     }
 
-    ///add semaphore
     protected removePromise(key = "all"): void {
         const pkey = this.serviceName + "-" + key;
-        BaseDataService.promises[pkey] = undefined;
+        delete BaseDataService.promises[pkey];
     }
     /*****************************************************************************************************************************************************************/
 
@@ -495,13 +497,9 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
                         const tmp = await this.dbService.getAll();
                         result = await this.mapItems(tmp, linkedFields);
                     }
-
-
-                    this.removePromise();
                     resolve(result);
                 }
                 catch (error) {
-                    this.removePromise();
                     reject(error);
                 }
             });
@@ -579,12 +577,9 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
                         // filter
                         result = this.filterItems(query, result);
                     }
-
-                    this.removePromise(keyCached);
                     resolve(result);
                 }
                 catch (error) {
-                    this.removePromise(keyCached);
                     reject(error);
                 }
             });
@@ -641,12 +636,9 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
                             result = res.shift();
                         }
                     }
-
-                    this.removePromise(promiseKey);
                     resolve(result);
                 }
                 catch (error) {
-                    this.removePromise(promiseKey);
                     reject(error);
                 }
             });
@@ -718,16 +710,13 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
                             const tmp = await this.dbService.getItemsById(ids);
                             results = await this.mapItems(tmp, linkedFields);
                         }
-                        this.removePromise(promiseKey);
                         resolve(results);
                     }
                     catch (error) {
-                        this.removePromise(promiseKey);
                         reject(error);
                     }
                 }
                 else {
-                    this.removePromise(promiseKey);
                     resolve([]);
                 }
             });
@@ -1597,6 +1586,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
         window.sessionStorage.removeItem(cacheKey);    
         // remove local cache
         this.initValues = {};  
+        this.initialized = false;
         // Reload all data
         await this.getAll();
     }

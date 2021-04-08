@@ -650,11 +650,9 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                             result = await this.mapItems(tmp, linkedFields);
                         }
                     }
-                    this.removePromise(keyCached);
                     resolve(result);
                 }
                 catch (error) {
-                    this.removePromise(keyCached);
                     reject(error);
                 }
             });
