@@ -29,7 +29,8 @@ const replace = function(begin, end, str) {
 
 
 
-function setConfig(includeSourceMap, tsconfig, afterSetConfig) { 
+function setConfig(basePath, includeSourceMap, afterSetConfig) {
+    const tsconfig = require(path.resolve(basePath, "tsconfig.json"));
     let injectServices = build.subTask('services-inject', function (gulp, buildOptions, done) {        
         build.log("Inject services imports for ServiceFactory init");
         const target = gulp.src(path.resolve(__dirname,"../dist/index.js"));
@@ -139,7 +140,7 @@ function setConfig(includeSourceMap, tsconfig, afterSetConfig) {
                             destpath = destpath.replace("/src/", "/lib/");
                             // Remove /* from key if needed
                             var destkey = key.replace(/^(.*)\/\*$/g, "$1");
-                            config.resolve.alias[destkey] = path.resolve(__dirname, destpath);
+                            config.resolve.alias[destkey] = path.resolve(basePath, destpath);
                         }
                     }
                 }
