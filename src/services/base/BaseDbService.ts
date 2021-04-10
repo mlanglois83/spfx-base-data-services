@@ -6,7 +6,7 @@ import { BaseService } from "./BaseService";
 import { UtilsService } from "../UtilsService";
 import { ServicesConfiguration } from "../../configuration";
 
-import { Mutex } from 'async-mutex';
+import { Mutex, Semaphore } from 'async-mutex';
 import { BaseFile } from "../../models";
 import { Decorators } from "../../decorators";
 import { TraceLevel } from "../../constants";
@@ -19,9 +19,42 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
     protected tableName: string;
     protected db: DB;
     protected itemType: (new (item?: any) => T);
+    protected static semaphore: Semaphore = undefined;
+
+    protected static _maxSimultaneousDbAccess: number = undefined;
+    public static set maxSimultaneousDbAccess(value: number) {
+        if(BaseDbService._maxSimultaneousDbAccess !== value) {
+            BaseDbService._maxSimultaneousDbAccess = value;
+            if(value > 0) {
+                BaseDbService.semaphore = new Semaphore(value);
+            }
+            else {
+                BaseDbService.semaphore = undefined;
+            }
+        }
+    }
+
+    protected static async acquire(): Promise<() => void> {
+        if(ServicesConfiguration.configuration.maxSimultaneousDbAccess !== BaseDbService._maxSimultaneousDbAccess) {
+            BaseDbService.maxSimultaneousDbAccess = ServicesConfiguration.configuration.maxSimultaneousDbAccess;
+        }
+        if(BaseDbService.semaphore) {
+            const [, release] = await BaseDbService.semaphore.acquire();
+            return release;
+        }
+        return (): void => { return; };
+    }
+    
 
     protected get logFormat(): string {
         return "%Time% - [%ClassName%<%Property:itemType.name%> (%Property:tableName%)] --> %Function%: %Duration%ms";
+    }
+
+    
+    
+
+    public get serviceName(): string {
+        return this.constructor["name"] + "<" + this.itemType["name"] + ">";
     }
 
     /**
@@ -33,7 +66,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
         this.tableName = tableName;
         this.db = null;
         this.itemType = type;
-    }
+    }    
 
     protected getChunksRegexp(fileId: number | string): RegExp {
         const escapedUrl = UtilsService.escapeRegExp(fileId.toString());
@@ -87,21 +120,27 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                 throw new Error(ServicesConfiguration.configuration.translations.IndexedDBNotDefined);
             }
             const dbName = Text.format(ServicesConfiguration.configuration.dbName, ServicesConfiguration.context.pageContext.web.serverRelativeUrl);
-            this.db = await openDb(dbName, ServicesConfiguration.configuration.dbVersion, (UpgradeDB) => {                  
-                // remove old tables
-                for (let index = 0; index < UpgradeDB.objectStoreNames.length; index++) {
-                    const element = UpgradeDB.objectStoreNames.item(index);
-                    if(ServicesConfiguration.configuration.tableNames.indexOf(element) === -1) {
-                        UpgradeDB.deleteObjectStore(element);
-                    }                    
-                } 
-                // add new tables
-                for (const tableName of ServicesConfiguration.configuration.tableNames) {
-                    if (!UpgradeDB.objectStoreNames.contains(tableName)) {
-                        UpgradeDB.createObjectStore(tableName, { keyPath: 'id', autoIncrement: tableName == "OfflineTransaction" });
+            const release = await BaseDbService.acquire();
+            try {
+                this.db = await openDb(dbName, ServicesConfiguration.configuration.dbVersion, (UpgradeDB) => {                  
+                    // remove old tables
+                    for (let index = 0; index < UpgradeDB.objectStoreNames.length; index++) {
+                        const element = UpgradeDB.objectStoreNames.item(index);
+                        if(ServicesConfiguration.configuration.tableNames.indexOf(element) === -1) {
+                            UpgradeDB.deleteObjectStore(element);
+                        }                    
+                    } 
+                    // add new tables
+                    for (const tableName of ServicesConfiguration.configuration.tableNames) {
+                        if (!UpgradeDB.objectStoreNames.contains(tableName)) {
+                            UpgradeDB.createObjectStore(tableName, { keyPath: 'id', autoIncrement: tableName == "OfflineTransaction" });
+                        }
                     }
-                }
-            });
+                });
+            }
+            finally {
+                release();
+            }
         }
     }
 
@@ -111,7 +150,9 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
      */
     @trace(TraceLevel.DataBase)
     public async addOrUpdateItem(item: T): Promise<T> {
-        await this.OpenDb();        
+        await this.OpenDb();     
+        const release = await BaseDbService.acquire();
+
         const tx = this.db.transaction(this.tableName, 'readwrite');
         const store = tx.objectStore(this.tableName);
         try {
@@ -165,11 +206,15 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
             item.error = error;
             return item;
         }
+        finally {
+            release();
+        }   
     }
 
     @trace(TraceLevel.DataBase)
     public async deleteItem(item: T): Promise<T> {
-        await this.OpenDb();
+        await this.OpenDb();        
+        const release = await BaseDbService.acquire();
         const tx = this.db.transaction(this.tableName, 'readwrite');
         const store = tx.objectStore(this.tableName);
         try {
@@ -197,12 +242,16 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
             }
             throw error;
         }
+        finally {
+            release();
+        }
         return item;
     }
 
     @trace(TraceLevel.DataBase)
     public async deleteItems(items: Array<T>): Promise<Array<T>> {
         await this.OpenDb();        
+        const release = await BaseDbService.acquire();
         const tx = this.db.transaction(this.tableName, 'readwrite');
         const store = tx.objectStore(this.tableName);
         try {
@@ -232,6 +281,9 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
             }
             throw error;
         }    
+        finally {
+            release();
+        }
         return items;
     }
 
@@ -250,6 +302,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
     @trace(TraceLevel.DataBase)
     public async addOrUpdateItems(newItems: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void): Promise<Array<T>> {
         await this.OpenDb();
+        const release = await BaseDbService.acquire();
         let nextid = undefined;
         const tx = this.db.transaction(this.tableName, 'readwrite');
         const store = tx.objectStore(this.tableName);
@@ -310,6 +363,9 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
             }
             throw error;
         }
+        finally {
+            release();
+        }
     }
 
 
@@ -320,6 +376,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
     public async getAll(): Promise<Array<T>> {
         const result = new Array<T>();
         await this.OpenDb();
+        const release = await BaseDbService.acquire();
         const transaction = this.db.transaction(this.tableName, 'readonly');
         const store = transaction.objectStore(this.tableName);
         try {
@@ -353,16 +410,19 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                     result.push(resultItem);
                 }
             });
-            await transaction.complete;
+            //await transaction.complete;
             return result;
         } catch (error) {
             console.error(error.message + " - " + error.Name);
-            try {
+            /*try {
                 transaction.abort();
             } catch {
                 // error allready thrown
-            }
+            }*/
             throw error;
+        }
+        finally {
+            release();
         }
     }
 
@@ -384,6 +444,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
     @trace(TraceLevel.DataBase)
     public async clear(): Promise<void> {
         await this.OpenDb();
+        const release = await BaseDbService.acquire();
         const tx = this.db.transaction(this.tableName, 'readwrite');
         const store = tx.objectStore(this.tableName);
         try {
@@ -398,12 +459,16 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
             }
             throw error;
         }
+        finally {
+            release();
+        }
     }
 
     @trace(TraceLevel.DataBase)
     public async getItemById(id: number | string): Promise<T> {
         let result: T = null;
         await this.OpenDb();
+        const release = await BaseDbService.acquire();
         const tx = this.db.transaction(this.tableName, 'readonly');
         const store = tx.objectStore(this.tableName);
         try {
@@ -443,11 +508,14 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                     }
                 }
             }
-            await tx.complete;
+            //await tx.complete;
             return result;
         } catch (error) {
             // key not found
             return null;
+        }
+        finally {
+            release();
         }
     }
 
@@ -455,6 +523,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
     public async getItemsById(ids: Array<number | string>): Promise<Array<T>> {
         const results: T[] = [];
         await this.OpenDb();
+        const release = await BaseDbService.acquire();
         const tx = this.db.transaction(this.tableName, 'readonly');
         const store = tx.objectStore(this.tableName);        
         try {
@@ -495,11 +564,14 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                     results.push(result);                    
                 }
             }));    
-            await tx.complete;
+            //await tx.complete;
             return results;
         } catch (error) {
             // key not found
             return [];
+        }
+        finally {
+            release();
         }
     }
 }

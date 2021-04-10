@@ -220,9 +220,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
             Constants.commonRestFields.created,
             Constants.commonRestFields.author,
             Constants.commonRestFields.editor,
-            Constants.commonRestFields.modified,
-            Constants.commonRestFields.version,
-            Constants.commonRestFields.uniqueid
+            Constants.commonRestFields.modified
         ];
     }
 

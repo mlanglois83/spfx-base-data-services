@@ -47,6 +47,17 @@ export interface IConfiguration {
      * Id of Azure AD app registered to get authentication token
      */
     aadAppId?: string;
-
+    /**
+     * Add traces to services calls
+     */
     traceLevel?: TraceLevel;
+    /**
+     * Limit simultaneous db calls (0 or undefined --> no limit)
+     */
+    maxSimultaneousDbAccess?: number;
+    /**
+     * Limit simultaneous network queries in services (0 or undefined --> no limit)
+     * @todo
+     */
+    maxSimultaneousQueries?: number;
 }

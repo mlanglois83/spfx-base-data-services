@@ -48,7 +48,7 @@ export class LoggingService {
 
     public static readonly defaultLogFormat = "%Time% - [%ClassName%] --> %Function%: %Duration%ms";
 
-    private static log(instance: any, className: string, startDate: Date, functionName: string, args: any[], logFormat?: string): void {
+    public static log(instance: any, className: string, startDate: Date, functionName: string, args: any[], logFormat?: string): void {
         logFormat = logFormat || LoggingService.defaultLogFormat;
 
         const endDate = new Date();

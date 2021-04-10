@@ -8,8 +8,7 @@ const glob = require('glob');
 const path = require('path');
 
 // dev deps
-const es = require('event-stream')
-const PluginError = require('plugin-error');
+var es = require('event-stream'), PluginError = require('plugin-error');
 
 const stream = function(injectMethod){
     return es.map(function (file, cb) {
@@ -21,42 +20,112 @@ const stream = function(injectMethod){
         cb(null, file);
     });
 };
-const replace = function(begin, end, str) {
+const inject = function(imports, filePath) {
+    const begin = "//inject:imports", end = "//endinject";
     return stream(function(fileContents) {
-      return fileContents.replace(new RegExp(begin + ".*" + end, 's'), begin + str + end);
+
+        let importString = "";
+        const declarations = [];
+        for (const className in imports) {
+            if (imports.hasOwnProperty(className)) {
+                const classRef = imports[className];
+                declarations.push(className);
+                if(classRef.isFile) {
+                    const dirPath = path.dirname(filePath);
+                    importString += `import { ${className} } from "${path.relative(dirPath, classRef.ref).replace(/\\/g, "/")}";\n`
+                }
+                else {
+                    importString += `import { ${className} } from "${classRef.ref}";\n`
+                }
+                
+            }
+        }
+        const str = importString + `\nconsole.groupCollapsed("spfx-base-data-services - register services");\n[\n${ declarations.map(d => "\t" + d).join(",\n")}\n].forEach(function (value) { \n\tconsole.log(value["name"] + " added to ServiceFactory");\n});\nconsole.groupEnd("spfx-base-data-services - register services");\n`;
+        const regex = new RegExp(begin + ".*" + end, 's');
+        if(fileContents.match(regex)) {
+            return fileContents.replace(new RegExp(begin + ".*" + end, 's'), begin + "\n" + str + end);
+        }
+        else {
+            const match = fileContents.match(/\s*import.*from.*;/g);
+            if(match) {                
+                const matchstr = match.pop();
+                const idx=fileContents.lastIndexOf(matchstr);
+                return fileContents.slice(0, idx + matchstr.length) + "\n" + begin + "\n" + str + end + "\n" + fileContents.slice(idx + matchstr.length);
+            }
+            else {
+                return begin + "\n" + str + end + "\n" + fileContents;
+            }
+        }
     });
 }
 
 
 
-function setConfig(basePath, includeSourceMap, afterSetConfig) {
+function setConfig(basePath, includeSourceMap, afterSetConfig) { 
     const tsconfig = require(path.resolve(basePath, "tsconfig.json"));
-    let injectServices = build.subTask('services-inject', function (gulp, buildOptions, done) {        
-        build.log("Inject services imports for ServiceFactory init");
-        const target = gulp.src(path.resolve(__dirname,"../dist/index.js"));
-        // construct injection
-        let imports = `\nimport { TaxonomyHiddenListService, UserService } from "./services";\n`;
-        let classNames = "\nTaxonomyHiddenListService;\nUserService;\n";
-        tsconfig.include.forEach((pattern) => {
-                glob.sync(pattern).forEach((filePath) => {
-                    const buf = fs.readFileSync(filePath, "utf-8");
-                    const serviceDeclaration = buf.match(/@.*dataService\(("\w+")?\).*export\s*class\s*(\w+)\s*extends.*/s);
-                    if(serviceDeclaration && serviceDeclaration.length === 3) {
-                        const className = serviceDeclaration[2];
-                        imports += `import { ${className} } from "../../../${filePath.replace(/^src(\/.*)\.ts$/g,"lib$1.js")}";\n`;
-                        classNames += `${className};\n`;
-                    }
+    
+    // inject dataservices in entry points to ensure decorators are applied for ServiceFactory registration (for both service and associated model)
+    let injectServices = build.subTask('services-inject', function (gulp, buildOptions, done) {     
+        build.log("Inject services imports for ServiceFactory init"); 
+        // find entry points in package config
+        const sources = [];
+        const pkgconfig = require(path.resolve(basePath, "config/config.json"));
+        for (const key in pkgconfig.bundles) {
+            if (pkgconfig.bundles.hasOwnProperty(key)) {
+                const bundle = pkgconfig.bundles[key];
+                bundle.components.forEach(component => {
+                    sources.push(component.entrypoint);
                 });
+                
+            }
+        }
+        // construct injection
+        const imports = {
+            TaxonomyHiddenListService: { 
+                isFile: false,
+                ref: "spfx-base-data-services"
+            },
+            UserService: { 
+                isFile: false,
+                ref: "spfx-base-data-services"
+            }
+        };        
+        // search services in each tsconfig includes
+        tsconfig.include.forEach((pattern) => {
+            glob.sync(pattern).forEach((filePath) => {
+                const buf = fs.readFileSync(filePath, "utf-8");
+                const serviceDeclaration = buf.match(/@.*dataService\(("\w+")?\).*export\s*class\s*(\w+)\s*extends.*/s);
+                if(serviceDeclaration && serviceDeclaration.length === 3) {
+                    const className = serviceDeclaration[2];
+                    imports[className] = {
+                        isFile: true,
+                        ref: path.resolve(basePath, filePath.replace(/^src(\/.*)\.ts$/g,"lib$1.js"))
+                    }
+                }
             });
-        
-        target.pipe(
-            replace("//inject:imports", "//endinject", imports + classNames)
-        ).pipe(
-            gulp.dest(path.resolve(__dirname,"../dist"))
-        );
+        });
+
+        // inject in js file
+        sources.forEach(source => {
+            const filePath = path.resolve(basePath,source);
+            const fileDir = path.dirname(filePath);
+            gulp.src(filePath).pipe(
+                inject(imports, filePath)
+            ).pipe(
+                gulp.dest(fileDir)
+            );
+            
+        });
         done();
     });
     build.rig.addPostBuildTask(injectServices);
+
+    /*
+    * modify webpack config :
+    *    - to avoid uglyfying reserved names (services & models) 
+    *    - to handle aliases
+    *    - to link sourcmaps
+    */
     build.configureWebpack.setConfig({
         additionalConfiguration: (config) => {
     

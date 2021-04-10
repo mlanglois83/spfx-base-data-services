@@ -4,12 +4,18 @@ import { TraceLevel } from "../../constants";
 import { LoggingService } from "../LoggingService";
 
 
-export abstract class BaseService {
+export abstract class BaseService {   
+    
+
+    public get serviceName(): string {
+        return this.constructor["name"];
+    }
+
     protected get logFormat(): string {
         return LoggingService.defaultLogFormat;
     }
     constructor() {        
-        if(ServicesConfiguration.configuration.traceLevel !== TraceLevel.None) {
+        if(this.debug) {
             LoggingService.addLoggingToTaggedMembers(this, this.logFormat);
         }
     }
@@ -29,5 +35,40 @@ export abstract class BaseService {
     public getDomainUrl(web: SPWeb): string {
         return web.absoluteUrl.replace(web.serverRelativeUrl, "");
     }
+    protected get debug(): boolean {
+        return ServicesConfiguration.configuration.traceLevel !== TraceLevel.None;
+    }
+
+    /**************************************************************** Promise Concurency ******************************************************************************/
+
+    /**
+     * Stored promises to avoid multiple calls
+     */
+     protected static promises = {};
+
+    protected getExistingPromise(key = "all"): Promise<any> {
+        const pkey = this.serviceName + "-" + key;
+        if (BaseService.promises[pkey]) {
+            return BaseService.promises[pkey];
+        }
+        else return null;
+    }
+
+    protected storePromise(promise: Promise<any>, key = "all"): void {
+        const pkey = this.serviceName + "-" + key;
+        BaseService.promises[pkey] = promise;
+        promise.then(() => {
+            this.removePromise(key);
+        }).catch(() => {
+            this.removePromise(key);
+        });
+    }
+
+    protected removePromise(key = "all"): void {
+        const pkey = this.serviceName + "-" + key;
+        delete BaseService.promises[pkey];
+    }
+    /*****************************************************************************************************************************************************************/
+
 }
 

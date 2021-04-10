@@ -3,8 +3,7 @@ import { sp } from "@pnp/sp";
 import { taxonomy } from "@pnp/sp-taxonomy";
 import { IConfiguration, IFactoryMapping } from "../interfaces";
 import { graph } from "@pnp/graph";
-import { Constants } from "..";
-import { TraceLevel } from "../constants";
+import { Constants, TraceLevel } from "../constants";
 
 /**
  * Configuration class for spfx base data services

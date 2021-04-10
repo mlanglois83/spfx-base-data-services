@@ -23,13 +23,6 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     protected dbService: BaseDbService<T>;
     protected cacheDuration = -1;      
 
-    protected get debug(): boolean {
-        return ServicesConfiguration.configuration.traceLevel !== TraceLevel.None;
-    }
-
-    public get serviceName(): string {
-        return this.constructor["name"];
-    }
 
     public get itemType(): (new (item?: any) => T) {
         return this.itemModelType;
@@ -196,39 +189,6 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     }
 
 
-    /*****************************************************************************************************************************************************************/
-
-
-
-    /**************************************************************** Promise Concurency ******************************************************************************/
-
-    /**
-     * Stored promises to avoid multiple calls
-     */
-     protected static promises = {};
-
-    protected getExistingPromise(key = "all"): Promise<any> {
-        const pkey = this.serviceName + "-" + key;
-        if (BaseDataService.promises[pkey]) {
-            return BaseDataService.promises[pkey];
-        }
-        else return null;
-    }
-
-    protected storePromise(promise: Promise<any>, key = "all"): void {
-        const pkey = this.serviceName + "-" + key;
-        BaseDataService.promises[pkey] = promise;
-        promise.then(() => {
-            this.removePromise(key);
-        }).catch(() => {
-            this.removePromise(key);
-        });
-    }
-
-    protected removePromise(key = "all"): void {
-        const pkey = this.serviceName + "-" + key;
-        delete BaseDataService.promises[pkey];
-    }
     /*****************************************************************************************************************************************************************/
 
     /************************************************************************* Cache expiration ************************************************************************************/
