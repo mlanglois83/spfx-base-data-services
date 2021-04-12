@@ -12,20 +12,30 @@ import { Decorators } from "../../decorators";
 import { TraceLevel } from "../../constants";
 
 const trace = Decorators.trace;
+
+
+declare global {
+    interface Window {
+        db: DB;
+    }
+}
+
+
+
 /**
  * Base classe for indexedDB interraction using SP repository
  */
 export class BaseDbService<T extends IBaseItem> extends BaseService implements IDataService<T> {
     protected tableName: string;
-    protected db: DB;
+
     protected itemType: (new (item?: any) => T);
     protected static semaphore: Semaphore = undefined;
 
     protected static _maxSimultaneousDbAccess: number = undefined;
     public static set maxSimultaneousDbAccess(value: number) {
-        if(BaseDbService._maxSimultaneousDbAccess !== value) {
+        if (BaseDbService._maxSimultaneousDbAccess !== value) {
             BaseDbService._maxSimultaneousDbAccess = value;
-            if(value > 0) {
+            if (value > 0) {
                 BaseDbService.semaphore = new Semaphore(value);
             }
             else {
@@ -35,23 +45,23 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
     }
 
     protected static async acquire(): Promise<() => void> {
-        if(ServicesConfiguration.configuration.maxSimultaneousDbAccess !== BaseDbService._maxSimultaneousDbAccess) {
+        if (ServicesConfiguration.configuration.maxSimultaneousDbAccess !== BaseDbService._maxSimultaneousDbAccess) {
             BaseDbService.maxSimultaneousDbAccess = ServicesConfiguration.configuration.maxSimultaneousDbAccess;
         }
-        if(BaseDbService.semaphore) {
+        if (BaseDbService.semaphore) {
             const [, release] = await BaseDbService.semaphore.acquire();
             return release;
         }
         return (): void => { return; };
     }
-    
+
 
     protected get logFormat(): string {
         return "%Time% - [%ClassName%<%Property:itemType.name%> (%Property:tableName%)] --> %Function%: %Duration%ms";
     }
 
-    
-    
+
+
 
     public get serviceName(): string {
         return this.constructor["name"] + "<" + this.itemType["name"] + ">";
@@ -64,9 +74,9 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
     constructor(type: (new (item?: any) => T), tableName: string) {
         super();
         this.tableName = tableName;
-        this.db = null;
+        //BaseDbService.db = null;
         this.itemType = type;
-    }    
+    }
 
     protected getChunksRegexp(fileId: number | string): RegExp {
         const escapedUrl = UtilsService.escapeRegExp(fileId.toString());
@@ -93,7 +103,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
     protected async getNextAvailableKey(store: ObjectStore<T, number>): Promise<number> {
         let result: number;
         const tmp = new this.itemType();
-        if(typeof(tmp.id) === "number") {
+        if (typeof (tmp.id) === "number") {
             const release = await BaseDbService.mutex.acquire();
             try {
                 const keys = await this.getAllKeysInternal(store);
@@ -114,22 +124,25 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
     /**
      * Opens indexed db, update structure if needed
      */
+    @trace(TraceLevel.DataBase)
     protected async OpenDb(): Promise<void> {
-        if (this.db == null) {
+        if (window.db == null) {
+            console.error("Open database");
+
             if (!('indexedDB' in window)) {
                 throw new Error(ServicesConfiguration.configuration.translations.IndexedDBNotDefined);
             }
             const dbName = Text.format(ServicesConfiguration.configuration.dbName, ServicesConfiguration.context.pageContext.web.serverRelativeUrl);
             const release = await BaseDbService.acquire();
             try {
-                this.db = await openDb(dbName, ServicesConfiguration.configuration.dbVersion, (UpgradeDB) => {                  
+                window.db = await openDb(dbName, ServicesConfiguration.configuration.dbVersion, (UpgradeDB) => {
                     // remove old tables
                     for (let index = 0; index < UpgradeDB.objectStoreNames.length; index++) {
                         const element = UpgradeDB.objectStoreNames.item(index);
-                        if(ServicesConfiguration.configuration.tableNames.indexOf(element) === -1) {
+                        if (ServicesConfiguration.configuration.tableNames.indexOf(element) === -1) {
                             UpgradeDB.deleteObjectStore(element);
-                        }                    
-                    } 
+                        }
+                    }
                     // add new tables
                     for (const tableName of ServicesConfiguration.configuration.tableNames) {
                         if (!UpgradeDB.objectStoreNames.contains(tableName)) {
@@ -150,10 +163,10 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
      */
     @trace(TraceLevel.DataBase)
     public async addOrUpdateItem(item: T): Promise<T> {
-        await this.OpenDb();     
+        await this.OpenDb();
         const release = await BaseDbService.acquire();
 
-        const tx = this.db.transaction(this.tableName, 'readwrite');
+        const tx = window.db.transaction(this.tableName, 'readwrite');
         const store = tx.objectStore(this.tableName);
         try {
             if (typeof (item.id) === "number" && !store.autoIncrement && item.id === -1) {
@@ -208,14 +221,14 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
         }
         finally {
             release();
-        }   
+        }
     }
 
     @trace(TraceLevel.DataBase)
     public async deleteItem(item: T): Promise<T> {
-        await this.OpenDb();        
+        await this.OpenDb();
         const release = await BaseDbService.acquire();
-        const tx = this.db.transaction(this.tableName, 'readwrite');
+        const tx = window.db.transaction(this.tableName, 'readwrite');
         const store = tx.objectStore(this.tableName);
         try {
             const deleteKeys = [item.id];
@@ -250,12 +263,12 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
 
     @trace(TraceLevel.DataBase)
     public async deleteItems(items: Array<T>): Promise<Array<T>> {
-        await this.OpenDb();        
+        await this.OpenDb();
         const release = await BaseDbService.acquire();
-        const tx = this.db.transaction(this.tableName, 'readwrite');
+        const tx = window.db.transaction(this.tableName, 'readwrite');
         const store = tx.objectStore(this.tableName);
         try {
-            for (const item of items) {   
+            for (const item of items) {
                 const deleteKeys = [item.id];
                 if (item instanceof BaseFile) {
                     const keys = await this.getAllKeysInternal(store);
@@ -269,9 +282,9 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                 await Promise.all(deleteKeys.map(async (k) => {
                     await store.delete(k);
                     item.deleted = true;
-                }));         
-            }    
-            await tx.complete;   
+                }));
+            }
+            await tx.complete;
         } catch (error) {
             console.error(error.message + " - " + error.Name);
             try {
@@ -280,7 +293,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                 // error allready thrown
             }
             throw error;
-        }    
+        }
         finally {
             release();
         }
@@ -304,13 +317,13 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
         await this.OpenDb();
         const release = await BaseDbService.acquire();
         let nextid = undefined;
-        const tx = this.db.transaction(this.tableName, 'readwrite');
+        const tx = window.db.transaction(this.tableName, 'readwrite');
         const store = tx.objectStore(this.tableName);
         const copy = cloneDeep(newItems);
         try {
             await Promise.all(copy.map(async (item, itemIdx) => {
                 if (typeof (item.id) === "number" && !store.autoIncrement && item.id === -1) {
-                    if(nextid === undefined) {
+                    if (nextid === undefined) {
                         nextid = await this.getNextAvailableKey(store as ObjectStore<T, number>);
                     }
                     item.id = nextid--;
@@ -377,7 +390,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
         const result = new Array<T>();
         await this.OpenDb();
         const release = await BaseDbService.acquire();
-        const transaction = this.db.transaction(this.tableName, 'readonly');
+        const transaction = window.db.transaction(this.tableName, 'readonly');
         const store = transaction.objectStore(this.tableName);
         try {
             const rows = await store.getAll();
@@ -445,7 +458,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
     public async clear(): Promise<void> {
         await this.OpenDb();
         const release = await BaseDbService.acquire();
-        const tx = this.db.transaction(this.tableName, 'readwrite');
+        const tx = window.db.transaction(this.tableName, 'readwrite');
         const store = tx.objectStore(this.tableName);
         try {
             await store.clear();
@@ -469,7 +482,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
         let result: T = null;
         await this.OpenDb();
         const release = await BaseDbService.acquire();
-        const tx = this.db.transaction(this.tableName, 'readonly');
+        const tx = window.db.transaction(this.tableName, 'readonly');
         const store = tx.objectStore(this.tableName);
         try {
             const obj = await store.get(id);
@@ -524,8 +537,8 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
         const results: T[] = [];
         await this.OpenDb();
         const release = await BaseDbService.acquire();
-        const tx = this.db.transaction(this.tableName, 'readonly');
-        const store = tx.objectStore(this.tableName);        
+        const tx = window.db.transaction(this.tableName, 'readonly');
+        const store = tx.objectStore(this.tableName);
         try {
             await Promise.all(ids.map(async (id) => {
                 let result = null;
@@ -535,7 +548,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                     if (result instanceof BaseFile) {
                         // item is a part of another file
                         const chunkparts = (/^.*_chunk_\d+$/g).test(result.id.toString());
-                        if (!chunkparts) {                            
+                        if (!chunkparts) {
                             // verify if there are other parts
                             const keys = await this.getAllKeysInternal(store);
                             const chunkRegex = this.getChunksRegexp(result.id);
@@ -560,10 +573,10 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                         }
                     }
                 }
-                if(result) {
-                    results.push(result);                    
+                if (result) {
+                    results.push(result);
                 }
-            }));    
+            }));
             //await tx.complete;
             return results;
         } catch (error) {

@@ -7,3 +7,5 @@ package-lock.json
 .vs/SpfxBaseDataServices/v16/.suo
 .vscode/*
 
+.scannerwork/.sonar_lock
+.scannerwork/report-task.txt
