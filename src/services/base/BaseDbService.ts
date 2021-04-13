@@ -127,7 +127,6 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
     @trace(TraceLevel.DataBase)
     protected async OpenDb(): Promise<void> {
         if (window.db == null) {
-            console.error("Open database");
 
             if (!('indexedDB' in window)) {
                 throw new Error(ServicesConfiguration.configuration.translations.IndexedDBNotDefined);
