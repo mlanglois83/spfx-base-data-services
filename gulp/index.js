@@ -20,6 +20,9 @@ const stream = function (injectMethod) {
         cb(null, file);
     });
 };
+
+const baseItems = ["BaseFile", "BaseItem", "RestFile", "RestItem", "SPFile", "SPItem", "TaxonomyTerm"];
+
 const inject = function (imports, filePath) {
     const begin = "//inject:imports", end = "//endinject";
     return stream(function (fileContents) {
@@ -61,7 +64,7 @@ const inject = function (imports, filePath) {
 
 
 
-function setConfig(basePath, includeSourceMap, afterSetConfig) {
+function setConfig(basePath, includeSourceMap, additionnalReservedNames, afterSetConfig) {
     const tsconfig = require(path.resolve(basePath, "tsconfig.json"));
 
     // inject dataservices in entry points to ensure decorators are applied for ServiceFactory registration (for both service and associated model)
@@ -143,18 +146,58 @@ function setConfig(basePath, includeSourceMap, afterSetConfig) {
             // only prod buid
             if (build.getConfig().production) {
                 build.log("Exclude services and models class names for uglify plugin");
-                const reserved = ["BaseDataService", "BaseDbService", "BaseFileService", "BaseListItemService", "BaseRestService", "BaseService", "BaseTermsetService", "SPFile", "TaxonomyTerm", "TaxonomyHiddenListService", "TaxonomyHidden", "UserService", "User", "BaseItem", "RestItem", "SPItem", "RestFile", "BaseFile"];
+                additionnalReservedNames = additionnalReservedNames || [];
+                const reserved = ["BaseDataService", "BaseDbService", "BaseFileService", "BaseListItemService", "BaseRestService", "BaseService", "BaseTermsetService", "SPFile", "TaxonomyTerm", "TaxonomyHiddenListService", "SPFile", "TaxonomyTerm", "TaxonomyHiddenListService", "TaxonomyHidden", "UserService", "User", "BaseItem", "RestItem", "SPItem", "RestFile", "BaseFile"].concat(additionnalReservedNames);
+                const baseClasses = [];
                 tsconfig.include.forEach((pattern) => {
                     glob.sync(pattern).forEach((filePath) => {
                         const buf = fs.readFileSync(filePath, "utf-8");
-                        const serviceDeclaration = buf.match(/@.*(dataService|dataModel)\(("\w+")?\).*export\s*class\s*(\w+)\s*extends.*/s);
-                        if (serviceDeclaration && serviceDeclaration.length === 4) {
+                        const serviceDeclaration = buf.match(/@.*(dataService|dataModel)\(("\w+")?\).*export\s*class\s*(\w+)\s*(implements\s*\w+\s*)?extends\s*(\w+)\s*.*/s);
+                        if (serviceDeclaration && serviceDeclaration.length === 6) {
                             const className = serviceDeclaration[3];
-
+                            if (serviceDeclaration[1] == "dataModel") {
+                                build.verbose("model class : " + className);
+                                const baseClass = serviceDeclaration[5];
+                                if (baseItems.indexOf(baseClass) === -1 && baseClasses.indexOf(baseClass) === -1) {
+                                    baseClasses.push(baseClass);
+                                }
+                            }
+                            else {
+                                build.verbose("service class : " + className);
+                            }
                             reserved.push(className);
                         }
                     });
                 });
+                const addedParents = [].concat(...baseClasses);
+                while (baseClasses.length > 0) {
+                    tsconfig.include.forEach((pattern) => {
+                        glob.sync(pattern).forEach((filePath) => {
+                            const buf = fs.readFileSync(filePath, "utf-8");
+                            const classPattern = buf.match(/.*export\s*(abstract\s*)?class\s*(\w+)\s*(implements\s*\w+\s*)?extends\s*(\w+)\s*.*/s); // /!\ implements
+                            let isParentClass = false;
+                            if (classPattern && classPattern.length === 5) {
+                                const parentName = classPattern[2];
+                                const parentBaseType = classPattern[4];
+                                const nameIdx = baseClasses.indexOf(parentName)
+                                isParentClass = nameIdx !== -1;
+                                if (isParentClass) {
+                                    build.verbose("parent class : " + parentName);
+                                    addedParents.push(parentName);
+                                    baseClasses.splice(nameIdx, 1);
+                                    if (reserved.indexOf(parentName) === -1) {
+                                        reserved.push(parentName);
+                                    }
+                                    if (addedParents.indexOf(parentBaseType) === -1 && baseItems.indexOf(parentBaseType) === -1) {
+                                        baseClasses.push(parentBaseType);
+                                    }
+                                }
+                            }
+                        });
+                    });
+                }
+
+
                 build.verbose("Reserved names : " + reserved.join(", "));
                 config.optimization.minimizer =
                     [
