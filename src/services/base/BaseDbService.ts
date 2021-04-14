@@ -37,15 +37,24 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
         }
     }
 
+
+
     protected static async acquire(): Promise<() => void> {
+        let func: () => void = (): void => { return; };
+
+
+
+
         if (ServicesConfiguration.configuration.maxSimultaneousDbAccess !== BaseDbService._maxSimultaneousDbAccess) {
             BaseDbService.maxSimultaneousDbAccess = ServicesConfiguration.configuration.maxSimultaneousDbAccess;
         }
         if (BaseDbService.semaphore) {
             const [, release] = await BaseDbService.semaphore.acquire();
-            return release;
+            func = release;
         }
-        return (): void => { return; };
+
+
+        return func;
     }
 
 
@@ -148,6 +157,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                                 }
                             }
                         });
+
                         resolve();
                     }
                     catch (error) {
@@ -160,8 +170,14 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                     BaseDbService.openPromise = null;
                 });
             }
+
             return BaseDbService.openPromise;
+        } else {
+
         }
+
+
+
     }
 
     /**
@@ -321,6 +337,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
      */
     @trace(TraceLevel.DataBase)
     public async addOrUpdateItems(newItems: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void): Promise<Array<T>> {
+
         await this.OpenDb();
         const release = await BaseDbService.acquire();
         let nextid = undefined;
@@ -373,6 +390,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                 }
             }));
             await tx.complete;
+
             return copy;
         } catch (error) {
             console.error(error.message + " - " + error.Name);

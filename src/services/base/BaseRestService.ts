@@ -24,7 +24,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
 
     /***************************** Fields and properties **************************************/
 
-    protected restMappingDb: BaseDbService<RestResultMapping>;  
+    protected restMappingDb: BaseDbService<RestResultMapping>;
 
 
     protected baseServiceUrl: string;
@@ -52,7 +52,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         super(type, cacheDuration);
         this.baseServiceUrl = baseServiceUrl;
         this.restMappingDb = new BaseDbService(RestResultMapping, "RestMapping");
-    }   
+    }
 
     /****************************** get item methods ***********************************/
     protected async populateItem(restItem: any): Promise<T> {
@@ -63,14 +63,14 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         return item;
     }
 
-    protected async populateFieldValue(restItem: any, destItem: T, propertyName: string, fieldDescriptor: IFieldDescriptor): Promise<void> {
-        await super.populateFieldValue(restItem, destItem, propertyName, fieldDescriptor);
+    protected populateFieldValue(restItem: any, destItem: T, propertyName: string, fieldDescriptor: IFieldDescriptor): void {
+        super.populateFieldValue(restItem, destItem, propertyName, fieldDescriptor);
         fieldDescriptor.fieldType = fieldDescriptor.fieldType || FieldType.Simple;
-        switch (fieldDescriptor.fieldType) {            
+        switch (fieldDescriptor.fieldType) {
             case FieldType.Lookup:
                 if (fieldDescriptor.containsFullObject && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                     const obj = restItem[fieldDescriptor.fieldName] ? restItem[fieldDescriptor.fieldName] : null;
-                    if (obj && typeof(obj[Constants.commonRestFields.id]) === "number") {     
+                    if (obj && typeof (obj[Constants.commonRestFields.id]) === "number") {
                         // object allready persisted before, retrieve id and store like classical lookup
                         destItem.__setInternalLinks(propertyName, obj[Constants.commonRestFields.id]);
                         destItem[propertyName] = fieldDescriptor.defaultValue;
@@ -100,8 +100,8 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                 break;
             case FieldType.LookupMulti: // TODO : in loadlookup
                 if (fieldDescriptor.containsFullObject && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                    const lookupIds: Array<number> = restItem[fieldDescriptor.fieldName] && Array.isArray(restItem[fieldDescriptor.fieldName]) ? 
-                        restItem[fieldDescriptor.fieldName].map(ri => ri[Constants.commonRestFields.id]).filter(id => typeof(id) === "number") : 
+                    const lookupIds: Array<number> = restItem[fieldDescriptor.fieldName] && Array.isArray(restItem[fieldDescriptor.fieldName]) ?
+                        restItem[fieldDescriptor.fieldName].map(ri => ri[Constants.commonRestFields.id]).filter(id => typeof (id) === "number") :
                         [];
                     if (lookupIds.length > 0) {
                         // LOOKUPS --> links
@@ -214,8 +214,8 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         }
     }
     /****************************** Send item methods ***********************************/
-    
-    protected get ignoredFields(): string[]{
+
+    protected get ignoredFields(): string[] {
         return [
             Constants.commonRestFields.created,
             Constants.commonRestFields.author,
@@ -228,7 +228,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         await super.convertFieldValue(item, destItem, propertyName, fieldDescriptor);
         const itemValue = item[propertyName];
         if (!this.isFieldIgnored(item, propertyName, fieldDescriptor)) {
-            switch (fieldDescriptor.fieldType) {                
+            switch (fieldDescriptor.fieldType) {
                 case FieldType.Lookup:
                     const link = item.__getInternalLinks(propertyName);
                     if (itemValue) {
@@ -307,9 +307,9 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         return result;
     }
 
-    
+
     /***************** SP Calls associated to service standard operations ********************/
-    
+
     @trace(TraceLevel.Queries)
     protected async get_Query(query: IQuery, linkedFields?: Array<string>): Promise<Array<T>> {
         const restQuery = this.getRestQuery(query);
@@ -592,7 +592,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         return items;
     }
 
-    
+
 
     @trace(TraceLevel.Service)
     public async getByRestQuery(restQuery: IEndPointBinding, data?: any, linkedFields?: Array<string>): Promise<Array<T>> {
@@ -606,7 +606,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                 try {
                     let result = new Array<T>();
                     //has to refresh cache
-                    let reloadData = await this.needRefreshCache(keyCached);
+                    let reloadData = this.needRefreshCache(keyCached);
                     //if refresh is needed, test offline/online
                     if (reloadData && ServicesConfiguration.configuration.checkOnline) {
                         reloadData = await UtilsService.CheckOnline();
@@ -618,14 +618,14 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
 
                         //check if data exist for this query in database
                         let mapping = await this.restMappingDb.getItemById(keyCached);
-                        if(mapping) {
+                        if (mapping) {
                             const tmp = await this.dbService.getItemsById(mapping.itemIds);
                             //if data exists trash them 
                             if (tmp && tmp.length > 0) {
                                 await this.dbService.deleteItems(tmp);
                             }
                         }
-                        if(result && result.length > 0) {
+                        if (result && result.length > 0) {
                             const convresult = await Promise.all(result.map((res) => {
                                 return this.convertItemToDbFormat(res);
                             }));
@@ -636,14 +636,14 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                             await this.restMappingDb.addOrUpdateItem(mapping);
                             this.UpdateIdsLastLoad(...convresult.map(e => e.id));
                         }
-                        else if(mapping) {
+                        else if (mapping) {
                             await this.restMappingDb.deleteItem(mapping);
-                        }                       
+                        }
                         this.UpdateCacheData(keyCached);
                     }
                     else {
                         const mapping = await this.restMappingDb.getItemById(keyCached);
-                        if(mapping && mapping.itemIds && mapping.itemIds.length > 0) {
+                        if (mapping && mapping.itemIds && mapping.itemIds.length > 0) {
                             const tmp = await this.dbService.getItemsById(mapping.itemIds);
                             result = await this.mapItems(tmp, linkedFields);
                         }

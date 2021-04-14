@@ -21,14 +21,14 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
 
     protected transactionService: TransactionService;
     protected dbService: BaseDbService<T>;
-    protected cacheDuration = -1;      
+    protected cacheDuration = -1;
 
 
     public get itemType(): (new (item?: any) => T) {
         return this.itemModelType;
     }
 
-    public cast<Tdest extends BaseDataService<T>> (): Tdest {
+    public cast<Tdest extends BaseDataService<T>>(): Tdest {
         return this as unknown as Tdest;
     }
 
@@ -39,7 +39,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
      */
     constructor(type: (new (item?: any) => T), cacheDuration = -1) {
         super();
-        if(ServiceFactory.isServiceManaged(type["name"]) && !ServiceFactory.isServiceInitializing(type["name"])) {
+        if (ServiceFactory.isServiceManaged(type["name"]) && !ServiceFactory.isServiceInitializing(type["name"])) {
             console.warn(`Service constructor called out of Service factory. Please use ServiceFactory.getService(${type["name"]}) or ServiceFactory.getServiceByModelName("${type["name"]}")`);
         }
         this.itemModelType = type;
@@ -49,21 +49,21 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     }
 
     /***************************** External sources init and access **************************************/
-    protected initValues: {[modelName: string]: BaseItem[]} = {};
-    protected cachedLookups: {[modelName: string]: Array<string|number>} = {};
+    protected initValues: { [modelName: string]: BaseItem[] } = {};
+    protected cachedLookups: { [modelName: string]: Array<string | number> } = {};
 
     protected getServiceCachedLookupIds<Tvalue extends BaseItem>(model: new (data?: any) => Tvalue): Array<number | string> {
         return this.getServiceCachedLookupIdsByName(model["name"]);
     }
 
-    protected getServiceCachedLookupIdsByName(modelName: string): Array<string|number> {
-        return this.cachedLookups[modelName] as Array<string|number>;
+    protected getServiceCachedLookupIdsByName(modelName: string): Array<string | number> {
+        return this.cachedLookups[modelName] as Array<string | number>;
     }
     protected updateServiceCachedLookupIds(modelName: string, ...items: BaseItem[]): void {
         this.cachedLookups[modelName] = this.cachedLookups[modelName] || [];
         items.forEach(i => {
             const idx = findIndex(this.cachedLookups[modelName], iv => iv === i.id);
-            if(idx !== -1) {
+            if (idx !== -1) {
                 this.cachedLookups[modelName][idx] = i.id;
             }
             else {
@@ -89,7 +89,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
         this.initValues[modelName] = this.initValues[modelName] || [];
         items.forEach(i => {
             const idx = findIndex(this.initValues[modelName], iv => iv.id === i.id);
-            if(idx !== -1) {
+            if (idx !== -1) {
                 this.initValues[modelName][idx] = i;
             }
             else {
@@ -109,7 +109,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     protected async init_internal(): Promise<void> {
         return;
     }
-    
+
     @trace(TraceLevel.ServiceUtilities)
     private async initLinkedFields(): Promise<void> {
         const fields = this.ItemFields;
@@ -135,7 +135,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
         }));
     }
 
-    public async Init(): Promise<void> {        
+    public async Init(): Promise<void> {
         let initPromise = this.getExistingPromise("init");
         if (!initPromise) {
             initPromise = new Promise<void>(async (resolve, reject) => {
@@ -163,12 +163,12 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
 
     }
 
-    
+
     /*************************************************************************************************************************/
 
     /********************************************* Fields Management *********************************************************/
-    
-    public get ItemFields(): {[propertyName: string]: IFieldDescriptor} {        
+
+    public get ItemFields(): { [propertyName: string]: IFieldDescriptor } {
         return ServiceFactory.getModelFields(this.itemType["name"]);
     }
     public get Identifier(): Array<string> {
@@ -192,7 +192,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     /*****************************************************************************************************************************************************************/
 
     /************************************************************************* Cache expiration ************************************************************************************/
-    
+
     protected getCacheKey(key = "all"): string {
         return Text.format(Constants.cacheKeys.latestDataLoadFormat, ServicesConfiguration.context.pageContext.web.serverRelativeUrl, this.serviceName, key);
     }
@@ -234,7 +234,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
      * @type {boolean}
      * @memberof BaseDataService
      */
-    protected async needRefreshCache(key = "all"): Promise<boolean> {
+    protected needRefreshCache(key = "all"): boolean {
 
         let result: boolean = this.cacheDuration === -1;
         //if cache defined
@@ -311,13 +311,17 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
         for (const propertyName of allProperties) {
             if (this.ItemFields.hasOwnProperty(propertyName)) {
                 const fieldDescription = this.ItemFields[propertyName];
-                await this.populateFieldValue(data, item, propertyName, fieldDescription);
+                //  console.time(this.serviceName + ' => "populateItem " ' + data.id + " " + propertyName);
+                // item[propertyName] = data[fieldDescription.fieldName] !== null && data[fieldDescription.fieldName] !== undefined ? data[fieldDescription.fieldName] : fieldDescription.defaultValue;
+
+                this.populateFieldValue(data, item, propertyName, fieldDescription);
+                //  console.timeEnd(this.serviceName + ' => "populateItem " ' + data.id + " " + propertyName);
             }
         }
-        
+
         return item;
     }
-    protected async populateFieldValue(data: any, destItem: T, propertyName: string, fieldDescriptor: IFieldDescriptor): Promise<void> {
+    protected populateFieldValue(data: any, destItem: T, propertyName: string, fieldDescriptor: IFieldDescriptor): void {
         fieldDescriptor.fieldType = fieldDescriptor.fieldType || FieldType.Simple;
         switch (fieldDescriptor.fieldType) {
             case FieldType.Simple:
@@ -329,8 +333,8 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
             case FieldType.Json:
                 if (data[fieldDescriptor.fieldName]) {
                     try {
-                        if(fieldDescriptor.containsFullObject) {
-                            if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                        if (fieldDescriptor.containsFullObject) {
+                            if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                                 const itemType = ServiceFactory.getObjectTypeByName(fieldDescriptor.modelName);
                                 destItem[propertyName] = assign(new itemType(), data[fieldDescriptor.fieldName]);
                             }
@@ -340,7 +344,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
                         }
                         else {
                             const jsonObj = JSON.parse(data[fieldDescriptor.fieldName]);
-                            if(!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                            if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                                 const itemType = ServiceFactory.getObjectTypeByName(fieldDescriptor.modelName);
                                 destItem[propertyName] = assign(new itemType(), jsonObj);
                             }
@@ -358,18 +362,18 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
                     destItem[propertyName] = fieldDescriptor.defaultValue;
                 }
                 break;
-            default: 
+            default:
                 destItem[propertyName] = fieldDescriptor.defaultValue;
                 break;
         }
     }
-    protected get ignoredFields(): string[]{
+    protected get ignoredFields(): string[] {
         return [];
     }
-    protected isFieldIgnored(item: T, propertyName: string, fieldDescriptor: IFieldDescriptor): boolean{
-        return  (this.ignoredFields && this.ignoredFields.indexOf(fieldDescriptor.fieldName) !== -1) 
-            || 
-            (propertyName === "id" && typeof(item.id) === "number" && item.id <= 0);
+    protected isFieldIgnored(item: T, propertyName: string, fieldDescriptor: IFieldDescriptor): boolean {
+        return (this.ignoredFields && this.ignoredFields.indexOf(fieldDescriptor.fieldName) !== -1)
+            ||
+            (propertyName === "id" && typeof (item.id) === "number" && item.id <= 0);
     }
 
     protected async convertItem(item: T): Promise<any> {
@@ -389,7 +393,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
                 case FieldType.Simple:
                 case FieldType.Date:
                     destItem[fieldDescriptor.fieldName] = itemValue;
-                    break;                
+                    break;
                 case FieldType.Json:
                     if (fieldDescriptor.containsFullObject) {
                         destItem[fieldDescriptor.fieldName] = itemValue;
@@ -408,28 +412,36 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     @trace(TraceLevel.Internal)
     protected async getAll_Internal(linkedFields?: Array<string>): Promise<Array<T>> {
         let results: Array<T> = [];
+
+
         const items = await this.getAll_Query(linkedFields);
+
+
         if (items && items.length > 0) {
             await this.Init();
+
             const preloaded = await this.persistInner(items, linkedFields);
+
             results = await Promise.all(items.map((r) => {
                 return this.populateItem(r);
             }));
             await this.populateLookups(results, linkedFields, preloaded);
         }
+
         return results;
     }
-       
+
     /* 
      * Retrieve all elements from datasource depending on connection is enabled
      * If service is not configured as offline, an exception is thrown;
      */
-    
+
     @trace(TraceLevel.Service)
     public async getAll(linkedFields?: Array<string>): Promise<Array<T>> {
+
         let promise = this.getExistingPromise();
         if (promise) {
-            if(this.debug)
+            if (this.debug)
                 console.log(this.serviceName + " getAll : load allready called before, sharing promise");
         }
         else {
@@ -438,25 +450,37 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
                     let result: Array<T>;
 
                     //has to refresh cache
-                    let reloadData = await this.needRefreshCache();
+
+                    let reloadData = this.needRefreshCache();
+
                     //if refresh is needed, test offline/online
                     if (reloadData && ServicesConfiguration.configuration.checkOnline) {
                         reloadData = await UtilsService.CheckOnline();
                     }
 
+
                     if (reloadData) {
+
+
+
+
                         result = await this.getAll_Internal(linkedFields);
+
+
+
                         const convresult = await Promise.all(result.map((res) => {
                             return this.convertItemToDbFormat(res);
                         }));
                         await this.dbService.replaceAll(convresult);
                         this.UpdateIdsLastLoad(...convresult.map(e => e.id));
                         this.UpdateCacheData();
+
                     }
                     else {
                         const tmp = await this.dbService.getAll();
                         result = await this.mapItems(tmp, linkedFields);
                     }
+
                     resolve(result);
                 }
                 catch (error) {
@@ -478,28 +502,31 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
      * @returns {Promise<Array<T>>}
      * @memberof BaseListItemService
      */
-     @trace(TraceLevel.Internal)
-     protected async get_Internal(query: IQuery, linkedFields?: Array<string>): Promise<Array<T>> {         
-         let results = new Array<T>();
-         const items = await this.get_Query(query, linkedFields);
-         if (items && items.length > 0) {
-             await this.Init();            
-             const preloaded = await this.persistInner(items,linkedFields);
-             results = await Promise.all(items.map((r) => {
-                 return this.populateItem(r);
-             }));
-             await this.populateLookups(results, linkedFields, preloaded);
-         }
-         return results;
-     }
+    @trace(TraceLevel.Internal)
+    protected async get_Internal(query: IQuery, linkedFields?: Array<string>): Promise<Array<T>> {
+        let results = new Array<T>();
 
-    
+
+        const items = await this.get_Query(query, linkedFields);
+
+        if (items && items.length > 0) {
+            await this.Init();
+            const preloaded = await this.persistInner(items, linkedFields);
+            results = await Promise.all(items.map((r) => {
+                return this.populateItem(r);
+            }));
+            await this.populateLookups(results, linkedFields, preloaded);
+        }
+        return results;
+    }
+
+
     @trace(TraceLevel.Service)
     public async get(query: IQuery, linkedFields?: Array<string>): Promise<Array<T>> {
         const keyCached = super.hashCode(query).toString() + super.hashCode(linkedFields).toString();
         let promise = this.getExistingPromise(keyCached);
         if (promise) {
-            if(this.debug)
+            if (this.debug)
                 console.log(this.serviceName + " " + keyCached + " : load allready called before, sharing promise");
         }
         else {
@@ -507,16 +534,18 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
                 try {
                     let result: Array<T>;
                     //has to refresh cache
-                    let reloadData = await this.needRefreshCache(keyCached);
+                    let reloadData = this.needRefreshCache(keyCached);
                     //if refresh is needed, test offline/online
                     if (reloadData && ServicesConfiguration.configuration.checkOnline) {
                         reloadData = await UtilsService.CheckOnline();
                     }
 
                     if (reloadData) {
+
                         result = await this.get_Internal(query, linkedFields);
                         //check if data exist for this query in database
                         let tmp = await this.dbService.get(query);
+
                         tmp = this.filterItems(query, tmp);
 
                         //if data exists trash them 
@@ -530,8 +559,10 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
                         await this.dbService.addOrUpdateItems(convresult);
                         this.UpdateIdsLastLoad(...convresult.map(e => e.id));
                         this.UpdateCacheData(keyCached);
+
                     }
                     else {
+
                         const tmp = await this.dbService.get(query);
                         result = await this.mapItems(tmp, linkedFields);
                         // filter
@@ -555,7 +586,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
         let result = null;
         const temp = await this.getItemById_Query(id, linkedFields);
         if (temp) {
-            await this.Init();            
+            await this.Init();
             const preloaded = await this.persistInner([temp], linkedFields);
             result = await this.populateItem(temp);
             await this.populateLookups([result], linkedFields, preloaded);
@@ -563,13 +594,13 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
         return result;
     }
 
-    
+
     @trace(TraceLevel.Service)
     public async getItemById(id: number | string, linkedFields?: Array<string>): Promise<T> {
         const promiseKey = "getById_" + id.toString();
         let promise = this.getExistingPromise(promiseKey);
         if (promise) {
-            if(this.debug)
+            if (this.debug)
                 console.log(this.serviceName + " " + promiseKey + " : load allready called before, sharing promise");
         }
         else {
@@ -614,33 +645,33 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
      * Get a list of items by id
      * @param ids - array of item id to retrieve
      */
-     @trace(TraceLevel.Internal)
-     protected async getItemsById_Internal(ids: Array<number | string>, linkedFields?: Array<string>): Promise<Array<T>> {
+    @trace(TraceLevel.Internal)
+    protected async getItemsById_Internal(ids: Array<number | string>, linkedFields?: Array<string>): Promise<Array<T>> {
 
         let results = new Array<T>();
-         const items = await this.getItemsById_Query(ids, linkedFields);
-         if (items && items.length > 0) {
-             await this.Init();            
-             const preloaded = await this.persistInner(items,linkedFields);
-             results = await Promise.all(items.map((r) => {
-                 return this.populateItem(r);
-             }));
-             await this.populateLookups(results, linkedFields, preloaded);
-         }
-         return results;         
-     }
+        const items = await this.getItemsById_Query(ids, linkedFields);
+        if (items && items.length > 0) {
+            await this.Init();
+            const preloaded = await this.persistInner(items, linkedFields);
+            results = await Promise.all(items.map((r) => {
+                return this.populateItem(r);
+            }));
+            await this.populateLookups(results, linkedFields, preloaded);
+        }
+        return results;
+    }
 
     public async getItemsFromCacheById(ids: Array<number | string>, linkedFields?: Array<string>): Promise<Array<T>> {
         const tmp = await this.dbService.getItemsById(ids);
         return this.mapItems(tmp, linkedFields);
     }
-    
+
     @trace(TraceLevel.Service)
     public async getItemsById(ids: Array<number | string>, linkedFields?: Array<string>): Promise<Array<T>> {
         const promiseKey = "getByIds_" + ids.join();
         let promise = this.getExistingPromise(promiseKey);
         if (promise) {
-            if(this.debug)
+            if (this.debug)
                 console.log(this.serviceName + " " + promiseKey + " : load allready called before, sharing promise");
         }
         else {
@@ -687,7 +718,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
 
     protected abstract addOrUpdateItem_Internal(item: T): Promise<T>;
 
-    
+
     @trace(TraceLevel.Service)
     public async addOrUpdateItem(item: T): Promise<T> {
         this.updateInternalLinks(item);
@@ -749,10 +780,10 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
 
     protected abstract addOrUpdateItems_Internal(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void): Promise<Array<T>>;
 
-    
+
     @trace(TraceLevel.Service)
     public async addOrUpdateItems(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void): Promise<Array<T>> {
-        
+
         items.forEach(item => this.updateInternalLinks(item));
         let results: Array<T> = [];
 
@@ -813,7 +844,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     // TODO: remove cached ids
     @trace(TraceLevel.Service)
     public async deleteItem(item: T): Promise<T> {
-        if(typeof(item.id) === "number" && item.id === -1) {
+        if (typeof (item.id) === "number" && item.id === -1) {
             item.deleted = true;
         }
         else {
@@ -822,10 +853,10 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
                 isconnected = await UtilsService.CheckOnline();
             }
             if (isconnected) {
-                if(typeof(item.id) !== "number" || item.id > -1) {
+                if (typeof (item.id) !== "number" || item.id > -1) {
                     item = await this.deleteItem_Internal(item);
                 }
-                if(item.deleted || item.id < -1) {
+                if (item.deleted || item.id < -1) {
                     item = await this.dbService.deleteItem(item);
                 }
             }
@@ -845,10 +876,10 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     }
 
     protected abstract deleteItems_Internal(items: Array<T>): Promise<Array<T>>;
-    
+
     @trace(TraceLevel.Service)
     public async deleteItems(items: Array<T>): Promise<Array<T>> {
-        items.filter(i => (typeof(i.id) === "number" && i.id === -1)).forEach(i => {
+        items.filter(i => (typeof (i.id) === "number" && i.id === -1)).forEach(i => {
             i.deleted = true;
         });
         let isconnected = true;
@@ -856,10 +887,10 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
             isconnected = await UtilsService.CheckOnline();
         }
         if (isconnected) {
-            await this.deleteItems_Internal(items.filter(i => (typeof(i.id) !== "number" || i.id > -1)));
-            await this.dbService.deleteItems(items.filter(i=>i.deleted || i.id < -1));
+            await this.deleteItems_Internal(items.filter(i => (typeof (i.id) !== "number" || i.id > -1)));
+            await this.dbService.deleteItems(items.filter(i => i.deleted || i.id < -1));
         }
-        else { 
+        else {
             await this.dbService.deleteItems(items.filter(i => i.id > -1));
             const transactions: Array<OfflineTransaction> = [];
             for (const item of items) {
@@ -870,29 +901,29 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
                 ot.itemType = item.constructor["name"];
                 ot.title = TransactionType.Delete;
                 transactions.push(ot);
-            }   
+            }
             await this.transactionService.addOrUpdateItems(transactions);
         }
 
         return items;
     }
 
-    
+
     @trace(TraceLevel.Service)
-    public async persistItemData(data: any, linkedFields?: Array<string>, preloaded?: {[modelName: string]: BaseItem[]}): Promise<T> {
+    public async persistItemData(data: any, linkedFields?: Array<string>, preloaded?: { [modelName: string]: BaseItem[] }): Promise<T> {
         const result = await this.persistItemData_internal(data, linkedFields, preloaded);
         const convresult = await this.convertItemToDbFormat(result);
         await this.dbService.addOrUpdateItem(convresult);
-        this.UpdateIdsLastLoad(convresult.id);  
+        this.UpdateIdsLastLoad(convresult.id);
         return result;
     }
 
     @trace(TraceLevel.Internal)
-    protected async persistItemData_internal(data: any, linkedFields?: Array<string>, preloaded?: {[modelName: string]: BaseItem[]}): Promise<T> {
+    protected async persistItemData_internal(data: any, linkedFields?: Array<string>, preloaded?: { [modelName: string]: BaseItem[] }): Promise<T> {
         let result = null;
         if (data) {
             await this.Init();
-            if(!preloaded) {
+            if (!preloaded) {
                 preloaded = await this.persistInner([data], linkedFields);
             }
             result = await this.populateItem(data);
@@ -901,22 +932,22 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
         return result;
     }
 
-    
+
     @trace(TraceLevel.Service)
-    public async persistItemsData(data: any[], linkedFields?: Array<string>, preloaded?: {[modelName: string]: BaseItem[]}): Promise<T[]> {
+    public async persistItemsData(data: any[], linkedFields?: Array<string>, preloaded?: { [modelName: string]: BaseItem[] }): Promise<T[]> {
         const result = await this.persistItemsData_internal(data, linkedFields, preloaded);
         const convresult = await Promise.all(result.map(r => this.convertItemToDbFormat(r)));
         await this.dbService.addOrUpdateItems(convresult);
-        this.UpdateIdsLastLoad(...convresult.map(cr => cr.id));  
+        this.UpdateIdsLastLoad(...convresult.map(cr => cr.id));
         return result;
     }
 
     @trace(TraceLevel.Internal)
-    protected async persistItemsData_internal(data: any[], linkedFields?: Array<string>, preloaded?: {[modelName: string]: BaseItem[]}): Promise<T[]> {
+    protected async persistItemsData_internal(data: any[], linkedFields?: Array<string>, preloaded?: { [modelName: string]: BaseItem[] }): Promise<T[]> {
         let result = null;
         if (data) {
             await this.Init();
-            if(!preloaded) {
+            if (!preloaded) {
                 preloaded = await this.persistInner(data, linkedFields);
             }
             result = await Promise.all(data.map(d => this.populateItem(d)));
@@ -925,13 +956,13 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
         return result;
     }
 
-    protected async persistInner(objects: any[], linkedFields?: Array<string>): Promise<{[modelName: string]: BaseItem[]}> {
+    protected async persistInner(objects: any[], linkedFields?: Array<string>): Promise<{ [modelName: string]: BaseItem[] }> {
         let level = 0;
-        let result: {[modelName: string]: BaseItem[]} = undefined;
+        let result: { [modelName: string]: BaseItem[] } = undefined;
         let sortedByLevel = undefined;
         // get inner objects sorted with level in tree
-        let innerItems = this.getInnerValuesForLevel({[this.itemType["name"]]: objects}, linkedFields);
-        while (innerItems !== undefined) {            
+        let innerItems = this.getInnerValuesForLevel({ [this.itemType["name"]]: objects }, linkedFields);
+        while (innerItems !== undefined) {
             level++;
             sortedByLevel = sortedByLevel || {};
             for (const key in innerItems) {
@@ -951,33 +982,33 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
         }
 
         // persist by level desc
-        for (let index = level; index > 0; index--) {            
+        for (let index = level; index > 0; index--) {
             result = result || {};
             // get models for level
-            const keys = Object.keys(sortedByLevel).filter(k => sortedByLevel.hasOwnProperty(k) && 
+            const keys = Object.keys(sortedByLevel).filter(k => sortedByLevel.hasOwnProperty(k) &&
                 sortedByLevel[k].maxLevel === index);
             // persist by model
-            await Promise.all(keys.map(async k => {                
+            await Promise.all(keys.map(async k => {
                 result[k] = result[k] || [];
                 // get service
                 const service = ServiceFactory.getServiceByModelName(k);
                 const persisted = await service.persistItemsData(sortedByLevel[k].objects, undefined, result);
                 result[k].push(...persisted);
             }));
-            
-            
+
+
         }
         return result;
     }
-    protected getInnerValuesForLevel(objects: {[modelName: string]: any[]}, linkedFields?: Array<string>): {[modelName: string]: any[]} {
-        let result: {[modelName: string]: any[]} = undefined;
-        if(objects) {
+    protected getInnerValuesForLevel(objects: { [modelName: string]: any[] }, linkedFields?: Array<string>): { [modelName: string]: any[] } {
+        let result: { [modelName: string]: any[] } = undefined;
+        if (objects) {
             // get inner lookups by model name
             const inner = [];
             for (const key in objects) {
                 if (objects.hasOwnProperty(key) && objects[key] && objects[key].length > 0) {
                     const innerResult = this.getInnerValuesForSingleType(key, objects[key], linkedFields);
-                    if(innerResult) {
+                    if (innerResult) {
                         inner.push(innerResult);
                     }
                 }
@@ -998,30 +1029,30 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     }
 
 
-    
-    protected getInnerValuesForSingleType(modelName: string, objects: any[], linkedFields?: Array<string>): {[modelName: string]: any[]} {
-        let result: {[modelName: string]: any[]} = undefined;
-        if(objects && objects.length > 0) {
+
+    protected getInnerValuesForSingleType(modelName: string, objects: any[], linkedFields?: Array<string>): { [modelName: string]: any[] } {
+        let result: { [modelName: string]: any[] } = undefined;
+        if (objects && objects.length > 0) {
             // get service to find fields
             const service = ServiceFactory.getServiceByModelName(modelName);
             const fields = service.ItemFields;
-            const keys = Object.keys(fields).filter(k => fields.hasOwnProperty(k) &&                 
-                (!linkedFields || (linkedFields.length === 1 && linkedFields[0] === 'loadAll') || linkedFields.indexOf(fields[k].fieldName) !== -1) && 
+            const keys = Object.keys(fields).filter(k => fields.hasOwnProperty(k) &&
+                (!linkedFields || (linkedFields.length === 1 && linkedFields[0] === 'loadAll') || linkedFields.indexOf(fields[k].fieldName) !== -1) &&
                 (fields[k].fieldType === FieldType.Lookup || fields[k].fieldType === FieldType.LookupMulti) &&
-                fields[k].containsFullObject && 
+                fields[k].containsFullObject &&
                 !stringIsNullOrEmpty(fields[k].modelName)
             );
             for (const key of keys) {
                 const descriptor = fields[key];
                 const destModelName = descriptor.modelName;
                 objects.forEach(o => {
-                    if(o[descriptor.fieldName]) {
-                        if(descriptor.fieldType === FieldType.Lookup) {                            
+                    if (o[descriptor.fieldName]) {
+                        if (descriptor.fieldType === FieldType.Lookup) {
                             result = result || {};
                             result[destModelName] = result[destModelName] || [];
                             result[destModelName].push(o[descriptor.fieldName]);
                         }
-                        else if(Array.isArray(o[descriptor.fieldName]) && o[descriptor.fieldName].length > 0){                            
+                        else if (Array.isArray(o[descriptor.fieldName]) && o[descriptor.fieldName].length > 0) {
                             result = result || {};
                             result[destModelName] = result[destModelName] || [];
                             result[destModelName].push(...o[descriptor.fieldName]);
@@ -1052,14 +1083,14 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
         }
 
         return result;
-    }    
+    }
 
     @trace(TraceLevel.ServiceUtilities)
-    protected async populateLookups(items: Array<T>, loadLookups?: Array<string>, innerItems?: {[modelName: string]: BaseItem[]}): Promise<void> {
+    protected async populateLookups(items: Array<T>, loadLookups?: Array<string>, innerItems?: { [modelName: string]: BaseItem[] }): Promise<void> {
         await this.Init();
         // get lookup fields
         const lookupFields = this.linkedLookupFields(loadLookups);
-                
+
         // init values and retrieve all ids by model
         const allIds = {};
         const cachedIds = {};
@@ -1080,62 +1111,61 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
                     if (fieldDesc.fieldType === FieldType.Lookup &&
                         // lookup has value
                         links &&
-                        links !== -1)
-                    {
+                        links !== -1) {
                         // check in preloaded
                         let inner = undefined;
-                        if(innerItems && innerItems[fieldDesc.modelName]) {
+                        if (innerItems && innerItems[fieldDesc.modelName]) {
                             inner = find(innerItems[fieldDesc.modelName], ii => ii.id === links);
                         }
                         // inner found
-                        if(inner) {
+                        if (inner) {
                             innerResult[fieldDesc.modelName] = innerResult[fieldDesc.modelName] || [];
                             innerResult[fieldDesc.modelName].push(inner);
                         }
                         else {
-                            if(this.isServiceLookupIdCached(fieldDesc.modelName, links)) {
+                            if (this.isServiceLookupIdCached(fieldDesc.modelName, links)) {
                                 cached.push(links);
                             }
                             else {
                                 ids.push(links);
                             }
-                        }                        
+                        }
                     }
                     else if (fieldDesc.fieldType === FieldType.LookupMulti &&
                         links &&
                         links.length > 0) {
                         links.forEach((id) => {
                             let inner = undefined;
-                            if(innerItems && innerItems[fieldDesc.modelName]) {
+                            if (innerItems && innerItems[fieldDesc.modelName]) {
                                 inner = find(innerItems[fieldDesc.modelName], ii => ii.id === id);
                             }
                             // inner found
-                            if(inner) {
+                            if (inner) {
                                 innerResult[fieldDesc.modelName] = innerResult[fieldDesc.modelName] || [];
                                 innerResult[fieldDesc.modelName].push(inner);
                             }
                             else {
-                                if(this.isServiceLookupIdCached(fieldDesc.modelName, id)) {
+                                if (this.isServiceLookupIdCached(fieldDesc.modelName, id)) {
                                     cached.push(id);
                                 }
                                 else {
                                     ids.push(id);
                                 }
-                            } 
+                            }
                         });
                     }
                 });
-                
+
             }
         }
         // store preloaded ids
         for (const modelName in innerResult) {
             if (innerResult.hasOwnProperty(modelName)) {
-                this.updateServiceCachedLookupIds(modelName, ...innerResult[modelName]);                
+                this.updateServiceCachedLookupIds(modelName, ...innerResult[modelName]);
             }
         }
 
-        const resultItems: {[modelName: string]: BaseItem[]} = innerResult;
+        const resultItems: { [modelName: string]: BaseItem[] } = innerResult;
         // get from cache
         // Init queries       
         const cachedpromises: Array<Promise<BaseItem[]>> = [];
@@ -1243,7 +1273,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
      * convert full item to db format (with links only)
      * @param item - full provisionned item
      */
-     protected async convertItemToDbFormat(item: T): Promise<T> {         
+    protected async convertItemToDbFormat(item: T): Promise<T> {
         const result: T = cloneDeep(item);
         result.cleanBeforeStorage();
         result.__clearInternalLinks();
@@ -1275,7 +1305,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
                                         }
                                     });
                                 }
-                                if(ids.length > 0) {
+                                if (ids.length > 0) {
                                     result.__setInternalLinks(propertyName, ids.length > 0 ? ids : []);
                                 }
                                 delete result[propertyName];
@@ -1361,7 +1391,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
                                 }
                                 result.__deleteInternalLinks(propertyName);
                             }
-                            else if(fieldDescriptor.fieldType === FieldType.Json && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                            else if (fieldDescriptor.fieldType === FieldType.Json && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                                 const itemType = ServiceFactory.getObjectTypeByName(fieldDescriptor.modelName);
                                 result[propertyName] = assign(new itemType(), item[propertyName]);
                             }
@@ -1540,12 +1570,12 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     /**
      * Refresh cached data
      */
-     public async refreshData(): Promise<void>  {
+    public async refreshData(): Promise<void> {
         // Invalidate cache
         const cacheKey = this.getCacheKey(); // Default key is "ALL"
-        window.sessionStorage.removeItem(cacheKey);    
+        window.sessionStorage.removeItem(cacheKey);
         // remove local cache
-        this.initValues = {};  
+        this.initValues = {};
         this.initialized = false;
         // Reload all data
         await this.getAll();
@@ -1571,7 +1601,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
                             return order.ascending ? 1 : -1;
                         }
                     }
-                    else if(aKey instanceof Date || bKey instanceof Date) {
+                    else if (aKey instanceof Date || bKey instanceof Date) {
                         const aval = aKey && aKey.getTime ? aKey.getTime() : 0;
                         const bval = bKey && bKey.getTime ? bKey.getTime() : 0;
                         if (aval < bval) {
@@ -1612,13 +1642,13 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
             }
         }
         // Paged query
-        if(query.lastId) {
-            const idx = findIndex(results, (r) => {return r.id === query.lastId;});
-            if(idx > -1) {
+        if (query.lastId) {
+            const idx = findIndex(results, (r) => { return r.id === query.lastId; });
+            if (idx > -1) {
                 results = results.slice(idx + 1);
             }
             else {
-                results= [];
+                results = [];
             }
         }
         // limit
@@ -1684,7 +1714,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
                 break;
             case TestOperator.Eq:
                 if (value instanceof TaxonomyTerm && predicate.lookupId) {
-                    if(typeof(refVal) === "number") {
+                    if (typeof (refVal) === "number") {
                         result = value.wssids.indexOf(refVal) !== -1;
                     }
                     else {
@@ -1708,13 +1738,13 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
                 break;
             case TestOperator.In:
                 if (value instanceof TaxonomyTerm && predicate.lookupId) {
-                    if(Array.isArray(refVal) && refVal.length > 0 && typeof(refVal[0]) === "number") {
+                    if (Array.isArray(refVal) && refVal.length > 0 && typeof (refVal[0]) === "number") {
                         result = refVal.some(v => value.wssids.indexOf(v) !== -1);
                     }
                     else {
                         // not in sp list --> test on id
                         result = refVal.some(v => value.id === v);
-                    }                    
+                    }
                 }
                 else {
                     result = Array.isArray(refVal) && refVal.some(v => v === value);
@@ -1730,11 +1760,10 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
                                     test = lookup === refVal;
                                 }
                                 else if (lookup instanceof TaxonomyTerm) {
-                                    if(typeof(refVal) === "number"){
+                                    if (typeof (refVal) === "number") {
                                         test = lookup.wssids.indexOf(refVal) !== -1;
                                     }
-                                    else
-                                    {
+                                    else {
                                         test = lookup.id === refVal;
                                     }
                                 }
@@ -1766,13 +1795,12 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
                 break;
             case TestOperator.Neq:
                 if (value instanceof TaxonomyTerm && predicate.lookupId) {
-                    if(typeof(refVal) === "number"){
+                    if (typeof (refVal) === "number") {
                         result = value.wssids.indexOf(refVal) === -1;
                     }
-                    else
-                    {
+                    else {
                         result = value.id !== refVal;
-                    }                    
+                    }
                 }
                 else {
                     result = value !== refVal;
@@ -1788,13 +1816,12 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
                                     test = lookup === refVal;
                                 }
                                 else if (lookup instanceof TaxonomyTerm) {
-                                    if(typeof(refVal) === "number"){
+                                    if (typeof (refVal) === "number") {
                                         test = lookup.wssids.indexOf(refVal) !== -1;
                                     }
-                                    else
-                                    {
+                                    else {
                                         test = lookup.id === refVal;
-                                    }    
+                                    }
                                 }
                             }
                         }

@@ -24,7 +24,7 @@ const trace = Decorators.trace;
 export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
 
     /***************************** Fields and properties **************************************/
-    protected listRelativeUrl: string;    
+    protected listRelativeUrl: string;
     protected taxoMultiFieldNames: { [fieldName: string]: string } = {};
     protected checkLastModify = true;
 
@@ -38,7 +38,6 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
     protected get list(): List {
         return sp.web.getList(this.listRelativeUrl);
     }
-
     /***************************** Constructor **************************************/
     /**
      * 
@@ -50,15 +49,14 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
     constructor(type: (new (item?: any) => T), listRelativeUrl: string, cacheDuration?: number, checkLastModify?: boolean) {
         super(type, cacheDuration);
         this.listRelativeUrl = ServicesConfiguration.context.pageContext.web.serverRelativeUrl + listRelativeUrl;
-        if(this.hasAttachments) {
+        if (this.hasAttachments) {
             this.attachmentsService = new BaseDbService<SPFile>(SPFile, "ListAttachments");
         }
-        if(checkLastModify !== undefined) {
+        if (checkLastModify !== undefined) {
             this.checkLastModify = checkLastModify;
         }
-
     }
-    
+
     /********** init for taxo multi ************/
     private fieldsInitialized = false;
     private initFieldsPromise: Promise<void> = null;
@@ -107,9 +105,9 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
     }
 
     /****************************** get item methods ***********************************/
-    
-    protected async populateFieldValue(spitem: any, destItem: T, propertyName: string, fieldDescriptor: IFieldDescriptor): Promise<void> {
-        await super.populateFieldValue(spitem, destItem, propertyName, fieldDescriptor);
+
+    protected populateFieldValue(spitem: any, destItem: T, propertyName: string, fieldDescriptor: IFieldDescriptor): void {
+        super.populateFieldValue(spitem, destItem, propertyName, fieldDescriptor);
         switch (fieldDescriptor.fieldType) {
             case FieldType.Simple:
                 if (fieldDescriptor.fieldName === Constants.commonFields.version) {
@@ -120,44 +118,44 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                 }
                 break;
             case FieldType.Lookup:
-                if(fieldDescriptor.containsFullObject && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                if (fieldDescriptor.containsFullObject && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                     // TODO: check format
                     const obj = spitem[fieldDescriptor.fieldName] ? spitem[fieldDescriptor.fieldName] : null;
-                    if(obj) {
+                    if (obj) {
                         // get service
-                        const tmpservice = ServiceFactory.getServiceByModelName(fieldDescriptor.modelName);
-                        const conv = await tmpservice.persistItemData(obj);
-                        if(conv) {
+                        //const tmpservice = ServiceFactory.getServiceByModelName(fieldDescriptor.modelName);
+                        const conv = null; // await tmpservice.persistItemData(obj);
+                        if (conv) {
                             destItem[propertyName] = conv;
                         }
                         else {
                             destItem[propertyName] = fieldDescriptor.defaultValue;
                         }
-                        
+
                     }
                     else {
                         destItem[propertyName] = fieldDescriptor.defaultValue;
-                    }                    
+                    }
                 }
                 else {
-                    if(fieldDescriptor.containsFullObject && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                    if (fieldDescriptor.containsFullObject && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                         // TODO : check format
                         const convertedObjects = [];
                         const values = spitem[fieldDescriptor.fieldName] ? spitem[fieldDescriptor.fieldName] : [];
-                        if(values.length > 0) {
+                        if (values.length > 0) {
                             // get service
-                            const tmpservice = ServiceFactory.getServiceByModelName(fieldDescriptor.modelName);
+                            //const tmpservice = ServiceFactory.getServiceByModelName(fieldDescriptor.modelName);
                             for (const obj of values) {
-                                const conv = await tmpservice.persistItemData(obj);
-                                if(conv) {
+                                const conv = null; //await tmpservice.persistItemData(obj);
+                                if (conv) {
                                     convertedObjects.push(conv);
                                 }
-                            }     
+                            }
                             destItem[propertyName] = convertedObjects;
                         }
                         else {
                             destItem[propertyName] = fieldDescriptor.defaultValue;
-                        }                    
+                        }
                     }
                     else {
                         const lookupId: number = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"] : -1;
@@ -265,7 +263,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         }
     }
     /****************************** Send item methods ***********************************/
-    protected get ignoredFields(): string[]{
+    protected get ignoredFields(): string[] {
         return [
             Constants.commonFields.created,
             Constants.commonFields.author,
@@ -440,34 +438,35 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
 
         return lastDataLoad;
     }
-    
-    protected async  needRefreshCache(key = "all"): Promise<boolean> {
-        //get parent need refresh information
-        let result: boolean = await super.needRefreshCache(key);
-        if(this.checkLastModify) {
-            //if not need refresh cache, test, last modified list modified
-            if (!result) {
 
-                //check online
-                const isconnected = await UtilsService.CheckOnline();
+    //perf issue with await
+    // protected async needRefreshCache(key = "all"): Promise<boolean> {
+    //     //get parent need refresh information
+    //     let result: boolean = super.needRefreshCache(key);
+    //     if (this.checkLastModify) {
+    //         //if not need refresh cache, test, last modified list modified
+    //         if (!result) {
 
-                if (isconnected) {
+    //             //check online
+    //             const isconnected = ServicesConfiguration.configuration.lastConnectionCheckResult
 
-                    //get last cache date
-                    const cachedDataDate = await super.getCachedData(key);
-                    //if a date existe, check if renew necessary
-                    //else load data
-                    if (cachedDataDate) {
+    //             if (isconnected) {
 
-                        const lastModifiedDate = await this.LastModfiedList();
+    //                 //get last cache date
+    //                 const cachedDataDate = super.getCachedData(key);
+    //                 //if a date existe, check if renew necessary
+    //                 //else load data
+    //                 if (cachedDataDate) {
 
-                        result = lastModifiedDate > cachedDataDate;
-                    }
-                }
-            }
-        }
-        return result;
-    }
+    //                     const lastModifiedDate = await this.LastModfiedList();
+
+    //                     result = lastModifiedDate > cachedDataDate;
+    //                 }
+    //             }
+    //         }
+    //     }
+    //     return result;
+    // }
 
 
     /**
@@ -478,7 +477,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
      * @type {boolean}
      * @memberof BaseListItemService
      */
-    protected async  LastModfiedList(): Promise<Date> {
+    protected async LastModfiedList(): Promise<Date> {
 
         //avoid fetchnig multiple same request as same time
         let promise = this.getExistingPromise(this.lastModifiedDate);
@@ -488,7 +487,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         else {
 
             const semaphore = new Semaphore(1);
-            
+
             const semacq = await semaphore.acquire();
 
             try {
@@ -565,7 +564,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
      */
     protected async getExpiredIds(...ids: Array<number>): Promise<Array<number>> {
         let result: Array<number> = await super.getExpiredIds(...ids) as number[];
-        if(this.checkLastModify) {
+        if (this.checkLastModify) {
             if (result.length < ids.length) {
 
                 const isconnected = await UtilsService.CheckOnline();
@@ -598,10 +597,10 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
 
     /**********************************Service specific calls  *******************************/
 
-    
+
     /***************** SP Calls associated to service standard operations ********************/
 
-    
+
     protected async get_Query(query: IQuery, linkedFields?: Array<string>): Promise<Array<any>> {
         const spQuery = this.getCamlQuery(query);
         const selectFields = this.getOdataFieldNames(linkedFields);
@@ -717,7 +716,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
 
     @trace(TraceLevel.Internal)
     protected async addOrUpdateItems_Internal(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void): Promise<Array<T>> {
-        const result:  Array<T> = cloneDeep(items);
+        const result: Array<T> = cloneDeep(items);
         const itemsToAdd = result.filter((item) => {
             return item.id < 0;
         });
@@ -797,7 +796,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
             await UtilsService.runBatchesInStacks(batches, 3);
         }
         // 
-        const resultItems:  Array<T> = [];
+        const resultItems: Array<T> = [];
         // classical update batch + version checked
         if (updatedItems.length > 0) {
             let idx = 0;
@@ -864,7 +863,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
             await this.list.items.getById(item.id).recycle();
             item.deleted = true;
         }
-        catch(error) {
+        catch (error) {
             item.error = error;
         }
         return item;
@@ -962,8 +961,8 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
     private getOdataFieldNames(linkedFields?: Array<string>): Array<string> {
         const fields = this.ItemFields;
         const fieldNames = Object.keys(fields).filter((propertyName) => {
-            return fields.hasOwnProperty(propertyName) && 
-            (!linkedFields || (linkedFields.length === 1 && linkedFields[0] === 'loadAll') || linkedFields.indexOf(fields[propertyName].fieldName) !== -1);
+            return fields.hasOwnProperty(propertyName) &&
+                (!linkedFields || (linkedFields.length === 1 && linkedFields[0] === 'loadAll') || linkedFields.indexOf(fields[propertyName].fieldName) !== -1);
         }).map((prop) => {
             let result: string = fields[prop].fieldName;
             switch (fields[prop].fieldType) {
@@ -1051,7 +1050,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
             }
         }));
 
-    } 
+    }
 
 
     @trace(TraceLevel.ServiceUtilities)
@@ -1133,7 +1132,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
     }
 
     @trace(TraceLevel.Service)
-    public async refreshData(): Promise<void>  {
+    public async refreshData(): Promise<void> {
         this.initialized = false;
         this.initValues = {};
         return super.refreshData();
