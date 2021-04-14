@@ -74,8 +74,8 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
         return results;
     }
 
-    protected async populateItem(file: any): Promise<T> {
-        const resultFile = new this.itemType(file);
+    protected populateItem(file: any): T {
+        const resultFile = super.populateItem(file);
         resultFile.mimeType = (mime.lookup(resultFile.title) as string) || 'application/octet-stream';
         return resultFile;
     }
@@ -91,9 +91,7 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
         const folderExists = await this.folderExists(folderListRelativeUrl);
         if (folderExists) {
             const files = await sp.web.getFolderByServerRelativeUrl(folderUrl).files.get();
-            result = await await Promise.all(files.map((file) => {
-                return this.populateItem(file);
-            }));
+            result = files.map(file => this.populateItem(file));
         }
 
         return result;
