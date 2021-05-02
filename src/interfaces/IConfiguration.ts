@@ -1,6 +1,6 @@
-import { BaseComponentContext } from "@microsoft/sp-component-base";
 import { ITranslationLabels } from "./";
 import { BaseServiceFactory } from "../services";
+import { BaseComponentContext } from "@microsoft/sp-component-base";
 
 /**
  * Configuration format for spfx base data services

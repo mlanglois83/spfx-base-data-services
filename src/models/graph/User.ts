@@ -8,6 +8,10 @@ export class User implements IBaseItem {
      */
     public id = -1;
     /**
+     * id of the user
+     */
+    public o365id: string;
+    /**
      * User display name
      */
     public title: string;
@@ -43,6 +47,7 @@ export class User implements IBaseItem {
         if (userObj) {
             this.title = userObj.displayName ? userObj.displayName : (userObj.Title ? userObj.Title : "");
             this.id = userObj.Id ? userObj.Id  : -1;
+            this.o365id = userObj.id ? userObj.id : '';
             this.mail = userObj.mail ? userObj.mail : (userObj.Email ? userObj.Email : "");
             this.userPrincipalName = userObj.userPrincipalName ? userObj.userPrincipalName : (userObj.UserPrincipalName ? userObj.UserPrincipalName : "");            
             this.isSiteAdmin = userObj.IsSiteAdmin === true;
