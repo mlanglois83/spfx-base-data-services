@@ -789,7 +789,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         const headers = {
             'Accept': 'application/json',
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': "*",
+            'Access-Control-Allow-Origin': this.serviceUrl,
             'Access-Control-Allow-Headers': "*",
             'authorization': `Bearer ${token}`
         };

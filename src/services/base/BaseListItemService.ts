@@ -1244,11 +1244,11 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                                 lookupId: predicate.lookupId
                             });
                         }
-                        return this.getLogicalSequence(transformed);
+                        result = this.getLogicalSequence(transformed);
                     }
                 }
                 else {
-                    return `<${predicate.operator}>
+                    result = `<${predicate.operator}>
                         ${this.getFieldRef(predicate)}
                         <Values>
                             ${this.getValue(predicate, -1, predicate.lookupId)}
