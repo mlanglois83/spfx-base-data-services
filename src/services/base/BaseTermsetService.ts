@@ -73,7 +73,7 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
         this.updateInitValues(TaxonomyHidden["name"], ...taxonomyHiddenItems);
     }
 
-    protected async populateItem(data: any): Promise<T> {
+    protected populateItem(data: any): T {
         const result = new this.itemType(data);
         const taxonomyHiddenItems = this.getServiceInitValues(TaxonomyHidden);
         result.wssids = [];
@@ -89,7 +89,9 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
 
     @trace(TraceLevel.Service)
     public async getWssIds(termId: string): Promise<Array<number>> {
-        await this.Init();
+        if (!this.initialized) {
+            await this.Init();
+        }
         const taxonomyHiddenItems = this.getServiceInitValues(TaxonomyHidden);
         return taxonomyHiddenItems.filter((taxItem) => {
             return taxItem.termId === termId;

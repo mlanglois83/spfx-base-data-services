@@ -117,19 +117,29 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                     destItem[propertyName] = spitem[fieldDescriptor.fieldName] ? spitem[fieldDescriptor.fieldName].map((fileobj) => { return new SPFile(fileobj); }) : fieldDescriptor.defaultValue;
                 }
                 break;
-            case FieldType.Lookup:
+            case FieldType.Lookup:                
                 if (fieldDescriptor.containsFullObject && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                    // TODO: check format
                     const obj = spitem[fieldDescriptor.fieldName] ? spitem[fieldDescriptor.fieldName] : null;
-                    if (obj) {
-                        // get service
-                        //const tmpservice = ServiceFactory.getServiceByModelName(fieldDescriptor.modelName);
-                        const conv = null; // await tmpservice.persistItemData(obj);
-                        if (conv) {
-                            destItem[propertyName] = conv;
+                    if (obj && typeof (obj[Constants.commonFields.id]) === "number") {
+                        // object allready persisted before, retrieve id and store like classical lookup
+                        destItem.__setInternalLinks(propertyName, obj[Constants.commonRestFields.id]);
+                        destItem[propertyName] = fieldDescriptor.defaultValue;
+                    }
+                    else {
+                        destItem[propertyName] = fieldDescriptor.defaultValue;
+                    }                       
+                }
+                else {
+                    const lookupId: number = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"] : -1;
+                    if (lookupId !== -1) {
+                        if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                            // LOOKUPS --> links
+                            destItem.__setInternalLinks(propertyName, lookupId);
+                            destItem[propertyName] = fieldDescriptor.defaultValue;
+
                         }
                         else {
-                            destItem[propertyName] = fieldDescriptor.defaultValue;
+                            destItem[propertyName] = lookupId;
                         }
 
                     }
@@ -137,60 +147,36 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                         destItem[propertyName] = fieldDescriptor.defaultValue;
                     }
                 }
-                else {
-                    if (fieldDescriptor.containsFullObject && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                        // TODO : check format
-                        const convertedObjects = [];
-                        const values = spitem[fieldDescriptor.fieldName] ? spitem[fieldDescriptor.fieldName] : [];
-                        if (values.length > 0) {
-                            // get service
-                            //const tmpservice = ServiceFactory.getServiceByModelName(fieldDescriptor.modelName);
-                            for (const obj of values) {
-                                const conv = null; //await tmpservice.persistItemData(obj);
-                                if (conv) {
-                                    convertedObjects.push(conv);
-                                }
-                            }
-                            destItem[propertyName] = convertedObjects;
-                        }
-                        else {
-                            destItem[propertyName] = fieldDescriptor.defaultValue;
-                        }
-                    }
-                    else {
-                        const lookupId: number = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"] : -1;
-                        if (lookupId !== -1) {
-                            if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                                // LOOKUPS --> links
-                                destItem.__setInternalLinks(propertyName, lookupId);
-                                destItem[propertyName] = fieldDescriptor.defaultValue;
-
-                            }
-                            else {
-                                destItem[propertyName] = lookupId;
-                            }
-
-                        }
-                        else {
-                            destItem[propertyName] = fieldDescriptor.defaultValue;
-                        }
-                    }
-                }
                 break;
             case FieldType.LookupMulti:
-                const lookupIds: Array<number> = spitem[fieldDescriptor.fieldName + "Id"] ? (spitem[fieldDescriptor.fieldName + "Id"].results ? spitem[fieldDescriptor.fieldName + "Id"].results : spitem[fieldDescriptor.fieldName + "Id"]) : [];
-                if (lookupIds.length > 0) {
-                    if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                if (fieldDescriptor.containsFullObject && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                    const lookupIds: Array<number> = spitem[fieldDescriptor.fieldName] && Array.isArray(spitem[fieldDescriptor.fieldName]) ?
+                    spitem[fieldDescriptor.fieldName].map(ri => ri[Constants.commonFields.id]).filter(objid => typeof (objid) === "number") :
+                    [];
+                    if (lookupIds.length > 0) {
                         // LOOKUPS --> links
                         destItem.__setInternalLinks(propertyName, lookupIds);
                         destItem[propertyName] = fieldDescriptor.defaultValue;
                     }
                     else {
-                        destItem[propertyName] = lookupIds;
-                    }
+                        destItem[propertyName] = fieldDescriptor.defaultValue;
+                    }           
                 }
                 else {
-                    destItem[propertyName] = fieldDescriptor.defaultValue;
+                    const lookupIds: Array<number> = spitem[fieldDescriptor.fieldName + "Id"] ? (spitem[fieldDescriptor.fieldName + "Id"].results ? spitem[fieldDescriptor.fieldName + "Id"].results : spitem[fieldDescriptor.fieldName + "Id"]) : [];
+                    if (lookupIds.length > 0) {
+                        if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                            // LOOKUPS --> links
+                            destItem.__setInternalLinks(propertyName, lookupIds);
+                            destItem[propertyName] = fieldDescriptor.defaultValue;
+                        }
+                        else {
+                            destItem[propertyName] = lookupIds;
+                        }
+                    }
+                    else {
+                        destItem[propertyName] = fieldDescriptor.defaultValue;
+                    }
                 }
                 break;
             case FieldType.User:
@@ -902,8 +888,14 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                 const updatedItems: T[] = [];
                 const operations: Promise<void>[] = [];
                 const items = await this.dbService.getAll();
-                for (const item of items) {
-                    const mapped = await this.mapItems([item]);
+                for (const item of items) {                    
+                    let mapped: Array<T>;
+                    if(this.isMapItemsAsync()) {
+                        mapped = await this.mapItemsAsync([item]);
+                    }
+                    else {
+                        mapped = this.mapItemsSync([item]);
+                    }
                     const converted = mapped.shift();
                     if (converted[prop] && converted[prop].length > 0) {
                         updatedItems.push(converted);
@@ -920,9 +912,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                 }, Promise.resolve()).then(async () => {
 
                     if (updatedItems.length > 0) {
-                        const dbitems = await Promise.all(updatedItems.map((u) => {
-                            return this.convertItemToDbFormat(u);
-                        }));
+                        const dbitems = updatedItems.map(u => this.convertItemToDbFormat(u));
                         await this.dbService.addOrUpdateItems(dbitems);
                     }
                 });

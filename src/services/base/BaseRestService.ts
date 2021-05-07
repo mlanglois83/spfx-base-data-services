@@ -55,8 +55,8 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
     }
 
     /****************************** get item methods ***********************************/
-    protected async populateItem(restItem: any): Promise<T> {
-        const item = await super.populateItem(restItem);
+    protected populateItem(restItem: any): T {
+        const item = super.populateItem(restItem);
         if (item instanceof RestFile) {
             item.mimeType = (mime.lookup(item.title) as string) || 'application/octet-stream';
         }
@@ -98,7 +98,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                     }
                 }
                 break;
-            case FieldType.LookupMulti: // TODO : in loadlookup
+            case FieldType.LookupMulti:
                 if (fieldDescriptor.containsFullObject && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                     const lookupIds: Array<number> = restItem[fieldDescriptor.fieldName] && Array.isArray(restItem[fieldDescriptor.fieldName]) ?
                         restItem[fieldDescriptor.fieldName].map(ri => ri[Constants.commonRestFields.id]).filter(id => typeof (id) === "number") :
@@ -614,7 +614,12 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
 
                     if (reloadData) {
                         const json = await this.executeRequest(restQuery.url, restQuery.method, data);
-                        result = await this.persistItemsData_internal(json, linkedFields);
+                        if(this.isPersistItemsDataAsync(linkedFields)) {
+                            result = await this.persistItemsDataAsync_internal(json, linkedFields);
+                        }
+                        else {
+                            result = this.persistItemsDataSync_internal(json);
+                        }
 
                         //check if data exist for this query in database
                         let mapping = await this.restMappingDb.getItemById(keyCached);
@@ -626,9 +631,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                             }
                         }
                         if (result && result.length > 0) {
-                            const convresult = await Promise.all(result.map((res) => {
-                                return this.convertItemToDbFormat(res);
-                            }));
+                            const convresult = result.map(res => this.convertItemToDbFormat(res));
                             await this.dbService.addOrUpdateItems(convresult);
                             mapping = new RestResultMapping();
                             mapping.id = keyCached;
@@ -645,7 +648,12 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                         const mapping = await this.restMappingDb.getItemById(keyCached);
                         if (mapping && mapping.itemIds && mapping.itemIds.length > 0) {
                             const tmp = await this.dbService.getItemsById(mapping.itemIds);
-                            result = await this.mapItems(tmp, linkedFields);
+                            if(this.isMapItemsAsync(linkedFields)) {
+                                result = await this.mapItemsAsync(tmp, linkedFields);
+                            }
+                            else {
+                                result = this.mapItemsSync(tmp);
+                            }
                         }
                     }
                     resolve(result);
