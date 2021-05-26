@@ -483,7 +483,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
 
     }
 
-    protected abstract get_Query(query: IQuery, linkedFields?: Array<string>): Promise<Array<any>>;
+    protected abstract get_Query(query: IQuery<T>, linkedFields?: Array<string>): Promise<Array<any>>;
 
     /**
      * Get items by query
@@ -493,7 +493,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
      * @memberof BaseListItemService
      */
     @trace(TraceLevel.Internal)
-    protected async get_Internal(query: IQuery, linkedFields?: Array<string>): Promise<Array<T>> {
+    protected async get_Internal(query: IQuery<T>, linkedFields?: Array<string>): Promise<Array<T>> {
         let results = new Array<T>();
 
 
@@ -517,7 +517,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
 
 
     @trace(TraceLevel.Service)
-    public async get(query: IQuery, linkedFields?: Array<string>): Promise<Array<T>> {
+    public async get(query: IQuery<T>, linkedFields?: Array<string>): Promise<Array<T>> {
         const keyCached = super.hashCode(query).toString() + super.hashCode(linkedFields).toString();
         let promise = this.getExistingPromise(keyCached);
         if (promise) {
@@ -1683,15 +1683,15 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     /*****************************************************************************************************************************************************************/
 
     /********************************************************************* Queries ************************************************************************************/
-    private filterItems(query: IQuery, items: Array<T>): Array<T> {
+    private filterItems(query: IQuery<T>, items: Array<T>): Array<T> {
         // filter items by test
         let results = query.test ? items.filter((i) => { return this.getTestResult(query.test, i); }) : cloneDeep(items);
         // order by
         if (query.orderBy) {
             results.sort(function (a, b) {
                 for (const order of query.orderBy) {
-                    const aKey = a[order.propertyName];
-                    const bKey = b[order.propertyName];
+                    const aKey = a[order.propertyName.toString()];
+                    const bKey = b[order.propertyName.toString()];
                     if (typeof (aKey) === "string" || typeof (bKey) === "string") {
                         if ((aKey || "").localeCompare(bKey || "") < 0) {
                             return order.ascending ? -1 : 1;
@@ -1756,16 +1756,16 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
         }
         return results;
     }
-    private getTestResult(testElement: IPredicate | ILogicalSequence, item: T): boolean {
+    private getTestResult(testElement: IPredicate<T, keyof T> | ILogicalSequence<T>, item: T): boolean {
         return (
             testElement.type === "predicate" ?
                 this.getPredicateResult(testElement, item) :
                 this.getSequenceResult(testElement, item)
         );
     }
-    private getPredicateResult(predicate: IPredicate, item: T): boolean {
+    private getPredicateResult(predicate: IPredicate<T, keyof T>, item: T): boolean {
         let result = false;
-        let value = item[predicate.propertyName];
+        let value = item[predicate.propertyName.toString()];
         let refVal = predicate.value;
         // Dates
         if (refVal === QueryToken.Now) {
@@ -1937,7 +1937,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
         return result;
     }
 
-    private getSequenceResult(sequence: ILogicalSequence, item: T): boolean {
+    private getSequenceResult(sequence: ILogicalSequence<T>, item: T): boolean {
         // and : find first false, or : find first true
         let result = sequence.operator === LogicalOperator.And;
         for (const subTest of sequence.children) {

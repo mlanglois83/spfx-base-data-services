@@ -587,7 +587,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
     /***************** SP Calls associated to service standard operations ********************/
 
 
-    protected async get_Query(query: IQuery, linkedFields?: Array<string>): Promise<Array<any>> {
+    protected async get_Query(query: IQuery<T>, linkedFields?: Array<string>): Promise<Array<any>> {
         const spQuery = this.getCamlQuery(query);
         const selectFields = this.getOdataFieldNames(linkedFields);
         let itemsQuery = this.list.select(...selectFields);
@@ -1129,7 +1129,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
     }
 
 
-    private getCamlQuery(query: IQuery): CamlQuery {
+    private getCamlQuery(query: IQuery<T>): CamlQuery {
         const result: CamlQuery = {
             ViewXml: `<View Scope="RecursiveAll">
                 <Query>
@@ -1148,7 +1148,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         return result;
     }
 
-    private getOrderBy(query: IQuery): string {
+    private getOrderBy(query: IQuery<T>): string {
         let result = "";
         if (query.orderBy && query.orderBy.length > 0) {
             result = `<OrderBy>
@@ -1157,7 +1157,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         }
         return result;
     }
-    private getWhere(query: IQuery): string {
+    private getWhere(query: IQuery<T>): string {
         let result = "";
         if (query.test) {
             result = `<Where>
@@ -1166,7 +1166,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         }
         return result;
     }
-    private getLogicalSequence(sequence: ILogicalSequence): string {
+    private getLogicalSequence(sequence: ILogicalSequence<T>): string {
 
         const cloneSequence = cloneDeep(sequence);
 
@@ -1197,7 +1197,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         }
     }
 
-    private getPredicate(predicate: IPredicate): string {
+    private getPredicate(predicate: IPredicate<T, keyof T>): string {
         let result = "";
         switch (predicate.operator) {
             case TestOperator.IsNotNull:
@@ -1217,7 +1217,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                         </${predicate.operator}>`;
                     }
                     else {
-                        const transformed: ILogicalSequence = {
+                        const transformed: ILogicalSequence<T> = {
                             type: "sequence",
                             operator: LogicalOperator.Or,
                             children: []
@@ -1256,10 +1256,10 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         }
         return result;
     }
-    private getFieldRef(obj: IPredicate | IOrderBy): string {
+    private getFieldRef(obj: IPredicate<T, keyof T> | IOrderBy<T, keyof T>): string {
         let result = "";
         const fields = this.ItemFields;
-        const field = fields[obj.propertyName];
+        const field = fields[obj.propertyName.toString()];
         if (field) {
             result = `<FieldRef Name="${field.fieldName}"${obj.type === "predicate" && obj.lookupId ? " LookupId=\"TRUE\"" : ""}${obj.type === "orderby" && obj.ascending !== undefined && !obj.ascending ? " Ascending=\"FALSE\"" : ""} />`;
         }
@@ -1268,10 +1268,10 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         }
         return result;
     }
-    private getValue(obj: IPredicate, fieldValue: any, lookupID?: boolean): string {
+    private getValue(obj: IPredicate<T, keyof T>, fieldValue: any, lookupID?: boolean): string {
         let result = "";
         const fields = this.ItemFields;
-        const field = fields[obj.propertyName];
+        const field = fields[obj.propertyName.toString()];
         if (field) {
             let type = "";
             let value = "";

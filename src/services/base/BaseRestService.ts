@@ -311,7 +311,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
     /***************** SP Calls associated to service standard operations ********************/
 
     @trace(TraceLevel.Queries)
-    protected async get_Query(query: IQuery, linkedFields?: Array<string>): Promise<Array<T>> {
+    protected async get_Query(query: IQuery<T>, linkedFields?: Array<string>): Promise<Array<T>> {
         const restQuery = this.getRestQuery(query);
         if (linkedFields && linkedFields.length === 1 && linkedFields[0] === 'loadAll') {
             restQuery.loadAll = true;
@@ -728,8 +728,8 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
 
     }
 
-    protected getRestQuery(query: IQuery): IRestQuery {
-        const result: IRestQuery = {};
+    protected getRestQuery(query: IQuery<T>): IRestQuery<T> {
+        const result: IRestQuery<T> = {};
         if (query) {
             result.lastId = query.lastId as number;
             result.limit = query.limit;
@@ -748,20 +748,20 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         return result;
     }
 
-    private getOrderBy(orderby: IOrderBy[]): IOrderBy[] {
+    private getOrderBy(orderby: IOrderBy<T, keyof T>[]): IOrderBy<T, keyof T>[] {
         const result = [];
         if (orderby) {
             orderby.forEach(ob => {
                 const copy = cloneDeep(ob);
-                copy.propertyName = this.ItemFields[ob.propertyName].fieldName;
+                copy.propertyName = this.ItemFields[ob.propertyName.toString()].fieldName as keyof T;
                 result.push(copy);
             });
         }
         return result;
     }
 
-    private getRestSequence(sequence: ILogicalSequence): IRestLogicalSequence {
-        const result: IRestLogicalSequence = {
+    private getRestSequence(sequence: ILogicalSequence<T>): IRestLogicalSequence<T> {
+        const result: IRestLogicalSequence<T> = {
             logicalOperator: sequence.operator,
             predicates: [],
             sequences: []
@@ -777,11 +777,11 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         });
         return result;
     }
-    private getRestPredicate(predicate: IPredicate): IRestPredicate {
+    private getRestPredicate(predicate: IPredicate<T, keyof T>): IRestPredicate<T, keyof T> {
 
         return {
             logicalOperator: predicate.operator,
-            propertyName: this.ItemFields[predicate.propertyName].fieldName,
+            propertyName: this.ItemFields[predicate.propertyName.toString()].fieldName as keyof T,
             value: predicate.value,
             includeTimeValue: predicate.includeTimeValue,
             lookupId: predicate.lookupId
