@@ -1,5 +1,5 @@
 import { Guid } from "@microsoft/sp-core-library";
-import { stringIsNullOrEmpty } from "@pnp/common";
+import { stringIsNullOrEmpty } from "@pnp/common/util";
 import { BaseItem } from "../base/BaseItem";
 
 /**
@@ -37,23 +37,8 @@ export class TaxonomyTerm extends BaseItem {
     /**
      * Term associated custom properties
      */
-    public customProperties: any;
-    /**
-     * Instanciates a term object
-     * @param - term term object from rest call
-     */
-    constructor(term? : any) {
-        super();
-        if (term != undefined) {
-            this.title = term.Name ? term.Name : "";
-            this.description = term.Description ? term.Description : "";
-            this.id = term.Id ? term.Id.replace(/\/Guid\(([^)]+)\)\//g, "$1") : "";
-            this.path = term.PathOfTerm ? term.PathOfTerm : "";
-            this.customSortOrder = term.CustomSortOrder;
-            this.customProperties = term.CustomProperties;
-            this.isDeprecated = term.IsDeprecated;
-        }
-    }
+    public customProperties: {[key: string]: string};
+    
     public isParentOf(term: TaxonomyTerm): boolean {
         return (
             term && 

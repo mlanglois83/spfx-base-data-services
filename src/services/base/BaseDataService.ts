@@ -1710,7 +1710,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
                             return order.ascending ? 1 : -1;
                         }
                     }
-                    else if (aKey.id && bKey.id) {
+                    else if (aKey && bKey && aKey.id && bKey.id) {
                         if ((aKey.title || "").localeCompare(bKey.title || "") < 0) {
                             return order.ascending ? -1 : 1;
                         }

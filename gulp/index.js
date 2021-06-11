@@ -64,7 +64,7 @@ const inject = function (imports, filePath) {
 
 
 
-function setConfig(basePath, includeSourceMap, additionnalReservedNames, afterSetConfig) {
+function setConfig(basePath, includeSourceMap, sourceMapExclusions, additionnalReservedNames, afterSetConfig) {
     const tsconfig = require(path.resolve(basePath, "tsconfig.json"));
 
     // inject dataservices in entry points to ensure decorators are applied for ServiceFactory registration (for both service and associated model)
@@ -139,6 +139,7 @@ function setConfig(basePath, includeSourceMap, additionnalReservedNames, afterSe
                     config.module.rules.push({
                         test: /\.(js|mjs|jsx|ts|tsx)$/,
                         use: ['source-map-loader'],
+                        exclude: sourceMapExclusions || [],
                         enforce: 'pre',
                     });
                 }

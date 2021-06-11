@@ -1,8 +1,6 @@
 import { BaseComponentContext } from "@microsoft/sp-component-base";
 import { sp } from "@pnp/sp";
-import { taxonomy } from "@pnp/sp-taxonomy";
 import { IConfiguration, IFactoryMapping } from "../interfaces";
-import { graph } from "@pnp/graph";
 import { Constants, TraceLevel } from "../constants";
 
 /**
@@ -92,18 +90,6 @@ export class ServicesConfiguration {
                     'Cache-Control': 'no-cache'
                 }
             }
-        });
-        taxonomy.setup({
-            spfxContext: ServicesConfiguration.context,
-            sp: {
-                headers: {
-                    "Accept": "application/json; odata=verbose",
-                    'Cache-Control': 'no-cache'
-                }
-            }
-        });
-        graph.setup({
-            spfxContext: ServicesConfiguration.context
         });
     }
 

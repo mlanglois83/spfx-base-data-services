@@ -1,15 +1,18 @@
+import { Text } from "@microsoft/sp-core-library";
+import { cloneDeep, find } from "@microsoft/sp-lodash-subset";
+import { stringIsNullOrEmpty } from "@pnp/common/util";
 import { graph } from "@pnp/graph";
 import { sp } from "@pnp/sp";
-import { Text } from "@microsoft/sp-core-library";
+import "@pnp/sp/site-users";
+import "@pnp/sp/site-users/web";
 import { ServicesConfiguration } from "../../configuration/ServicesConfiguration";
-import { find, cloneDeep } from "@microsoft/sp-lodash-subset";
 import { PictureSize, TestOperator } from "../../constants";
-import { IPredicate, IQuery } from "../../interfaces";
-import { stringIsNullOrEmpty } from "@pnp/common";
-import { UtilsService } from "../UtilsService";
-import { BaseDataService } from "../base/BaseDataService";
 import { Decorators } from "../../decorators";
+import { IPredicate, IQuery } from "../../interfaces";
 import { User } from "../../models";
+import { BaseDataService } from "../base/BaseDataService";
+import { UtilsService } from "../UtilsService";
+
 
 const standardUserCacheDuration = 10;
 const dataService = Decorators.dataService;

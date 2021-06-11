@@ -1,12 +1,21 @@
-import { ChunkedFileUploadProgressData, Folder, sp, List } from "@pnp/sp";
+import { cloneDeep } from "@microsoft/sp-lodash-subset";
+import { sp } from "@pnp/sp";
+import "@pnp/sp/files";
+import "@pnp/sp/folders";
+import { IFolder } from "@pnp/sp/folders";
+import "@pnp/sp/items/list";
+import "@pnp/sp/lists";
+import { IList } from "@pnp/sp/lists";
+import "@pnp/sp/lists/web";
 import * as mime from "mime-types";
+import { ServicesConfiguration } from "../../configuration/ServicesConfiguration";
+import { TraceLevel } from "../../constants";
+import { Decorators } from "../../decorators";
+import { ChunkedFileUploadProgressData } from "../../interfaces";
+import { SPFile } from "../../models/base/SPFile";
 import { UtilsService } from "../UtilsService";
 import { BaseDataService } from "./BaseDataService";
-import { ServicesConfiguration } from "../../configuration/ServicesConfiguration";
-import { cloneDeep } from "@microsoft/sp-lodash-subset";
-import { SPFile } from "../../models/base/SPFile";
-import { Decorators } from "../../decorators";
-import { TraceLevel } from "../../constants";
+
 
 const trace = Decorators.trace;
 /**
@@ -18,7 +27,7 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
     /**
      * Associeted list (pnpjs)
      */
-    protected get list(): List {
+    protected get list(): IList {
         return sp.web.getList(this.listRelativeUrl);
     }
 
@@ -115,7 +124,7 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
     @trace(TraceLevel.Internal)
     public async addOrUpdateItem_Internal(item: T): Promise<T> {
         const folderUrl = UtilsService.getParentFolderUrl(item.serverRelativeUrl);
-        const folder: Folder = sp.web.getFolderByServerRelativeUrl(folderUrl);
+        const folder: IFolder = sp.web.getFolderByServerRelativeUrl(folderUrl);
         const exists = await this.folderExists(folderUrl);
         if (!exists) {
             await sp.web.folders.add(folderUrl);
@@ -164,7 +173,7 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
         if(item.id) {
             await sp.web.getFileByServerRelativeUrl(item.serverRelativeUrl).recycle();
             const folderUrl = UtilsService.getParentFolderUrl(item.serverRelativeUrl);
-            const folder: Folder = sp.web.getFolderByServerRelativeUrl(folderUrl);
+            const folder: IFolder = sp.web.getFolderByServerRelativeUrl(folderUrl);
             const files = await folder.files.get();
             if (!files || files.length === 0) {
                 await folder.recycle();

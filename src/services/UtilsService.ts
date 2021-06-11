@@ -2,7 +2,7 @@ import { BaseService } from "./base/BaseService";
 import { ServicesConfiguration } from "../configuration/ServicesConfiguration";
 import { Text } from '@microsoft/sp-core-library';
 import { cloneDeep, find } from "@microsoft/sp-lodash-subset";
-import { ODataBatch } from "@pnp/odata";
+import { Batch } from "@pnp/odata";
 import { TaxonomyTerm } from "../models/base/TaxonomyTerm";
 /**
  * Utility class
@@ -212,14 +212,14 @@ export class UtilsService extends BaseService {
         }
         return result;
     }
-    public static async runBatchesInStacks(batches: ODataBatch[], stackCount: number): Promise<void> {
+    public static async runBatchesInStacks(batches: Batch[], stackCount: number): Promise<void> {
         const segments = UtilsService.divideArray(batches, stackCount);
         await Promise.all(segments.map((s) => {
             return UtilsService.chainBatches(s);
         }));
     }
 
-    public static async chainBatches(batches: ODataBatch[]): Promise<void> {
+    public static async chainBatches(batches: Batch[]): Promise<void> {
         while (batches.length > 0) {
             const currentBatch = batches.shift();
             await currentBatch.execute();

@@ -2,7 +2,7 @@ import { BaseFile } from "./BaseFile";
 import { Decorators } from "../../decorators";
 import { Constants } from "../../constants";
 import { Guid } from "@microsoft/sp-core-library";
-import { stringIsNullOrEmpty } from "@pnp/common";
+import { stringIsNullOrEmpty } from "@pnp/common/util";
 
 const field = Decorators.field;
 export abstract class RestFile extends BaseFile {

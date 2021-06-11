@@ -1,18 +1,25 @@
-import { ServicesConfiguration } from "../../configuration/ServicesConfiguration";
 import { SPHttpClient } from '@microsoft/sp-http';
 import { cloneDeep, find, findIndex } from "@microsoft/sp-lodash-subset";
-import { CamlQuery, List, sp } from "@pnp/sp";
-import { Constants, FieldType, TestOperator, QueryToken, LogicalOperator, TraceLevel } from "../../constants/index";
-import { IFieldDescriptor, IQuery, IPredicate, ILogicalSequence, IOrderBy } from "../../interfaces/index";
-import { BaseDataService } from "./BaseDataService";
+import { isArray, stringIsNullOrEmpty } from "@pnp/common";
+import { sp } from "@pnp/sp";
+import "@pnp/sp/content-types/list";
+import "@pnp/sp/fields/list";
+import "@pnp/sp/items/list";
+import "@pnp/sp/lists";
+import { ICamlQuery, IList } from "@pnp/sp/lists";
+import "@pnp/sp/lists/web";
+import { Semaphore } from "async-mutex";
+import { ServicesConfiguration } from "../../configuration/ServicesConfiguration";
+import { Constants, FieldType, LogicalOperator, QueryToken, TestOperator, TraceLevel } from "../../constants/index";
+import { Decorators } from "../../decorators";
+import { IFieldDescriptor, ILogicalSequence, IOrderBy, IPredicate, IQuery } from "../../interfaces/index";
+import { BaseItem, SPFile, SPItem, TaxonomyTerm, User } from "../../models";
+import { UserService } from "../graph/UserService";
 import { ServiceFactory } from "../ServiceFactory";
 import { UtilsService } from "../UtilsService";
-import { SPItem, User, TaxonomyTerm, SPFile, BaseItem } from "../../models";
-import { UserService } from "../graph/UserService";
-import { isArray, stringIsNullOrEmpty } from "@pnp/common";
+import { BaseDataService } from "./BaseDataService";
 import { BaseDbService } from "./BaseDbService";
-import { Semaphore } from "async-mutex";
-import { Decorators } from "../../decorators";
+
 
 
 const trace = Decorators.trace;
@@ -35,7 +42,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
     /**
      * Associeted list (pnpjs)
      */
-    protected get list(): List {
+    protected get list(): IList {
         return sp.web.getList(this.listRelativeUrl);
     }
     /***************************** Constructor **************************************/
@@ -1129,8 +1136,8 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
     }
 
 
-    private getCamlQuery(query: IQuery<T>): CamlQuery {
-        const result: CamlQuery = {
+    private getCamlQuery(query: IQuery<T>): ICamlQuery {
+        const result: ICamlQuery = {
             ViewXml: `<View Scope="RecursiveAll">
                 <Query>
                     ${this.getWhere(query)}

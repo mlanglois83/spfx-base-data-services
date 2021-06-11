@@ -15,3 +15,5 @@ export { ILogicalSequence } from "./ILogicalSequence";
 export { IOrderBy } from "./IOrderBy";
 export { IPredicate } from "./IPredicate";
 export { IQuery } from "./IQuery";
+
+export { ChunkedFileUploadProgressData } from "./ChunkedFileUploadProgressData";
