@@ -270,7 +270,7 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
     protected async getAll_Query(): Promise<Array<IOrderedTermInfo>> {
         const termset = await this.GetTermset(); 
         const store = new PnPClientStorage();
-        return store.session.getOrPut("myKey", () => {
+        return store.session.getOrPut(this.serviceName + "-alltermsordered", () => {
             return termset.getAllChildrenAsOrderedTreeFull();
         }, dateAdd(new Date(), "minute", this.cacheDuration));
     }
