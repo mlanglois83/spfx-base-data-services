@@ -14,10 +14,10 @@ const stream = function (injectMethod) {
     return es.map(function (file, cb) {
         try {
             file.contents = Buffer.from(injectMethod(String(file.contents)));
+            cb(null, file);
         } catch (err) {
             return cb(new PluginError('gulp-configure-dataservice', err));
         }
-        cb(null, file);
     });
 };
 
@@ -25,6 +25,7 @@ const baseItems = ["BaseFile", "BaseItem", "RestFile", "RestItem", "SPFile", "SP
 
 const inject = function (imports, filePath) {
     const begin = "//inject:imports", end = "//endinject";
+    const comment = "\n/************************* Automatic services declaration injection for base-data-services *************************/"
     return stream(function (fileContents) {
 
         let importString = "";
@@ -43,20 +44,20 @@ const inject = function (imports, filePath) {
 
             }
         }
-        const str = importString + `\nconsole.groupCollapsed("spfx-base-data-services - register services");\n[\n${declarations.map(d => "\t" + d).join(",\n")}\n].forEach(function (value) { \n\tconsole.log(value["name"] + " added to ServiceFactory");\n});\nconsole.groupEnd("spfx-base-data-services - register services");\n`;
+        const str = importString + `\nconsole.groupCollapsed("spfx-base-data-services - register services");\n[\n${declarations.map(d => "\t" + d).join(",\n")}\n].forEach(function (value) { \n\tconsole.log(value["name"] + " added to ServiceFactory");\n});\nconsole.groupEnd();\n`;
         const regex = new RegExp(begin + ".*" + end, 's');
         if (fileContents.match(regex)) {
-            return fileContents.replace(new RegExp(begin + ".*" + end, 's'), begin + "\n" + str + end);
+            return fileContents.replace(new RegExp(begin + ".*" + end, 's'), begin + comment + "\n" + str + end);
         }
         else {
             const match = fileContents.match(/\s*import.*from.*;/g);
             if (match) {
                 const matchstr = match.pop();
                 const idx = fileContents.lastIndexOf(matchstr);
-                return fileContents.slice(0, idx + matchstr.length) + "\n" + begin + "\n" + str + end + "\n" + fileContents.slice(idx + matchstr.length);
+                return fileContents.slice(0, idx + matchstr.length) + "\n" + begin + comment + "\n" + str + end + "\n" + fileContents.slice(idx + matchstr.length);
             }
             else {
-                return begin + "\n" + str + end + "\n" + fileContents;
+                return begin + comment + "\n" + str + end + "\n" + fileContents;
             }
         }
     });
@@ -64,9 +65,8 @@ const inject = function (imports, filePath) {
 
 
 
-function setConfig(basePath, includeSourceMap, sourceMapExclusions, additionnalReservedNames, afterSetConfig) {
+function setConfig(basePath, includeSourceMap, sourceMapExclusions, additionnalReservedNames, afterMergeConfig) {        
     const tsconfig = require(path.resolve(basePath, "tsconfig.json"));
-
     // inject dataservices in entry points to ensure decorators are applied for ServiceFactory registration (for both service and associated model)
     let injectServices = build.subTask('services-inject', function (gulp, buildOptions, done) {
         build.log("Inject services imports for ServiceFactory init");
@@ -77,7 +77,7 @@ function setConfig(basePath, includeSourceMap, sourceMapExclusions, additionnalR
             if (pkgconfig.bundles.hasOwnProperty(key)) {
                 const bundle = pkgconfig.bundles[key];
                 bundle.components.forEach(component => {
-                    sources.push(component.entrypoint);
+                    sources.push(component.entrypoint.replace(/^\.\/lib\/(.*)\.js/, "./src/$1.ts"));
                 });
 
             }
@@ -102,26 +102,26 @@ function setConfig(basePath, includeSourceMap, sourceMapExclusions, additionnalR
                     const className = serviceDeclaration[2];
                     imports[className] = {
                         isFile: true,
-                        ref: path.resolve(basePath, filePath.replace(/^src(\/.*)\.ts$/g, "lib$1.js"))
+                        ref: path.resolve(basePath, filePath.replace(/^src(\/.*)\.ts$/g, `src$1`))
                     }
+
                 }
             });
         });
-
-        // inject in js file
-        sources.forEach(source => {
-            const filePath = path.resolve(basePath, source);
-            const fileDir = path.dirname(filePath);
-            gulp.src(filePath).pipe(
-                inject(imports, filePath)
-            ).pipe(
-                gulp.dest(fileDir)
-            );
-
-        });
-        done();
+        es.concat(
+            sources.map(source => {
+                const filePath = path.resolve(basePath, source);
+                const fileDir = path.dirname(filePath);
+                return gulp.src(filePath).pipe(
+                    inject(imports, filePath)
+                ).pipe(
+                    gulp.dest(fileDir)
+                );
+    
+            })
+        ).on('end', () => {done();});
     });
-    build.rig.addPostBuildTask(injectServices);
+    build.rig.addPreBuildTask(injectServices);
 
     /*
     * modify webpack config :
@@ -129,7 +129,7 @@ function setConfig(basePath, includeSourceMap, sourceMapExclusions, additionnalR
     *    - to handle aliases
     *    - to link sourcmaps
     */
-    build.configureWebpack.setConfig({
+    build.configureWebpack.mergeConfig({
         additionalConfiguration: (config) => {
 
             if (includeSourceMap) {
@@ -221,9 +221,9 @@ function setConfig(basePath, includeSourceMap, sourceMapExclusions, additionnalR
                             )
                     ];
             }
-
             // alias
-            config.resolve = { alias: {}, modules: ['node_modules'] };
+            config.resolve = config.resolve || { modules: ['node_modules'] };
+            config.resolve.alias = {};
             if (tsconfig.compilerOptions.paths) {
                 build.log("Include aliases in bundle");
                 var baseUrl = ".";
@@ -263,7 +263,7 @@ function setConfig(basePath, includeSourceMap, sourceMapExclusions, additionnalR
                     }
                 }
             }
-            if (afterSetConfig) {
+            if (afterMergeConfig) {
                 build.log("Running addintionnal config");
                 afterSetConfig(config);
             }
