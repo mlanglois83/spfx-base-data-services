@@ -751,6 +751,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
 
     @trace(TraceLevel.Service)
     public async addOrUpdateItem(item: T): Promise<T> {
+        item.error = undefined;
         this.updateInternalLinks(item);
         let result: T = null;
         let itemResult: T = null;
@@ -814,7 +815,10 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     @trace(TraceLevel.Service)
     public async addOrUpdateItems(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void): Promise<Array<T>> {
 
-        items.forEach(item => this.updateInternalLinks(item));
+        items.forEach(item => {            
+            item.error = undefined;
+            this.updateInternalLinks(item);
+        });
         let results: Array<T> = [];
 
         let isconnected = true;
@@ -830,9 +834,10 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
             if (versionErrors.length > 0) {
                 const spitems = await this.getItemsById_Internal(versionErrors.map(ve => ve.id));
                 spitems.forEach((retrieved) => {
-                    const idx = findIndex(versionErrors, { id: retrieved.id });
+                    const idx = findIndex(results, { id: retrieved.id });
                     if (idx > -1) {
-                        versionErrors[idx] = retrieved;
+                        retrieved.error = results[idx].error;
+                        results[idx] = retrieved;
                     }
                 });
             }
@@ -876,6 +881,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     // TODO: remove cached ids
     @trace(TraceLevel.Service)
     public async deleteItem(item: T): Promise<T> {
+        item.error = undefined;
         if (typeof (item.id) === "number" && item.id === -1) {
             item.deleted = true;
         }
@@ -912,6 +918,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     @trace(TraceLevel.Service)
     public async deleteItems(items: Array<T>): Promise<Array<T>> {
         items.filter(i => (typeof (i.id) === "number" && i.id === -1)).forEach(i => {
+            i.error = undefined;
             i.deleted = true;
         });
         let isconnected = true;

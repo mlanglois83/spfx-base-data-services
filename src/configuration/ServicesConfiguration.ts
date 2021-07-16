@@ -1,5 +1,6 @@
 import { BaseComponentContext } from "@microsoft/sp-component-base";
-import { sp } from "@pnp/sp";
+import { sp } from "@pnp/sp/presets/all";
+import { graph } from "@pnp/graph/presets/all";
 import { IConfiguration, IFactoryMapping } from "../interfaces";
 import { Constants, TraceLevel } from "../constants";
 
@@ -85,6 +86,15 @@ export class ServicesConfiguration {
         sp.setup({
             spfxContext: ServicesConfiguration.context,
             sp: {
+                headers: {
+                    "Accept": "application/json; odata=verbose",
+                    'Cache-Control': 'no-cache'
+                }
+            }
+        });
+        graph.setup({
+            spfxContext: this.context,
+            graph:{
                 headers: {
                     "Accept": "application/json; odata=verbose",
                     'Cache-Control': 'no-cache'
