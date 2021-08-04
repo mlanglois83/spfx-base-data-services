@@ -313,13 +313,14 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
         return item;
     }
     protected populateFieldValue(data: any, destItem: T, propertyName: string, fieldDescriptor: IFieldDescriptor): void {
+        const defaultValue = cloneDeep(fieldDescriptor.defaultValue);
         fieldDescriptor.fieldType = fieldDescriptor.fieldType || FieldType.Simple;
         switch (fieldDescriptor.fieldType) {
             case FieldType.Simple:
-                destItem[propertyName] = data[fieldDescriptor.fieldName] !== null && data[fieldDescriptor.fieldName] !== undefined ? data[fieldDescriptor.fieldName] : fieldDescriptor.defaultValue;
+                destItem[propertyName] = data[fieldDescriptor.fieldName] !== null && data[fieldDescriptor.fieldName] !== undefined ? data[fieldDescriptor.fieldName] : defaultValue;
                 break;
             case FieldType.Date:
-                destItem[propertyName] = data[fieldDescriptor.fieldName] ? new Date(data[fieldDescriptor.fieldName]) : fieldDescriptor.defaultValue;
+                destItem[propertyName] = data[fieldDescriptor.fieldName] ? new Date(data[fieldDescriptor.fieldName]) : defaultValue;
                 break;
             case FieldType.Json:
                 if (data[fieldDescriptor.fieldName]) {
@@ -346,15 +347,15 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
                     }
                     catch (error) {
                         console.error(error);
-                        destItem[propertyName] = fieldDescriptor.defaultValue;
+                        destItem[propertyName] = defaultValue;
                     }
                 }
                 else {
-                    destItem[propertyName] = fieldDescriptor.defaultValue;
+                    destItem[propertyName] = defaultValue;
                 }
                 break;
             default:
-                destItem[propertyName] = fieldDescriptor.defaultValue;
+                destItem[propertyName] = defaultValue;
                 break;
         }
     }

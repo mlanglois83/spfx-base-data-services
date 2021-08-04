@@ -134,10 +134,9 @@ export class BaseTermsetService<T extends TaxonomyTerm> extends BaseDataService<
         return results;
     }
 
-    protected async get_Query(query: any): Promise<Array<any>> {// eslint-disable-line @typescript-eslint/no-unused-vars
-        throw new Error('Not Implemented');
+    protected async get_Query(query: any): Promise<Array<any>> { // eslint-disable-line @typescript-eslint/no-unused-vars
+      throw new Error("Not Implemented");
     }
-
 
     protected async addOrUpdateItem_Internal(item: T): Promise<T> {
         console.log("[" + this.serviceName + ".addOrUpdateItem_Internal] - " + JSON.stringify(item));
