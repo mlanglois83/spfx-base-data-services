@@ -115,14 +115,28 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
     /****************************** get item methods ***********************************/
 
     protected populateFieldValue(spitem: any, destItem: T, propertyName: string, fieldDescriptor: IFieldDescriptor): void {
-        super.populateFieldValue(spitem, destItem, propertyName, fieldDescriptor);
+        super.populateFieldValue(spitem, destItem, propertyName, fieldDescriptor);        
+        const defaultValue = cloneDeep(fieldDescriptor.defaultValue);
         switch (fieldDescriptor.fieldType) {
             case FieldType.Simple:
                 if (fieldDescriptor.fieldName === Constants.commonFields.version) {
-                    destItem[propertyName] = spitem[fieldDescriptor.fieldName] ? parseFloat(spitem[fieldDescriptor.fieldName]) : fieldDescriptor.defaultValue;
+                    destItem[propertyName] = spitem[fieldDescriptor.fieldName] ? parseFloat(spitem[fieldDescriptor.fieldName]) : defaultValue;
                 }
                 else if (fieldDescriptor.fieldName === Constants.commonFields.attachments) {
-                    destItem[propertyName] = spitem[fieldDescriptor.fieldName] ? spitem[fieldDescriptor.fieldName].map((fileobj) => { return new SPFile(fileobj); }) : fieldDescriptor.defaultValue;
+                    destItem[propertyName] = spitem[fieldDescriptor.fieldName] ? spitem[fieldDescriptor.fieldName].map((fileobj) => { return new SPFile(fileobj); }) : defaultValue;
+                }
+                else if(fieldDescriptor.fieldName.indexOf("/") !== -1) {
+                    const splitteed = fieldDescriptor.fieldName.split("/");
+                    let current = spitem;
+                    splitteed.forEach(s => {
+                        current = current[s];
+                    });
+                    if(current) {
+                        destItem[propertyName] = current;
+                    }
+                    else {
+                        destItem[propertyName] = defaultValue;
+                    }
                 }
                 break;
             case FieldType.Lookup:                
@@ -131,10 +145,10 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                     if (obj && typeof (obj[Constants.commonFields.id]) === "number") {
                         // object allready persisted before, retrieve id and store like classical lookup
                         destItem.__setInternalLinks(propertyName, obj[Constants.commonRestFields.id]);
-                        destItem[propertyName] = fieldDescriptor.defaultValue;
+                        destItem[propertyName] = defaultValue;
                     }
                     else {
-                        destItem[propertyName] = fieldDescriptor.defaultValue;
+                        destItem[propertyName] = defaultValue;
                     }                       
                 }
                 else {
@@ -143,7 +157,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                         if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                             // LOOKUPS --> links
                             destItem.__setInternalLinks(propertyName, lookupId);
-                            destItem[propertyName] = fieldDescriptor.defaultValue;
+                            destItem[propertyName] = defaultValue;
 
                         }
                         else {
@@ -152,7 +166,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
 
                     }
                     else {
-                        destItem[propertyName] = fieldDescriptor.defaultValue;
+                        destItem[propertyName] = defaultValue;
                     }
                 }
                 break;
@@ -164,10 +178,10 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                     if (lookupIds.length > 0) {
                         // LOOKUPS --> links
                         destItem.__setInternalLinks(propertyName, lookupIds);
-                        destItem[propertyName] = fieldDescriptor.defaultValue;
+                        destItem[propertyName] = defaultValue;
                     }
                     else {
-                        destItem[propertyName] = fieldDescriptor.defaultValue;
+                        destItem[propertyName] = defaultValue;
                     }           
                 }
                 else {
@@ -176,14 +190,14 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                         if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                             // LOOKUPS --> links
                             destItem.__setInternalLinks(propertyName, lookupIds);
-                            destItem[propertyName] = fieldDescriptor.defaultValue;
+                            destItem[propertyName] = defaultValue;
                         }
                         else {
                             destItem[propertyName] = lookupIds;
                         }
                     }
                     else {
-                        destItem[propertyName] = fieldDescriptor.defaultValue;
+                        destItem[propertyName] = defaultValue;
                     }
                 }
                 break;
@@ -196,14 +210,14 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                         const existing = find(users, (user) => {
                             return user.id === id;
                         });
-                        destItem[propertyName] = existing ? existing : fieldDescriptor.defaultValue;
+                        destItem[propertyName] = existing ? existing : defaultValue;
                     }
                     else {
                         destItem[propertyName] = id;
                     }
                 }
                 else {
-                    destItem[propertyName] = fieldDescriptor.defaultValue;
+                    destItem[propertyName] = defaultValue;
                 }
                 break;
             case FieldType.UserMulti:
@@ -228,7 +242,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                     }
                 }
                 else {
-                    destItem[propertyName] = fieldDescriptor.defaultValue;
+                    destItem[propertyName] = defaultValue;
                 }
                 break;
             case FieldType.Taxonomy:
@@ -238,7 +252,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                     destItem[propertyName] = this.getTaxonomyTermByWssId(wssid, tterms);
                 }
                 else {
-                    destItem[propertyName] = fieldDescriptor.defaultValue;
+                    destItem[propertyName] = defaultValue;
                 }
                 break;
             case FieldType.TaxonomyMulti:
@@ -250,7 +264,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                     });
                 }
                 else {
-                    destItem[propertyName] = fieldDescriptor.defaultValue;
+                    destItem[propertyName] = defaultValue;
                 }
                 break;
             default: break;
@@ -598,11 +612,9 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
     protected async get_Query(query: IQuery<T>, linkedFields?: Array<string>): Promise<Array<any>> {
         const spQuery = this.getCamlQuery(query);
         const selectFields = this.getOdataFieldNames(linkedFields);
-        let itemsQuery = this.list.select(...selectFields);
-        if (this.hasAttachments) {
-            itemsQuery = itemsQuery.expand(Constants.commonFields.attachments);
-        }
-        return itemsQuery.getItemsByCAMLQuery(spQuery);
+        const expandFields = this.getOdataExpandFieldNames(linkedFields);
+        const itemsQuery = this.list.select(...selectFields).expand(...expandFields);
+        return itemsQuery.getItemsByCAMLQuery(spQuery, ...expandFields);
     }
 
     /**
@@ -612,10 +624,8 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
     @trace(TraceLevel.Queries)
     protected async getItemById_Query(id: number, linkedFields?: Array<string>): Promise<any> {
         const selectFields = this.getOdataFieldNames(linkedFields);
-        let itemsQuery = this.list.items.getById(id).select(...selectFields);
-        if (this.hasAttachments) {
-            itemsQuery = itemsQuery.expand(Constants.commonFields.attachments);
-        }
+        const expandFields = this.getOdataExpandFieldNames(linkedFields);
+        const itemsQuery = this.list.items.getById(id).select(...selectFields).expand(...expandFields);
         return itemsQuery.get();
     }
 
@@ -654,11 +664,9 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
      */
     @trace(TraceLevel.Queries)
     protected async getAll_Query(linkedFields?: Array<string>): Promise<Array<any>> {
-        const selectFields = this.getOdataFieldNames(linkedFields);
-        let itemsQuery = this.list.items.select(...selectFields);
-        if (this.hasAttachments) {
-            itemsQuery = itemsQuery.expand(Constants.commonFields.attachments);
-        }
+        const selectFields = this.getOdataFieldNames(linkedFields);        
+        const expandFields = this.getOdataExpandFieldNames(linkedFields);
+        const itemsQuery = this.list.items.select(...selectFields).expand(...expandFields);
         return itemsQuery.getAll();
     }
 
@@ -981,6 +989,25 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         return fieldNames;
     }
 
+    /**
+     * Retrive all fields to include in odata setect parameter
+     */
+     private getOdataExpandFieldNames(linkedFields?: Array<string>): Array<string> {
+        const fields = this.ItemFields;
+        const fieldNames = Object.keys(fields).filter((propertyName) => {
+            return fields.hasOwnProperty(propertyName) &&
+                (!linkedFields || (linkedFields.length === 1 && linkedFields[0] === 'loadAll') || linkedFields.indexOf(fields[propertyName].fieldName) !== -1);
+        }).filter(propertyName => {
+            const result: string = fields[propertyName].fieldName;
+            return result === Constants.commonFields.attachments || result.indexOf("/") !== -1;
+        }).map((prop) => {
+            const result: string = fields[prop].fieldName;
+            return result.split("/").shift();
+        });
+        return fieldNames;
+    }
+
+    
     private getOdataCommonFieldNames(): Array<string> {
         const fields = this.ItemFields;
         const fieldNames = [Constants.commonFields.version];

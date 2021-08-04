@@ -403,8 +403,7 @@ export class BaseTermsetService<
     return results;
   }
 
-  protected async get_Query(query: any): Promise<Array<any>> {
-    // eslint-disable-line @typescript-eslint/no-unused-vars
+  protected async get_Query(query: any): Promise<Array<any>> { // eslint-disable-line @typescript-eslint/no-unused-vars
     throw new Error("Not Implemented");
   }
 
