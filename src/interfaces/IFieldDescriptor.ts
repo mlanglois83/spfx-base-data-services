@@ -6,10 +6,6 @@ export interface IFieldDescriptor {
      */
     fieldName?: string;
     /**
-     * managed search property
-     */
-    searchName?: string;
-    /**
      * Internal name of associated hidden field (TaxonomyMulti only)
      */
     hiddenFieldName?: string;
