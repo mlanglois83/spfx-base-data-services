@@ -7,6 +7,7 @@ export { BaseListItemService } from "./base/BaseListItemService";
 export { BaseRestService } from "./base/BaseRestService";
 export { BaseTermsetService } from "./base/BaseTermsetService";
 export { BaseService } from "./base/BaseService";
+export { SearchService } from "./base/SearchService";
 
 export { UtilsService } from "./UtilsService";
 export { LoggingService } from "./LoggingService";
