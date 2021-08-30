@@ -2,6 +2,7 @@ import { Text } from "@microsoft/sp-core-library";
 import { cloneDeep, find } from "@microsoft/sp-lodash-subset";
 import { stringIsNullOrEmpty } from "@pnp/common/util";
 import { graph } from "@pnp/graph";
+import "@pnp/graph/users";
 import { sp } from "@pnp/sp";
 import "@pnp/sp/site-users";
 import "@pnp/sp/site-users/web";
@@ -47,12 +48,12 @@ export class UserService extends BaseDataService<User> {
 
         const [users, spUsers] = await Promise.all([graph.users
         .filter(
-            `startswith(displayName,'${queryStr}') or 
-            startswith(displayName,'${reverseFilter}') or 
-            startswith(givenName,'${queryStr}') or 
-            startswith(surname,'${queryStr}') or 
-            startswith(mail,'${queryStr}') or 
-            startswith(userPrincipalName,'${queryStr}')`
+            `startswith(displayName,'${queryStr}') or ` + 
+            `startswith(displayName,'${reverseFilter}') or ` +
+            `startswith(givenName,'${queryStr}') or ` +
+            `startswith(surname,'${queryStr}') or ` +
+            `startswith(mail,'${queryStr}') or ` +
+            `startswith(userPrincipalName,'${queryStr}')`
         )
         .get(), sp.web.siteUsers.select("Id","UserPrincipalName","Email","Title","IsSiteAdmin").get()]);
         
