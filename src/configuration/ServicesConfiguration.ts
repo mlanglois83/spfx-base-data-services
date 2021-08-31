@@ -96,7 +96,7 @@ export class ServicesConfiguration {
             spfxContext: ServicesConfiguration.context,
             graph:{
                 headers: {
-                    "Accept": "application/json; odata=verbose",
+                    "Accept": "application/json;odata.metadata=minimal",
                     'Cache-Control': 'no-cache'
                 }
             }
