@@ -330,7 +330,7 @@ export class BaseTermsetService<
                     labelCollection,
                     (label) => label.languageTag === taxonomy
                 );
-                if (webLabel) {
+                if (taxonomyLabel) {
                     return taxonomyLabel.label;
                 }
             }
