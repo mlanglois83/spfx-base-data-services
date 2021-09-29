@@ -37,6 +37,15 @@ export class UserService extends BaseDataService<User> {
         return result;
     }
 
+    public async currentSPUser(): Promise<User> {
+        let result: User = null;
+        const me = await sp.web.currentUser.select("Id","UserPrincipalName","Email","Title","IsSiteAdmin").get();
+        if (me) {
+            result = new User(me);
+        }
+        return result;
+    }
+
     protected async get_Query(query: IQuery<User>): Promise<Array<any>> {
         let queryStr = (query.test as IPredicate<User, keyof User>).value;
         queryStr = queryStr.trim();
