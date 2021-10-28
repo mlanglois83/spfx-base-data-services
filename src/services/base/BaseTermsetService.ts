@@ -492,7 +492,7 @@ export class BaseTermsetService<
         });
         terms.push(...otherterms);
         rootTerms = terms;
-        rootTerms.forEach((rt) => {
+        rootTerms.filter(Boolean).forEach((rt) => {
             result.push(rt);
             const rtchildren = this.getOrderedChildTerms(rt, items);
             if (rtchildren.length > 0) {
@@ -521,7 +521,7 @@ export class BaseTermsetService<
         });
         terms.push(...otherterms);
         directChilds = terms;
-        directChilds.forEach((dc) => {
+        directChilds.filter(Boolean).forEach((dc) => {
             result.push(dc);
             const dcchildren = this.getOrderedChildTerms(dc, childterms);
             if (dcchildren.length > 0) {
