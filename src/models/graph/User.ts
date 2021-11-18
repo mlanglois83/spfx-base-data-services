@@ -4,7 +4,7 @@ const dataModel = Decorators.dataModel;
 /**
  * Abstraction class for O365 user associated with a SP User
  */
- @dataModel()
+@dataModel()
 export class User extends BaseItem {
     /**
      * id of the user
@@ -13,7 +13,7 @@ export class User extends BaseItem {
     /**
      * Graph id of the user
      */
-     public o365id: string;
+    public o365id: string;
     /**
      * User display name
      */
@@ -26,6 +26,8 @@ export class User extends BaseItem {
      * User principal name (login)
      */
     public userPrincipalName: string;
+
+    public loginName: string;
     /*
     * User is site admin
     */
@@ -62,6 +64,7 @@ export class User extends BaseItem {
             this.mail = userObj.mail ? userObj.mail : (userObj.Email ? userObj.Email : "");
             this.userPrincipalName = userObj.userPrincipalName ? userObj.userPrincipalName : (userObj.UserPrincipalName ? userObj.UserPrincipalName : "");
             this.isSiteAdmin = userObj.IsSiteAdmin === true;
+            this.loginName = userObj.loginName ? userObj.loginName : (userObj.LoginName ? userObj.LoginName : "");
 
             this.firstName = userObj.givenName;
             this.lastName = userObj.surname;

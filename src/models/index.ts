@@ -9,3 +9,4 @@ export { RestFile } from "./base/RestFile";
 export { OfflineTransaction } from "./OfflineTransaction";
 export { TaxonomyHidden } from "./sp/TaxonomyHidden";
 export { User } from "./graph/User";
+export { Entity } from "./graph/Entity";

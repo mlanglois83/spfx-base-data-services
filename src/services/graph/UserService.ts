@@ -20,12 +20,16 @@ const dataService = Decorators.dataService;
 
 @dataService("User")
 export class UserService extends BaseDataService<User> {
+
+    protected groupsToo = false;
+
     /**
      * Instanciates a user service
      * @param cacheDuration - cache duration in minutes (default : 10)
      */
-    constructor(cacheDuration: number = standardUserCacheDuration) {
+    constructor(cacheDuration: number = standardUserCacheDuration, groupsToo = false) {
         super(User, cacheDuration);
+        this.groupsToo = groupsToo;
     }
 
     public async currentUser(extendedProperties: Array<string>): Promise<User> {
@@ -39,7 +43,7 @@ export class UserService extends BaseDataService<User> {
 
     public async currentSPUser(): Promise<User> {
         let result: User = null;
-        const me = await sp.web.currentUser.select("Id","UserPrincipalName","Email","Title","IsSiteAdmin").get();
+        const me = await sp.web.currentUser.select("Id", "UserPrincipalName", "LoginName", "Email", "Title", "IsSiteAdmin").get();
         if (me) {
             result = new User(me);
         }
@@ -56,16 +60,16 @@ export class UserService extends BaseDataService<User> {
         }
 
         const [users, spUsers] = await Promise.all([graph.users
-        .filter(
-            `startswith(displayName,'${queryStr}') or ` + 
-            `startswith(displayName,'${reverseFilter}') or ` +
-            `startswith(givenName,'${queryStr}') or ` +
-            `startswith(surname,'${queryStr}') or ` +
-            `startswith(mail,'${queryStr}') or ` +
-            `startswith(userPrincipalName,'${queryStr}')`
-        )
-        .get(), sp.web.siteUsers.select("Id","UserPrincipalName","Email","Title","IsSiteAdmin").get()]);
-        
+            .filter(
+                `startswith(displayName,'${queryStr}') or ` +
+                `startswith(displayName,'${reverseFilter}') or ` +
+                `startswith(givenName,'${queryStr}') or ` +
+                `startswith(surname,'${queryStr}') or ` +
+                `startswith(mail,'${queryStr}') or ` +
+                `startswith(userPrincipalName,'${queryStr}')`
+            )
+            .get(), sp.web.siteUsers.select("Id", "UserPrincipalName", "LoginName", "Email", "Title", "IsSiteAdmin").get()]);
+
         return users.map((u) => {
             const spuser = find(spUsers, (spu: any) => { return spu.UserPrincipalName?.toLowerCase() === u.userPrincipalName?.toLowerCase(); });
             if (spuser) {
@@ -100,12 +104,15 @@ export class UserService extends BaseDataService<User> {
      * Retrieve all users (sp)
      */
     protected async getAll_Query(): Promise<Array<any>> {
-        const spUsers = await sp.web.siteUsers.select("Id", "UserPrincipalName", "Email", "Title", "IsSiteAdmin").get();
-        return spUsers.filter(u => !stringIsNullOrEmpty(u.UserPrincipalName));
+        const spUsers = await sp.web.siteUsers.select("Id", "UserPrincipalName", "LoginName", "Email", "Title", "IsSiteAdmin").get();
+        if (this.groupsToo)
+            return spUsers;
+        else
+            return spUsers.filter(u => !stringIsNullOrEmpty(u.UserPrincipalName));
     }
 
     public async getItemById_Query(id: number): Promise<any> {
-        return sp.web.siteUsers.getById(id).select("Id", "UserPrincipalName", "Email", "Title", "IsSiteAdmin").get();
+        return sp.web.siteUsers.getById(id).select("Id", "UserPrincipalName", "Email", "LoginName", "Title", "IsSiteAdmin").get();
     }
 
     public async getItemsById_Query(ids: Array<number>): Promise<Array<any>> {
@@ -131,19 +138,19 @@ export class UserService extends BaseDataService<User> {
         return results;
     }
 
-    public async linkToSpUser(user: User): Promise<User> {    
+    public async linkToSpUser(user: User): Promise<User> {
         // user is not registered (or created offline)    
         if (user.id < 0) {
             const allItems = await this.getAll();
             const existing = find(allItems, u => u.userPrincipalName?.toLowerCase() === user.userPrincipalName?.toLowerCase() && u.id > 0);
             // remove existing
-            if(existing) {
+            if (existing) {
                 user = existing;
             }
             else {
                 // remove existing without id
                 const sameUsers = allItems.filter(u => u.userPrincipalName?.toLowerCase() === user.userPrincipalName?.toLowerCase());
-                if(sameUsers.length > 0) {
+                if (sameUsers.length > 0) {
                     await this.dbService.deleteItems(sameUsers);
                 }
                 // register user
@@ -153,14 +160,14 @@ export class UserService extends BaseDataService<User> {
                 // cache 
                 const dbresult = await this.dbService.addOrUpdateItem(user);
                 user = dbresult;
-            }            
+            }
         }
         return user;
     }
 
 
     public async getByDisplayName(displayName: string): Promise<Array<User>> {
-        if(stringIsNullOrEmpty(displayName)) {
+        if (stringIsNullOrEmpty(displayName)) {
             return [];
         }
         let users = await this.get({ test: { type: "predicate", propertyName: "displayName", operator: TestOperator.BeginsWith, value: displayName } });
