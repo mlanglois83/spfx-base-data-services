@@ -97,7 +97,7 @@ function setConfig(basePath, includeSourceMap, sourceMapExclusions, additionnalR
         tsconfig.include.forEach((pattern) => {
             glob.sync(pattern).forEach((filePath) => {
                 const buf = fs.readFileSync(filePath, "utf-8");
-                const serviceDeclaration = buf.match(/@.*dataService\(("\w+")?\).*export\s*class\s*(\w+)\s*extends.*/s);
+                const serviceDeclaration = buf.match(/@.*dataService\((["']\w+["'])?\).*export\s*class\s*(\w+)\s*extends.*/s);
                 if (serviceDeclaration && serviceDeclaration.length === 3) {
                     const className = serviceDeclaration[2];
                     imports[className] = {
@@ -153,7 +153,7 @@ function setConfig(basePath, includeSourceMap, sourceMapExclusions, additionnalR
                 tsconfig.include.forEach((pattern) => {
                     glob.sync(pattern).forEach((filePath) => {
                         const buf = fs.readFileSync(filePath, "utf-8");
-                        const serviceDeclaration = buf.match(/@.*(dataService|dataModel)\(("\w+")?\).*export\s*class\s*(\w+)\s*(implements\s*\w+\s*)?extends\s*(\w+)\s*.*/s);
+                        const serviceDeclaration = buf.match(/@.*(dataService|dataModel)\((["']\w+["'])?\).*export\s*class\s*(\w+)\s*(implements\s*\w+\s*)?extends\s*(\w+)\s*.*/s);
                         if (serviceDeclaration && serviceDeclaration.length === 6) {
                             const className = serviceDeclaration[3];
                             if (serviceDeclaration[1] == "dataModel") {

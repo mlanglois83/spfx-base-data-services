@@ -1,5 +1,5 @@
 import { assign, findIndex } from "@microsoft/sp-lodash-subset";
-import { stringIsNullOrEmpty } from "@pnp/pnpjs";
+import { stringIsNullOrEmpty } from "@pnp/common/util";
 import { FieldType } from "../../constants";
 import { IBaseItem, IFieldDescriptor } from "../../interfaces";
 import { ServiceFactory } from "../../services/ServiceFactory";
