@@ -65,7 +65,7 @@ const inject = function (imports, filePath) {
 
 
 
-function setConfig(basePath, includeSourceMap, sourceMapExclusions, additionnalReservedNames, afterMergeConfig) {        
+function setConfig(basePath, includeSourceMap, sourceMapExclusions, additionnalReservedNames, afterMergeConfig) {
     const tsconfig = require(path.resolve(basePath, "tsconfig.json"));
     // inject dataservices in entry points to ensure decorators are applied for ServiceFactory registration (for both service and associated model)
     let injectServices = build.subTask('services-inject', function (gulp, buildOptions, done) {
@@ -89,6 +89,10 @@ function setConfig(basePath, includeSourceMap, sourceMapExclusions, additionnalR
                 ref: "spfx-base-data-services"
             },
             UserService: {
+                isFile: false,
+                ref: "spfx-base-data-services"
+            },
+            EntityService: {
                 isFile: false,
                 ref: "spfx-base-data-services"
             }
@@ -117,9 +121,9 @@ function setConfig(basePath, includeSourceMap, sourceMapExclusions, additionnalR
                 ).pipe(
                     gulp.dest(fileDir)
                 );
-    
+
             })
-        ).on('end', () => {done();});
+        ).on('end', () => { done(); });
     });
     build.rig.addPreBuildTask(injectServices);
 
@@ -148,7 +152,7 @@ function setConfig(basePath, includeSourceMap, sourceMapExclusions, additionnalR
             if (build.getConfig().production) {
                 build.log("Exclude services and models class names for uglify plugin");
                 additionnalReservedNames = additionnalReservedNames || [];
-                const reserved = ["BaseDataService", "BaseDbService", "BaseFileService", "BaseListItemService", "BaseRestService", "BaseService", "BaseTermsetService", "SPFile", "TaxonomyTerm", "TaxonomyHiddenListService", "SPFile", "TaxonomyTerm", "TaxonomyHiddenListService", "TaxonomyHidden", "UserService", "User", "BaseItem", "RestItem", "SPItem", "RestFile", "BaseFile"].concat(additionnalReservedNames);
+                const reserved = ["BaseDataService", "BaseDbService", "BaseFileService", "BaseListItemService", "BaseRestService", "BaseService", "BaseTermsetService", "SPFile", "TaxonomyTerm", "TaxonomyHiddenListService", "SPFile", "TaxonomyTerm", "TaxonomyHiddenListService", "TaxonomyHidden", "UserService", "User", "Entity", "BaseItem", "RestItem", "SPItem", "RestFile", "BaseFile"].concat(additionnalReservedNames);
                 const baseClasses = [];
                 tsconfig.include.forEach((pattern) => {
                     glob.sync(pattern).forEach((filePath) => {
