@@ -16,5 +16,6 @@ export { SynchronizationService } from "./synchronization/SynchronizationService
 export { TransactionService } from "./synchronization/TransactionService";
 
 export { TaxonomyHiddenListService } from "./sp/TaxonomyHiddenListService";
+export { BaseUserService } from "./graph/BaseUserService";
 export { UserService } from "./graph/UserService";
 export { EntityService } from "./graph/EntityService";
