@@ -64,7 +64,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
     }
 
     protected populateFieldValue(restItem: any, destItem: T, propertyName: string, fieldDescriptor: IFieldDescriptor): void {
-        super.populateFieldValue(restItem, destItem, propertyName, fieldDescriptor);        
+        super.populateFieldValue(restItem, destItem, propertyName, fieldDescriptor);
         const defaultValue = cloneDeep(fieldDescriptor.defaultValue);
         fieldDescriptor.fieldType = fieldDescriptor.fieldType || FieldType.Simple;
         switch (fieldDescriptor.fieldType) {
@@ -615,7 +615,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
 
                     if (reloadData) {
                         const json = await this.executeRequest(restQuery.url, restQuery.method, data);
-                        if(this.isPersistItemsDataAsync(linkedFields)) {
+                        if (this.isPersistItemsDataAsync(linkedFields)) {
                             result = await this.persistItemsDataAsync_internal(json, linkedFields);
                         }
                         else {
@@ -649,7 +649,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                         const mapping = await this.restMappingDb.getItemById(keyCached);
                         if (mapping && mapping.itemIds && mapping.itemIds.length > 0) {
                             const tmp = await this.dbService.getItemsById(mapping.itemIds);
-                            if(this.isMapItemsAsync(linkedFields)) {
+                            if (this.isMapItemsAsync(linkedFields)) {
                                 result = await this.mapItemsAsync(tmp, linkedFields);
                             }
                             else {
