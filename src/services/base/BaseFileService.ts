@@ -47,7 +47,7 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
 
     @trace(TraceLevel.Queries)
     public async getItemById_Query(id: string): Promise<any> {
-        return sp.web.getFileByServerRelativeUrl(id).select('FileRef', 'FileLeafRef').get();
+        return sp.web.getFileByServerRelativeUrl(id).get();
     }
 
     @trace(TraceLevel.Queries)
@@ -59,7 +59,7 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
             const sub = copy.splice(0,100);
             const batch = sp.createBatch();
             sub.forEach((id) => {
-                sp.web.getFileByServerRelativeUrl(id).select('FileRef', 'FileLeafRef').get().then(async (item)=> {
+                sp.web.getFileByServerRelativeUrl(id).inBatch(batch).get().then(async (item)=> {
                     if(item) {                        
                         results.push(item);
                     }

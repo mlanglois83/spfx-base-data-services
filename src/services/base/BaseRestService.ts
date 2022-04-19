@@ -64,7 +64,8 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
     }
 
     protected populateFieldValue(restItem: any, destItem: T, propertyName: string, fieldDescriptor: IFieldDescriptor): void {
-        super.populateFieldValue(restItem, destItem, propertyName, fieldDescriptor);
+        super.populateFieldValue(restItem, destItem, propertyName, fieldDescriptor);        
+        const defaultValue = cloneDeep(fieldDescriptor.defaultValue);
         fieldDescriptor.fieldType = fieldDescriptor.fieldType || FieldType.Simple;
         switch (fieldDescriptor.fieldType) {
             case FieldType.Lookup:
@@ -73,10 +74,10 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                     if (obj && typeof (obj[Constants.commonRestFields.id]) === "number") {
                         // object allready persisted before, retrieve id and store like classical lookup
                         destItem.__setInternalLinks(propertyName, obj[Constants.commonRestFields.id]);
-                        destItem[propertyName] = fieldDescriptor.defaultValue;
+                        destItem[propertyName] = defaultValue;
                     }
                     else {
-                        destItem[propertyName] = fieldDescriptor.defaultValue;
+                        destItem[propertyName] = defaultValue;
                     }
                 }
                 else {
@@ -85,7 +86,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                         if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                             // LOOKUPS --> links
                             destItem.__setInternalLinks(propertyName, lookupId);
-                            destItem[propertyName] = fieldDescriptor.defaultValue;
+                            destItem[propertyName] = defaultValue;
 
                         }
                         else {
@@ -94,7 +95,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
 
                     }
                     else {
-                        destItem[propertyName] = fieldDescriptor.defaultValue;
+                        destItem[propertyName] = defaultValue;
                     }
                 }
                 break;
@@ -106,10 +107,10 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                     if (lookupIds.length > 0) {
                         // LOOKUPS --> links
                         destItem.__setInternalLinks(propertyName, lookupIds);
-                        destItem[propertyName] = fieldDescriptor.defaultValue;
+                        destItem[propertyName] = defaultValue;
                     }
                     else {
-                        destItem[propertyName] = fieldDescriptor.defaultValue;
+                        destItem[propertyName] = defaultValue;
                     }
                 }
                 else {
@@ -118,14 +119,14 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                         if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                             // LOOKUPS --> links
                             destItem.__setInternalLinks(propertyName, lookupIds);
-                            destItem[propertyName] = fieldDescriptor.defaultValue;
+                            destItem[propertyName] = defaultValue;
                         }
                         else {
                             destItem[propertyName] = lookupIds;
                         }
                     }
                     else {
-                        destItem[propertyName] = fieldDescriptor.defaultValue;
+                        destItem[propertyName] = defaultValue;
                     }
                 }
                 break;
@@ -138,14 +139,14 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                         const existing = find(users, (user: User) => {
                             return !stringIsNullOrEmpty(user.userPrincipalName) && user.userPrincipalName.toLowerCase() === upn.toLowerCase();
                         });
-                        destItem[propertyName] = existing ? existing : fieldDescriptor.defaultValue;
+                        destItem[propertyName] = existing ? existing : defaultValue;
                     }
                     else {
                         destItem[propertyName] = upn;
                     }
                 }
                 else {
-                    destItem[propertyName] = fieldDescriptor.defaultValue;
+                    destItem[propertyName] = defaultValue;
                 }
                 break;
             case FieldType.UserMulti:
@@ -172,7 +173,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                     }
                 }
                 else {
-                    destItem[propertyName] = fieldDescriptor.defaultValue;
+                    destItem[propertyName] = defaultValue;
                 }
                 break;
             case FieldType.Taxonomy:
@@ -183,10 +184,10 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                     const existing = find(tterms, (term) => {
                         return term.id === termid;
                     });
-                    destItem[propertyName] = existing ? existing : fieldDescriptor.defaultValue;
+                    destItem[propertyName] = existing ? existing : defaultValue;
                 }
                 else {
-                    destItem[propertyName] = fieldDescriptor.defaultValue;
+                    destItem[propertyName] = defaultValue;
                 }
                 break;
             case FieldType.TaxonomyMulti:
@@ -207,7 +208,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                     destItem[propertyName] = val;
                 }
                 else {
-                    destItem[propertyName] = fieldDescriptor.defaultValue;
+                    destItem[propertyName] = defaultValue;
                 }
                 break;
             default: break;
@@ -311,7 +312,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
     /***************** SP Calls associated to service standard operations ********************/
 
     @trace(TraceLevel.Queries)
-    protected async get_Query(query: IQuery, linkedFields?: Array<string>): Promise<Array<T>> {
+    protected async get_Query(query: IQuery<T>, linkedFields?: Array<string>): Promise<Array<T>> {
         const restQuery = this.getRestQuery(query);
         if (linkedFields && linkedFields.length === 1 && linkedFields[0] === 'loadAll') {
             restQuery.loadAll = true;
@@ -728,8 +729,8 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
 
     }
 
-    protected getRestQuery(query: IQuery): IRestQuery {
-        const result: IRestQuery = {};
+    protected getRestQuery(query: IQuery<T>): IRestQuery<T> {
+        const result: IRestQuery<T> = {};
         if (query) {
             result.lastId = query.lastId as number;
             result.limit = query.limit;
@@ -748,20 +749,20 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         return result;
     }
 
-    private getOrderBy(orderby: IOrderBy[]): IOrderBy[] {
+    private getOrderBy(orderby: IOrderBy<T, keyof T>[]): IOrderBy<T, keyof T>[] {
         const result = [];
         if (orderby) {
             orderby.forEach(ob => {
                 const copy = cloneDeep(ob);
-                copy.propertyName = this.ItemFields[ob.propertyName].fieldName;
+                copy.propertyName = this.ItemFields[ob.propertyName.toString()].fieldName as keyof T;
                 result.push(copy);
             });
         }
         return result;
     }
 
-    private getRestSequence(sequence: ILogicalSequence): IRestLogicalSequence {
-        const result: IRestLogicalSequence = {
+    private getRestSequence(sequence: ILogicalSequence<T>): IRestLogicalSequence<T> {
+        const result: IRestLogicalSequence<T> = {
             logicalOperator: sequence.operator,
             predicates: [],
             sequences: []
@@ -777,11 +778,11 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         });
         return result;
     }
-    private getRestPredicate(predicate: IPredicate): IRestPredicate {
+    private getRestPredicate(predicate: IPredicate<T, keyof T>): IRestPredicate<T, keyof T> {
 
         return {
             logicalOperator: predicate.operator,
-            propertyName: this.ItemFields[predicate.propertyName].fieldName,
+            propertyName: this.ItemFields[predicate.propertyName.toString()].fieldName as keyof T,
             value: predicate.value,
             includeTimeValue: predicate.includeTimeValue,
             lookupId: predicate.lookupId

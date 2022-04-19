@@ -337,7 +337,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
 
 
     @trace(TraceLevel.DataBase)
-    public async get(query: IQuery): Promise<Array<T>> { // eslint-disable-line @typescript-eslint/no-unused-vars
+    public async get(query: IQuery<T>): Promise<Array<T>> { // eslint-disable-line @typescript-eslint/no-unused-vars
         const items = await this.getAll();
         return items;
     }

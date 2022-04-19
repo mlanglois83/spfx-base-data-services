@@ -33,8 +33,8 @@ export class UserService extends BaseDataService<User> {
         return result;
     }
 
-    protected async get_Query(query: IQuery): Promise<Array<any>> {
-        let queryStr = (query.test as IPredicate).value;
+    protected async get_Query(query: IQuery<User>): Promise<Array<any>> {
+        let queryStr = (query.test as IPredicate<User, keyof User>).value;
         queryStr = queryStr.trim();
         let reverseFilter = queryStr;
         const parts = queryStr.split(" ");

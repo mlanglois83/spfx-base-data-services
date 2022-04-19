@@ -1,10 +1,11 @@
 import { ILogicalSequence } from "./ILogicalSequence";
 import { IPredicate } from "./IPredicate";
 import { IOrderBy } from "./IOrderBy";
+import { IBaseItem } from ".";
 
-export interface IQuery {
-    test?: ILogicalSequence | IPredicate;
-    orderBy?: Array<IOrderBy>;
+export interface IQuery<T extends IBaseItem> {
+    test?: ILogicalSequence<T> | IPredicate<T, keyof T>;
+    orderBy?: Array<IOrderBy<T, keyof T>>;
     limit?: number;
     lastId?: number | Text;
 }

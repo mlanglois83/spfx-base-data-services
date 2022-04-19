@@ -1,9 +1,10 @@
+import { IBaseItem } from ".";
 import { TestOperator } from "../constants";
 
-export interface IPredicate {    
+export interface IPredicate<T extends IBaseItem, K extends keyof T> {    
     type: "predicate";
     operator: TestOperator;
-    propertyName: string;
+    propertyName: K;
     value?: any;
     lookupId?: boolean;
     includeTimeValue?: boolean;

@@ -12,7 +12,7 @@ export interface IDataService<T extends IBaseItem> {
      * Retrieve items using query
      * @param query - query element
      */
-    get(query: IQuery): Promise<Array<T>>;
+    get(query: IQuery<T>): Promise<Array<T>>;
     /**
      * Adds or updates an item
      * @param item - instance of a Model that has to be sent
