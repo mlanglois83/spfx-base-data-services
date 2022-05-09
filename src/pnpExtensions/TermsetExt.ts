@@ -81,7 +81,7 @@ extendFactory(TermSet, {
 
         const visitor = async (source: ITermSet | ITerm, parent: IOrderedTermInfo[]): Promise<void> => {
 
-            const children = await source.getLegacyChildren().select("*", "customSortOrder","properties", "localProperties").get();
+            const children = await source.getLegacyChildren().top(1000).select("*", "customSortOrder", "properties", "localProperties").get();
 
             for (let i = 0; i < children.length; i++) {
 
@@ -89,7 +89,7 @@ extendFactory(TermSet, {
 
                 const orderedTerm = {
                     children: new Array<IOrderedTermInfo>(),
-                    defaultLabel: find(child.labels,l => l.isDefault).name,
+                    defaultLabel: find(child.labels, l => l.isDefault).name,
                     ...child,
                 };
 
