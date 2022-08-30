@@ -1,4 +1,4 @@
-import { assign } from "@microsoft/sp-lodash-subset";
+import { assign } from "lodash";
 import { IBaseItem } from "../../interfaces";
 
 export class RestResultMapping implements IBaseItem {

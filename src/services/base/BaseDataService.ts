@@ -1,11 +1,10 @@
-import { assign, cloneDeep, find, findIndex } from "@microsoft/sp-lodash-subset";
+import { assign, cloneDeep, find, findIndex } from "lodash";
 import { IDataService, IQuery, ILogicalSequence, IPredicate, IFieldDescriptor } from "../../interfaces";
 import { BaseItem, OfflineTransaction, TaxonomyTerm } from "../../models";
 import { UtilsService } from "../UtilsService";
 import { TransactionService } from "../synchronization/TransactionService";
 import { BaseDbService } from "./BaseDbService";
 import { BaseService } from "./BaseService";
-import { Text } from "@microsoft/sp-core-library";
 import { TransactionType, Constants, LogicalOperator, TestOperator, QueryToken, FieldType, TraceLevel } from "../../constants";
 import { ServicesConfiguration } from "../../configuration";
 import { isArray, stringIsNullOrEmpty } from "@pnp/common";
@@ -190,7 +189,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     /************************************************************************* Cache expiration ************************************************************************************/
 
     protected getCacheKey(key = "all"): string {
-        return Text.format(Constants.cacheKeys.latestDataLoadFormat, ServicesConfiguration.context.pageContext.web.serverRelativeUrl, this.serviceName, key);
+        return UtilsService.formatText(Constants.cacheKeys.latestDataLoadFormat, ServicesConfiguration.serverRelativeUrl, this.serviceName, key);
     }
     /***
      * 

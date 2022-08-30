@@ -3,7 +3,7 @@ import { stringIsNullOrEmpty } from "@pnp/common/util";
 import { ServicesConfiguration } from "../configuration/ServicesConfiguration";
 import { BaseItem } from "../models/base/BaseItem";
 import { IFieldDescriptor } from "../interfaces";
-import { assign } from "@microsoft/sp-lodash-subset";
+import { assign } from "lodash";
 export class ServiceFactory {    
     
     private static __services: {[modelName: string]: BaseDataService<BaseItem>} = {};

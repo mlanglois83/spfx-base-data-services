@@ -1,4 +1,3 @@
-import { SPWeb } from "@microsoft/sp-page-context";
 import { ServicesConfiguration } from "../../configuration/ServicesConfiguration";
 import { TraceLevel } from "../../constants";
 import { LoggingService } from "../LoggingService";
@@ -32,8 +31,8 @@ export abstract class BaseService {
         return hash;
     }
 
-    public getDomainUrl(web: SPWeb): string {
-        return web.absoluteUrl.replace(web.serverRelativeUrl, "");
+    public getDomainUrl(): string {
+        return ServicesConfiguration.context.pageContext.web.absoluteUrl.replace(ServicesConfiguration.context.pageContext.web.serverRelativeUrl, "");
     }
     protected get debug(): boolean {
         return ServicesConfiguration.configuration.traceLevel !== TraceLevel.None;

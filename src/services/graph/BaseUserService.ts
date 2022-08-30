@@ -1,5 +1,4 @@
-import { Text } from "@microsoft/sp-core-library";
-import { cloneDeep, find } from "@microsoft/sp-lodash-subset";
+import { cloneDeep, find } from "lodash";
 import { stringIsNullOrEmpty } from "@pnp/common/util";
 import { graph } from "@pnp/graph";
 import "@pnp/graph/users";
@@ -55,25 +54,29 @@ export abstract class BaseUserService<T extends User> extends BaseDataService<T>
         if (parts.length > 1) {
             reverseFilter = parts[1].trim() + " " + parts[0].trim();
         }
+        if(ServicesConfiguration.context) {
+            const [users, spUsers] = await Promise.all([graph.users
+                .filter(
+                    `startswith(displayName,'${queryStr}') or ` +
+                    `startswith(displayName,'${reverseFilter}') or ` +
+                    `startswith(givenName,'${queryStr}') or ` +
+                    `startswith(surname,'${queryStr}') or ` +
+                    `startswith(mail,'${queryStr}') or ` +
+                    `startswith(userPrincipalName,'${queryStr}')`
+                )
+                .get(), sp.web.siteUsers.select("Id", "UserPrincipalName", "LoginName", "Email", "Title", "IsSiteAdmin").get()]);
 
-        const [users, spUsers] = await Promise.all([graph.users
-            .filter(
-                `startswith(displayName,'${queryStr}') or ` +
-                `startswith(displayName,'${reverseFilter}') or ` +
-                `startswith(givenName,'${queryStr}') or ` +
-                `startswith(surname,'${queryStr}') or ` +
-                `startswith(mail,'${queryStr}') or ` +
-                `startswith(userPrincipalName,'${queryStr}')`
-            )
-            .get(), sp.web.siteUsers.select("Id", "UserPrincipalName", "LoginName", "Email", "Title", "IsSiteAdmin").get()]);
-
-        return users.map((u) => {
-            const spuser = find(spUsers, (spu: any) => { return spu.UserPrincipalName?.toLowerCase() === u.userPrincipalName?.toLowerCase(); });
-            if (spuser) {
-                u['id'] = spuser.Id;
-            }
-            return u;
-        });
+            return users.map((u) => {
+                const spuser = find(spUsers, (spu: any) => { return spu.UserPrincipalName?.toLowerCase() === u.userPrincipalName?.toLowerCase(); });
+                if (spuser) {
+                    u['id'] = spuser.Id;
+                }
+                return u;
+            });
+        }
+        else {
+            return sp.web.siteUsers.select("Id", "UserPrincipalName", "LoginName", "Email", "Title", "IsSiteAdmin").get();
+        }
     }
 
 
@@ -188,6 +191,6 @@ export abstract class BaseUserService<T extends User> extends BaseDataService<T>
     }
 
     public static getPictureUrl(user: User, size: PictureSize = PictureSize.Large): string {
-        return user.mail ? Text.format("{0}/_layouts/15/userphoto.aspx?accountname={1}&size={2}", ServicesConfiguration.context.pageContext.web.absoluteUrl, user.mail, size) : "";
+        return user.mail ? UtilsService.formatText("{0}/_layouts/15/userphoto.aspx?accountname={1}&size={2}", ServicesConfiguration.baseUrl, user.mail, size) : "";
     }
 }

@@ -1,4 +1,4 @@
-import { find } from "@microsoft/sp-lodash-subset";
+import { find } from "lodash";
 import { PnPClientStorage } from "@pnp/common";
 import { dateAdd, stringIsNullOrEmpty } from "@pnp/common/util";
 import { sp } from "../../pnpExtensions/TermsetExt";
@@ -12,7 +12,6 @@ import { TaxonomyHidden, TaxonomyTerm } from "../../models";
 import { ServiceFactory } from "../ServiceFactory";
 import { UtilsService } from "../UtilsService";
 import { BaseDataService } from "./BaseDataService";
-import { Text } from "@microsoft/sp-core-library";
 const trace = Decorators.trace;
 const standardTermSetCacheDuration = 10;
 
@@ -27,11 +26,12 @@ export class BaseTermsetService<
     protected isGlobal: boolean;
     protected static siteCollectionTermsetId: string;
 
+
     protected set customSortOrder(value: string) {
-        localStorage.setItem(Text.format(Constants.cacheKeys.termsetCustomOrder, ServicesConfiguration.context.pageContext.web.serverRelativeUrl, this.serviceName), value ? value : "");
+        localStorage.setItem(UtilsService.formatText(Constants.cacheKeys.termsetCustomOrder, ServicesConfiguration.serverRelativeUrl, this.serviceName), value ? value : "");
     }
     protected get customSortOrder(): string {
-        return localStorage.getItem(Text.format(Constants.cacheKeys.termsetCustomOrder, ServicesConfiguration.context.pageContext.web.serverRelativeUrl, this.serviceName));
+        return localStorage.getItem(UtilsService.formatText(Constants.cacheKeys.termsetCustomOrder, ServicesConfiguration.serverRelativeUrl, this.serviceName));
     }
 
     /**
@@ -304,6 +304,7 @@ export class BaseTermsetService<
     protected getTranslatedLabel(
         labelCollection: { label: string; languageTag: string }[]
     ): string {
+        // no context, get the current context
         // current ui language
         const current =
             ServicesConfiguration.context.pageContext.cultureInfo

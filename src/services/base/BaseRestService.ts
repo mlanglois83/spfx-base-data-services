@@ -1,5 +1,5 @@
 import { ServicesConfiguration } from "../../configuration";
-import { cloneDeep, find } from "@microsoft/sp-lodash-subset";
+import { cloneDeep, find } from "lodash";
 import { Constants, FieldType, TestOperator, TraceLevel } from "../../constants/index";
 import { IFieldDescriptor, IQuery, ILogicalSequence, IRestQuery, IRestLogicalSequence, IEndPointBindings, IPredicate, IRestPredicate, IOrderBy } from "../../interfaces/index";
 import { BaseDataService } from "./BaseDataService";
@@ -809,7 +809,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                 body: postData,
                 mode: 'cors',
                 headers: headers,
-                referrer: ServicesConfiguration.context.pageContext.web.absoluteUrl,
+                referrer: ServicesConfiguration.baseUrl,
                 referrerPolicy: "no-referrer-when-downgrade"
             };
         }
@@ -817,7 +817,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
             method: method,
             mode: 'cors',
             headers: headers,
-            referrer: ServicesConfiguration.context.pageContext.web.absoluteUrl,
+            referrer: ServicesConfiguration.baseUrl,
             referrerPolicy: "no-referrer-when-downgrade"
         };
     }

@@ -1,4 +1,4 @@
-import { assign, findIndex } from "@microsoft/sp-lodash-subset";
+import { assign, findIndex } from "lodash";
 import { stringIsNullOrEmpty } from "@pnp/common/util";
 import { FieldType } from "../../constants";
 import { IBaseItem, IFieldDescriptor } from "../../interfaces";

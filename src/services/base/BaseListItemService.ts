@@ -1,5 +1,4 @@
-import { SPHttpClient } from '@microsoft/sp-http';
-import { cloneDeep, find, findIndex } from "@microsoft/sp-lodash-subset";
+import { cloneDeep, find, findIndex } from "lodash";
 import { isArray, stringIsNullOrEmpty } from "@pnp/common";
 import { sp } from "@pnp/sp";
 import "@pnp/sp/content-types/list";
@@ -56,7 +55,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
      */
     constructor(type: (new (item?: any) => T), listRelativeUrl: string, cacheDuration?: number, checkLastModify?: boolean) {
         super(type, cacheDuration);
-        this.listRelativeUrl = ServicesConfiguration.context.pageContext.web.serverRelativeUrl + listRelativeUrl;
+        this.listRelativeUrl = ServicesConfiguration.serverRelativeUrl + listRelativeUrl;
         if (this.hasAttachments) {
             this.attachmentsService = new BaseDbService<SPFile>(SPFile, "ListAttachments");
         }
@@ -525,8 +524,10 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                         //if not previous result or last check is more than 20 seconds.
                         if (!lastModifiedSave || (!temp || (temp < new Date()))) {
                             try {
+                                let tempList: any = undefined;
+                                /*if(ServicesConfiguration.context) {
                                 //send request
-                                const response = await ServicesConfiguration.context.spHttpClient.get(`${ServicesConfiguration.context.pageContext.web.absoluteUrl}/_api/web/getList('${this.listRelativeUrl}')`,
+                                    const response = await ServicesConfiguration.context.spHttpClient.get(`${ServicesConfiguration.baseUrl}/_api/web/getList('${this.listRelativeUrl}')`,
                                     SPHttpClient.configurations.v1,
                                     {
                                         headers: {
@@ -534,12 +535,25 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                                             'Cache-Control': 'no-cache'
                                         }
                                     });
+                                    //get response 
+                                    tempList = await response.json();
+                                }
+                                else {*/
+                                    const init: RequestInit = {
+                                        headers: {
+                                            'Accept': 'application/json;odata.metadata=minimal',
+                                            'Cache-Control': 'no-cache'
+                                        },
+                                        credentials: 'same-origin',
+                                        method: "GET"
+                                    };
+                                    const response = await fetch(`${ServicesConfiguration.baseUrl}/_api/web/getList('${this.listRelativeUrl}')`, init);
+                                    tempList = await response.json();
+                                //}
 
                                 //store date when last modified date list is checked
                                 this.lastModifiedListCheck = new Date();
 
-                                //get response 
-                                const tempList = await response.json();
                                 lastModifiedSave = new Date(tempList.LastItemUserModifiedDate ? tempList.LastItemUserModifiedDate : tempList.d.LastItemUserModifiedDate);
                                 //store last modified date list
                                 window.sessionStorage.setItem(cacheKey, JSON.stringify(lastModifiedSave));

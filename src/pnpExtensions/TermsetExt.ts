@@ -1,4 +1,4 @@
-import { find, findIndex } from "@microsoft/sp-lodash-subset";
+import { find, findIndex } from "lodash";
 import { isArray } from "@pnp/common";
 import { extendFactory } from "@pnp/odata";
 import { defaultPath, SPRest } from "@pnp/sp";

@@ -1,4 +1,4 @@
-import { assign } from "@microsoft/sp-lodash-subset";
+import { assign } from "lodash";
 import { ServiceFactory } from "../ServiceFactory";
 import { BaseFile, OfflineTransaction } from "../../models/index";
 import { BaseDbService } from "../base/BaseDbService";
