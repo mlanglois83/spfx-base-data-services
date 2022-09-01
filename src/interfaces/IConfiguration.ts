@@ -32,7 +32,7 @@ export interface IConfiguration {
     /**
      * SPFX component context
      */
-    BaseUrl?: string; // for SP farms
+    baseUrl?: string; // for SP farms
     /**
      * Data table names used to update structure (1 by data service)
      */
