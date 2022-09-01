@@ -1,5 +1,4 @@
 // dev deps in spfx package
-const build = require('@microsoft/sp-build-web');
 const TerserPlugin = require('terser-webpack-plugin');
 
 // From node 
@@ -63,9 +62,7 @@ const inject = function (imports, filePath) {
     });
 }
 
-
-
-function setConfig(basePath, includeSourceMap, sourceMapExclusions, additionnalReservedNames, afterMergeConfig) {
+function getInjectionTask(build, basePath) {
     const tsconfig = require(path.resolve(basePath, "tsconfig.json"));
     // inject dataservices in entry points to ensure decorators are applied for ServiceFactory registration (for both service and associated model)
     let injectServices = build.subTask('services-inject', function (gulp, buildOptions, done) {
@@ -125,6 +122,151 @@ function setConfig(basePath, includeSourceMap, sourceMapExclusions, additionnalR
             })
         ).on('end', () => { done(); });
     });
+    return injectServices;
+}
+
+function mergeWebPackConfig(build, config, basePath, includeSourceMap, sourceMapExclusions, additionnalReservedNames, afterMergeConfig) {
+    const tsconfig = require(path.resolve(basePath, "tsconfig.json"));
+    if (includeSourceMap) {
+        // include sourcemaps for dev
+        if (!build.getConfig().production) {
+            build.log("Including sourcemaps in bundle");
+            config.module.rules.push({
+                test: /\.(js|mjs|jsx|ts|tsx)$/,
+                use: ['source-map-loader'],
+                exclude: sourceMapExclusions || [],
+                enforce: 'pre',
+            });
+        }
+    }
+    // only prod buid
+    if (build.getConfig().production) {
+        build.log("Exclude services and models class names for uglify plugin");
+        additionnalReservedNames = additionnalReservedNames || [];
+        const reserved = ["BaseDataService", "BaseDbService", "BaseFileService", "BaseListItemService", "BaseRestService", "BaseService", "BaseTermsetService", "SPFile", "TaxonomyTerm", "TaxonomyHiddenListService", "SPFile", "TaxonomyTerm", "TaxonomyHiddenListService", "TaxonomyHidden", "UserService", "User", "Entity", "BaseItem", "RestItem", "SPItem", "RestFile", "BaseFile"].concat(additionnalReservedNames);
+        const baseClasses = [];
+        tsconfig.include.forEach((pattern) => {
+            glob.sync(pattern).forEach((filePath) => {
+                const buf = fs.readFileSync(filePath, "utf-8");
+                const serviceDeclaration = buf.match(/@.*(dataService|dataModel)\((["']\w+["'])?\).*export\s*class\s*(\w+)\s*(implements\s*\w+\s*)?extends\s*(\w+)\s*.*/s);
+                if (serviceDeclaration && serviceDeclaration.length === 6) {
+                    const className = serviceDeclaration[3];
+                    if (serviceDeclaration[1] == "dataModel") {
+                        build.verbose("model class : " + className);
+                        const baseClass = serviceDeclaration[5];
+                        if (baseItems.indexOf(baseClass) === -1 && baseClasses.indexOf(baseClass) === -1) {
+                            baseClasses.push(baseClass);
+                        }
+                    }
+                    else {
+                        build.verbose("service class : " + className);
+                    }
+                    reserved.push(className);
+                }
+            });
+        });
+        const addedParents = [].concat(...baseClasses);
+        while (baseClasses.length > 0) {
+            tsconfig.include.forEach((pattern) => {
+                glob.sync(pattern).forEach((filePath) => {
+                    const buf = fs.readFileSync(filePath, "utf-8");
+                    const classPattern = buf.match(/.*export\s*(abstract\s*)?class\s*(\w+)\s*(implements\s*\w+\s*)?extends\s*(\w+)\s*.*/s); // /!\ implements
+                    let isParentClass = false;
+                    if (classPattern && classPattern.length === 5) {
+                        const parentName = classPattern[2];
+                        const parentBaseType = classPattern[4];
+                        const nameIdx = baseClasses.indexOf(parentName)
+                        isParentClass = nameIdx !== -1;
+                        if (isParentClass) {
+                            build.verbose("parent class : " + parentName);
+                            addedParents.push(parentName);
+                            baseClasses.splice(nameIdx, 1);
+                            if (reserved.indexOf(parentName) === -1) {
+                                reserved.push(parentName);
+                            }
+                            if (addedParents.indexOf(parentBaseType) === -1 && baseItems.indexOf(parentBaseType) === -1) {
+                                baseClasses.push(parentBaseType);
+                            }
+                        }
+                    }
+                });
+            });
+        }
+
+
+        build.verbose("Reserved names : " + reserved.join(", "));
+        config.optimization.minimizer =
+            [
+                new TerserPlugin
+                    (
+                        {
+                            extractComments: false,
+                            sourceMap: false,
+                            cache: false,
+                            parallel: false,
+                            terserOptions:
+                            {
+                                output: { comments: false },
+                                compress: { warnings: false },
+                                mangle: {
+                                    reserved: reserved // rem sample from doc ['$super', '$', 'exports', 'require']
+                                }
+                            }
+                        }
+                    )
+            ];
+    }
+    // alias
+    config.resolve = config.resolve || { modules: ['node_modules'] };
+    config.resolve.alias = {};
+    if (tsconfig.compilerOptions.paths) {
+        build.log("Include aliases in bundle");
+        var baseUrl = ".";
+        // get base url
+        if (tsconfig.compilerOptions.baseUrl) {
+            baseUrl = tsconfig.compilerOptions.baseUrl.replace(/\/*$/g, '');
+        }
+        // transform paths to resolve
+        for (const key in tsconfig.compilerOptions.paths) {
+            if (tsconfig.compilerOptions.paths.hasOwnProperty(key)) {
+                if (tsconfig.compilerOptions.paths[key] && tsconfig.compilerOptions.paths[key].length > 0) {
+                    var tspath = tsconfig.compilerOptions.paths[key][0];
+                    var parts = tspath.split("/");
+                    var lastPart = parts.pop();
+                    while (lastPart === "*" || lastPart === "") {
+                        lastPart = parts.pop();
+                    }
+                    tspath = parts.join("/") + "/" + lastPart;
+                    var destpath = baseUrl + "/" + tspath.replace(/^\/*|\/*$/g, '');
+                    // folder
+                    if (lastPart.indexOf(".") === -1) {
+                        destpath += "/";
+                    }
+                    else {
+                        destpath = destpath.replace(/\.ts$/g, '.js');
+                    }
+                    destpath = destpath.replace("/src/", "/lib/");
+                    // Remove /* from key if needed
+                    var destkey = key.replace(/^(.*)\/\*$/g, "$1");
+                    config.resolve.alias[destkey] = path.resolve(basePath, destpath);
+                }
+            }
+        }
+        for (const key in config.resolve.alias) {
+            if (config.resolve.alias.hasOwnProperty(key)) {
+                build.verbose("Alias " + key + " --> " + config.resolve.alias[key]);
+            }
+        }
+    }
+    if (afterMergeConfig) {
+        build.log("Running addintionnal config");
+        afterSetConfig(config);
+    }
+    return config;
+}
+
+function configureSpfxProject(build, basePath, includeSourceMap, sourceMapExclusions, additionnalReservedNames, afterMergeConfig) {
+    const injectServices = getInjectionTask(build, basePath);
     build.rig.addPreBuildTask(injectServices);
 
     /*
@@ -135,144 +277,13 @@ function setConfig(basePath, includeSourceMap, sourceMapExclusions, additionnalR
     */
     build.configureWebpack.mergeConfig({
         additionalConfiguration: (config) => {
-
-            if (includeSourceMap) {
-                // include sourcemaps for dev
-                if (!build.getConfig().production) {
-                    build.log("Including sourcemaps in bundle");
-                    config.module.rules.push({
-                        test: /\.(js|mjs|jsx|ts|tsx)$/,
-                        use: ['source-map-loader'],
-                        exclude: sourceMapExclusions || [],
-                        enforce: 'pre',
-                    });
-                }
-            }
-            // only prod buid
-            if (build.getConfig().production) {
-                build.log("Exclude services and models class names for uglify plugin");
-                additionnalReservedNames = additionnalReservedNames || [];
-                const reserved = ["BaseDataService", "BaseDbService", "BaseFileService", "BaseListItemService", "BaseRestService", "BaseService", "BaseTermsetService", "SPFile", "TaxonomyTerm", "TaxonomyHiddenListService", "SPFile", "TaxonomyTerm", "TaxonomyHiddenListService", "TaxonomyHidden", "UserService", "User", "Entity", "BaseItem", "RestItem", "SPItem", "RestFile", "BaseFile"].concat(additionnalReservedNames);
-                const baseClasses = [];
-                tsconfig.include.forEach((pattern) => {
-                    glob.sync(pattern).forEach((filePath) => {
-                        const buf = fs.readFileSync(filePath, "utf-8");
-                        const serviceDeclaration = buf.match(/@.*(dataService|dataModel)\((["']\w+["'])?\).*export\s*class\s*(\w+)\s*(implements\s*\w+\s*)?extends\s*(\w+)\s*.*/s);
-                        if (serviceDeclaration && serviceDeclaration.length === 6) {
-                            const className = serviceDeclaration[3];
-                            if (serviceDeclaration[1] == "dataModel") {
-                                build.verbose("model class : " + className);
-                                const baseClass = serviceDeclaration[5];
-                                if (baseItems.indexOf(baseClass) === -1 && baseClasses.indexOf(baseClass) === -1) {
-                                    baseClasses.push(baseClass);
-                                }
-                            }
-                            else {
-                                build.verbose("service class : " + className);
-                            }
-                            reserved.push(className);
-                        }
-                    });
-                });
-                const addedParents = [].concat(...baseClasses);
-                while (baseClasses.length > 0) {
-                    tsconfig.include.forEach((pattern) => {
-                        glob.sync(pattern).forEach((filePath) => {
-                            const buf = fs.readFileSync(filePath, "utf-8");
-                            const classPattern = buf.match(/.*export\s*(abstract\s*)?class\s*(\w+)\s*(implements\s*\w+\s*)?extends\s*(\w+)\s*.*/s); // /!\ implements
-                            let isParentClass = false;
-                            if (classPattern && classPattern.length === 5) {
-                                const parentName = classPattern[2];
-                                const parentBaseType = classPattern[4];
-                                const nameIdx = baseClasses.indexOf(parentName)
-                                isParentClass = nameIdx !== -1;
-                                if (isParentClass) {
-                                    build.verbose("parent class : " + parentName);
-                                    addedParents.push(parentName);
-                                    baseClasses.splice(nameIdx, 1);
-                                    if (reserved.indexOf(parentName) === -1) {
-                                        reserved.push(parentName);
-                                    }
-                                    if (addedParents.indexOf(parentBaseType) === -1 && baseItems.indexOf(parentBaseType) === -1) {
-                                        baseClasses.push(parentBaseType);
-                                    }
-                                }
-                            }
-                        });
-                    });
-                }
-
-
-                build.verbose("Reserved names : " + reserved.join(", "));
-                config.optimization.minimizer =
-                    [
-                        new TerserPlugin
-                            (
-                                {
-                                    extractComments: false,
-                                    sourceMap: false,
-                                    cache: false,
-                                    parallel: false,
-                                    terserOptions:
-                                    {
-                                        output: { comments: false },
-                                        compress: { warnings: false },
-                                        mangle: {
-                                            reserved: reserved // rem sample from doc ['$super', '$', 'exports', 'require']
-                                        }
-                                    }
-                                }
-                            )
-                    ];
-            }
-            // alias
-            config.resolve = config.resolve || { modules: ['node_modules'] };
-            config.resolve.alias = {};
-            if (tsconfig.compilerOptions.paths) {
-                build.log("Include aliases in bundle");
-                var baseUrl = ".";
-                // get base url
-                if (tsconfig.compilerOptions.baseUrl) {
-                    baseUrl = tsconfig.compilerOptions.baseUrl.replace(/\/*$/g, '');
-                }
-                // transform paths to resolve
-                for (const key in tsconfig.compilerOptions.paths) {
-                    if (tsconfig.compilerOptions.paths.hasOwnProperty(key)) {
-                        if (tsconfig.compilerOptions.paths[key] && tsconfig.compilerOptions.paths[key].length > 0) {
-                            var tspath = tsconfig.compilerOptions.paths[key][0];
-                            var parts = tspath.split("/");
-                            var lastPart = parts.pop();
-                            while (lastPart === "*" || lastPart === "") {
-                                lastPart = parts.pop();
-                            }
-                            tspath = parts.join("/") + "/" + lastPart;
-                            var destpath = baseUrl + "/" + tspath.replace(/^\/*|\/*$/g, '');
-                            // folder
-                            if (lastPart.indexOf(".") === -1) {
-                                destpath += "/";
-                            }
-                            else {
-                                destpath = destpath.replace(/\.ts$/g, '.js');
-                            }
-                            destpath = destpath.replace("/src/", "/lib/");
-                            // Remove /* from key if needed
-                            var destkey = key.replace(/^(.*)\/\*$/g, "$1");
-                            config.resolve.alias[destkey] = path.resolve(basePath, destpath);
-                        }
-                    }
-                }
-                for (const key in config.resolve.alias) {
-                    if (config.resolve.alias.hasOwnProperty(key)) {
-                        build.verbose("Alias " + key + " --> " + config.resolve.alias[key]);
-                    }
-                }
-            }
-            if (afterMergeConfig) {
-                build.log("Running addintionnal config");
-                afterSetConfig(config);
-            }
-            return config;
+            return mergeWebPackConfig(build, config, basePath, includeSourceMap, sourceMapExclusions, additionnalReservedNames, afterMergeConfig);
         }
     });
 }
-module.exports = setConfig;
+
+module.exports = {
+    getInjectionTask: getInjectionTask,
+    mergeWebPackConfig: mergeWebPackConfig,
+    configureSpfxProject:configureSpfxProject
+};
