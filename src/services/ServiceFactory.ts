@@ -24,6 +24,7 @@ export class ServiceFactory {
      public static getServiceByModelName(modelName: string, ...args: any[]): BaseDataService<BaseItem> {
         if(!ServiceFactory.__services[modelName]) {
             if(!ServicesConfiguration.__factory.services[modelName]) {
+                console.log(`modelname: ${modelName}`);
                 console.error("Unknown model name");
                 throw Error("Unknown model name");
             }

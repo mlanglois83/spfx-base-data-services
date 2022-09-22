@@ -122,9 +122,6 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                 if (fieldDescriptor.fieldName === Constants.commonFields.version) {
                     destItem[propertyName] = spitem[fieldDescriptor.fieldName] ? parseFloat(spitem[fieldDescriptor.fieldName]) : defaultValue;
                 }
-                else if (fieldDescriptor.fieldName === Constants.commonFields.attachments) {
-                    destItem[propertyName] = spitem[fieldDescriptor.fieldName] ? spitem[fieldDescriptor.fieldName].map((fileobj) => { return new SPFile(fileobj); }) : defaultValue;
-                }
                 else if(fieldDescriptor.fieldName.indexOf("/") !== -1) {
                     const splitteed = fieldDescriptor.fieldName.split("/");
                     let current = spitem;
@@ -267,6 +264,18 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                     destItem[propertyName] = defaultValue;
                 }
                 break;
+            case FieldType.Attachment:        
+                if (Array.isArray(spitem[fieldDescriptor.fieldName])){
+                    destItem[propertyName] = spitem[fieldDescriptor.fieldName].map((fileobj) => { 
+                        return new SPFile(fileobj); 
+                    });
+                }
+                else {
+                    destItem[propertyName] = spitem[fieldDescriptor.fieldName]?.results?.map((fileobj) => { 
+                        return new SPFile(fileobj); 
+                    }) ?? fieldDescriptor.defaultValue;
+                }
+                break;
             default: break;
         }
     }
@@ -284,7 +293,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
 
     protected async convertFieldValue(item: T, destItem: any, propertyName: string, fieldDescriptor: IFieldDescriptor): Promise<void> {
         await super.convertFieldValue(item, destItem, propertyName, fieldDescriptor);
-        const itemValue = item[propertyName];
+        const itemValue = item[propertyName];    
         if (!this.isFieldIgnored(item, propertyName, fieldDescriptor)) {
             switch (fieldDescriptor.fieldType) {
                 case FieldType.Lookup:
@@ -363,6 +372,8 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                         destItem[hiddenFieldName] = null;
                     }
                     break;
+                case FieldType.Attachment:
+                    break;                    
                 default: break;
             }
         }
@@ -684,6 +695,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
             const addResult = await this.list.items.select(...selectFields).add(converted);
             await this.populateCommonFields(result, addResult.data);
             await this.updateWssIds(result, addResult.data);
+            await this.updateAttachments(result, addResult.item);
             if (item.id < -1) {
                 await this.updateLinksInDb(Number(item.id), Number(result.id));
             }
@@ -703,6 +715,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                     const version = await updateResult.item.select(...selectFields).get();
                     await this.populateCommonFields(result, version);
                     await this.updateWssIds(result, version);
+                    await this.updateAttachments(result, updateResult);
                 }
             }
             else {
@@ -711,6 +724,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                 const version = await updateResult.item.select(...selectFields).get();
                 await this.populateCommonFields(result, version);
                 await this.updateWssIds(result, version);
+                await this.updateAttachments(result, updateResult);
             }
         }
         return result;
@@ -1063,7 +1077,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                     const id = restItem[fieldName + "Id"];
                     let user = null;
                     if (this.initialized) {
-                        const users = this.getServiceInitValues(User["name"]);
+                        const users = this.getServiceInitValues(User);
                         user = find(users, (u) => { return u.id === id; });
                     }
                     else {
@@ -1078,6 +1092,46 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
             }
         }));
 
+    }
+
+    @trace(TraceLevel.ServiceUtilities)
+    private async updateAttachments(item: T, spItem: any): Promise<void> {
+        const fields = this.ItemFields;
+        for (const propertyName in fields) {
+            if (fields.hasOwnProperty(propertyName)) {
+                const fieldDescription: IFieldDescriptor = fields[propertyName];
+                if (fieldDescription.fieldType === FieldType.Attachment) {
+                    const attachmentsItem = item[propertyName];
+
+                    let attachments = await spItem.item.attachmentFiles.get();
+
+                    //delete attachments
+                    const attachmentsToDelete = attachments.filter(attachment => {
+                        return attachmentsItem.length === 0 || findIndex(attachmentsItem, (att: any) => att.id == attachment.ServerRelativeUrl) === -1;
+                    });
+                    if (attachmentsToDelete?.length > 0){
+                        await spItem.item.attachmentFiles.deleteMultiple(...attachmentsToDelete.map(attachment => attachment.FileName));
+                    }
+
+                    //add attachments
+                    const attachmentsToAdd = attachmentsItem.filter(attachment => attachment.id == null);
+                    console.log(attachmentsToAdd);
+                    if (attachmentsToAdd?.length > 0){
+                        const afis = attachmentsToAdd.map(attachment => {
+                            return {name: attachment.name ?? attachment.title, content: attachment.content ?? attachment._content};
+                        });
+                            
+                        if (afis.length > 0) {
+                            await spItem.item.attachmentFiles.addMultiple(afis);
+                        }
+                    }                    
+
+                    attachments = await spItem.item.attachmentFiles.get();
+
+                    item[propertyName] = attachments?.map((attachment) => new SPFile(attachment));
+                }
+            }
+        }
     }
 
 
@@ -1302,7 +1356,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
             result = `<FieldRef Name="${field.fieldName}"${obj.type === "predicate" && obj.lookupId ? " LookupId=\"TRUE\"" : ""}${obj.type === "orderby" && obj.ascending !== undefined && !obj.ascending ? " Ascending=\"FALSE\"" : ""} />`;
         }
         else {
-            throw new Error("Field was not found : " + obj.propertyName);
+            throw new Error(`Field was not found : ${obj.propertyName.toString()}`);
         }
         return result;
     }
@@ -1379,7 +1433,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
             result = `<Value Type="${type}" ${(type === "DateTime" && obj.includeTimeValue !== undefined ? (" IncludeTimeValue=\"" + (obj.includeTimeValue ? "TRUE" : "FALSE") + "\"") : "") + (type === "DateTime" ? " StorageTZ=\"TRUE\"" : "")}>${value}</Value>`;
         }
         else {
-            throw new Error("Field was not found : " + obj.propertyName);
+            throw new Error(`Field was not found : ${obj.propertyName.toString()}`);
         }
         return result;
     }

@@ -45,5 +45,10 @@ export enum FieldType {
     /**
      * Text field parsed to json
      */
-    Json
+    Json,
+    /**
+     * Attachment field type
+     * Model field type must be SPFile
+     */
+    Attachment
 }

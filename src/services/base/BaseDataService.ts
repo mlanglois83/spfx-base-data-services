@@ -372,7 +372,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
         const result = {};
         await Promise.all(Object.keys(this.ItemFields).map(async (propertyName) => {
             const fieldDescription = this.ItemFields[propertyName];
-            await this.convertFieldValue(item, result, propertyName, fieldDescription);
+             await this.convertFieldValue(item, result, propertyName, fieldDescription);
         }));
         return result;
     }
@@ -1811,14 +1811,9 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
         // Lookups
         if (refVal === QueryToken.UserID) {
             refVal = ServicesConfiguration.configuration.currentUserId;
-        }
-        if (predicate.lookupId) {
-            if (value && value.id && typeof (value.id) === "number") {
-                value = value.id;
-            }
-        }
-        else if (value && value.id && typeof (value.id) === "number") {
-            value = value.title;
+        }        
+        if (value && value.id && typeof (value.id) === "number") {
+            value = predicate.lookupId ? value.id : value.title;
         }
 
         switch (predicate.operator) {
@@ -1883,7 +1878,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
                         if (predicate.lookupId) {
                             if (lookup && lookup.id) {
                                 if (typeof (lookup.id) === "number") {
-                                    test = lookup === refVal;
+                                    test = lookup.id === refVal;
                                 }
                                 else if (lookup instanceof TaxonomyTerm) {
                                     if (typeof (refVal) === "number") {
