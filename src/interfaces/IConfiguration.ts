@@ -14,6 +14,10 @@ export interface IConfiguration {
      */
     dbVersion: number;
     /**
+     * SharePoint version for rest calls
+     */
+    spVersion?: "Online" | "SP2013" | "SP2016" | "SP2019";
+    /**
      * Result of the last connection test call
      */
     lastConnectionCheckResult?: boolean;
@@ -30,7 +34,7 @@ export interface IConfiguration {
      */
     context?: any; // To avoid spfx dependency --> BaseComponentContext
     /**
-     * SPFX component context
+     * SP Web url in case ther is no context
      */
     baseUrl?: string; // for SP farms
     /**

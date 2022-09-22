@@ -44,6 +44,7 @@ export class ServicesConfiguration {
      * Default configuration
      */
     private static configurationInternal: IConfiguration = {
+        spVersion: "Online",
         dbName: "spfx-db",
         dbVersion: 1,
         lastConnectionCheckResult: false,
@@ -68,7 +69,8 @@ export class ServicesConfiguration {
      * @param configuration - configuration object
      */
     public static Init(configuration: IConfiguration): void {
-        ServicesConfiguration.configurationInternal = configuration;        
+        ServicesConfiguration.configurationInternal = configuration;  
+        configuration.spVersion = configuration.spVersion || "Online";      
         configuration.traceLevel = configuration.traceLevel || TraceLevel.None;
         configuration.tableNames = Constants.tableNames.concat(configuration.tableNames || []);
         configuration.lastConnectionCheckResult = false;

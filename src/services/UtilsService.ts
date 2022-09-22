@@ -3,6 +3,7 @@ import { ServicesConfiguration } from "../configuration/ServicesConfiguration";
 import { cloneDeep, find } from "lodash";
 import { Batch } from "@pnp/odata";
 import { TaxonomyTerm } from "../models/base/TaxonomyTerm";
+import { stringIsNullOrEmpty } from "@pnp/common";
 /**
  * Utility class
  */
@@ -85,6 +86,18 @@ export class UtilsService extends BaseService {
         const urlParts = url.split('/');
         urlParts.pop();
         return urlParts.join("/");
+    }
+
+    /**
+     * Return relative url
+     * @param url - url 
+     */
+     public static getRelativeUrl(url: string): string {
+         if(!stringIsNullOrEmpty(url)) {
+             url = url.replace(/((https?:)?\/\/[^\/]+)?(.*)/,"$3");
+             url = stringIsNullOrEmpty(url) ? "/" : url; 
+         }
+         return url;
     }
 
     /**
@@ -207,6 +220,29 @@ export class UtilsService extends BaseService {
         }
         return result;
     }
+
+    public static async executePromisesInStacks<T>(promiseGenerators: (() => Promise<T>)[], stackCount: number): Promise<T[]> {
+        const result: T[] = [];
+        const segments = UtilsService.divideArray(promiseGenerators, stackCount);
+        const results = await Promise.all(segments.map((s) => {
+            return UtilsService.chainPromiseGenerators(s);
+        }));
+        results.forEach((r) => {
+            result.push(...r);
+        });
+        return result;
+    }
+
+    public static async chainPromiseGenerators<T>(promiseGenerators: (() => Promise<T>)[]): Promise<T[]> {
+        const result: T[] = [];
+        while (promiseGenerators.length > 0) {
+            const currentPromise = promiseGenerators.shift()();
+            const currentResult = await currentPromise;
+            result.push(currentResult);
+        }
+        return result;
+    }
+
     public static async runBatchesInStacks(batches: Batch[], stackCount: number): Promise<void> {
         const segments = UtilsService.divideArray(batches, stackCount);
         await Promise.all(segments.map((s) => {

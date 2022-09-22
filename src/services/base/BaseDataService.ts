@@ -318,6 +318,12 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
             case FieldType.Simple:
                 destItem[propertyName] = data[fieldDescriptor.fieldName] !== null && data[fieldDescriptor.fieldName] !== undefined ? data[fieldDescriptor.fieldName] : defaultValue;
                 break;
+            case FieldType.Url:
+                destItem[propertyName] = data[fieldDescriptor.fieldName] !== null && data[fieldDescriptor.fieldName] !== undefined ? {
+                    url: data[fieldDescriptor.fieldName].Url,
+                    description: data[fieldDescriptor.fieldName].Description
+                 } : defaultValue;
+                break;
             case FieldType.Date:
                 destItem[propertyName] = data[fieldDescriptor.fieldName] ? new Date(data[fieldDescriptor.fieldName]) : defaultValue;
                 break;
@@ -384,6 +390,9 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
                 case FieldType.Simple:
                 case FieldType.Date:
                     destItem[fieldDescriptor.fieldName] = itemValue;
+                    break;
+                case FieldType.Url: // TODO
+                    destItem[fieldDescriptor.fieldName] = itemValue ? {Url: itemValue.url, Description: itemValue.description}: itemValue;
                     break;
                 case FieldType.Json:
                     if (fieldDescriptor.containsFullObject) {
@@ -1240,18 +1249,18 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
         const resultItems: { [modelName: string]: BaseItem[] } = innerResult;
         // get from cache
         // Init queries       
-        const cachedpromises: Array<Promise<BaseItem[]>> = [];
+        const cachedpromises: Array<() => Promise<BaseItem[]>> = [];
         for (const modelName in cachedIds) {
             if (cachedIds.hasOwnProperty(modelName)) {
                 const ids = cachedIds[modelName];
                 if (ids && ids.length > 0) {
                     const service = ServiceFactory.getServiceByModelName(modelName);
-                    cachedpromises.push(service.getItemsFromCacheById(ids));
+                    cachedpromises.push(() => service.getItemsFromCacheById(ids));
                 }
             }
         }
         // execute and store
-        const cachedresults = await UtilsService.runPromisesInStacks(cachedpromises, 3);
+        const cachedresults = await UtilsService.executePromisesInStacks(cachedpromises, 3);
         cachedresults.forEach(itemsTab => {
             if (itemsTab.length > 0) {
                 resultItems[itemsTab[0].constructor["name"]] = resultItems[itemsTab[0].constructor["name"]] || [];
@@ -1261,18 +1270,18 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
 
         // Not cached
         // Init queries       
-        const promises: Array<Promise<BaseItem[]>> = [];
+        const promises: Array<() => Promise<BaseItem[]>> = [];
         for (const modelName in allIds) {
             if (allIds.hasOwnProperty(modelName)) {
                 const ids = allIds[modelName];
                 if (ids && ids.length > 0) {
                     const service = ServiceFactory.getServiceByModelName(modelName);
-                    promises.push(service.getItemsById(ids));
+                    promises.push(() => service.getItemsById(ids));
                 }
             }
         }
         // execute and store
-        const results = await UtilsService.runPromisesInStacks(promises, 3);
+        const results = await UtilsService.executePromisesInStacks(promises, 3);
         results.forEach(itemsTab => {
             if (itemsTab.length > 0) {
                 resultItems[itemsTab[0].constructor["name"]] = resultItems[itemsTab[0].constructor["name"]] || [];
@@ -1766,16 +1775,6 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
                 results = [];
             }
         }
-        // Paged query
-        if (query.lastId) {
-            const idx = findIndex(results, (r) => { return r.id === query.lastId; });
-            if (idx > -1) {
-                results = results.slice(idx + 1);
-            }
-            else {
-                results = [];
-            }
-        }
         // limit
         if (query.limit) {
             results.splice(query.limit);
@@ -1806,6 +1805,10 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
         }
         if (value && value instanceof Date && !predicate.includeTimeValue) {
             value = new Date(value.getFullYear(), value.getMonth(), value.getDate());
+        }
+        // url
+        if(value.hasOwnProperty("url")) {
+            value = value.url;
         }
         // Lookups
         if (refVal === QueryToken.UserID) {

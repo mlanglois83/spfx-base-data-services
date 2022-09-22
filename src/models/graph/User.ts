@@ -50,6 +50,21 @@ export class User extends BaseItem {
         this.title = val;
     }
 
+    /**
+     * Get User login name without claims
+     */
+    public get cleanLoginName(): string {
+        return this.loginName?.replace(/(.*\|)?([^|]+)/, "$2");
+    }
+
+    /**
+     * Get User login name without claims and domain
+     */
+     public get cleanLoginNameNoDomain(): string {
+        return this.loginName?.replace(/(.*\|)?([^|\\]+)\\?([^|\\]+)/, "$3");
+    }
+    
+    
 
     /**
      * Instancate an user object
