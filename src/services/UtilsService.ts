@@ -1,9 +1,9 @@
 import { BaseService } from "./base/BaseService";
 import { ServicesConfiguration } from "../configuration/ServicesConfiguration";
-import { Text } from '@microsoft/sp-core-library';
-import { cloneDeep, find } from "@microsoft/sp-lodash-subset";
+import { cloneDeep, find } from "lodash";
 import { Batch } from "@pnp/odata";
 import { TaxonomyTerm } from "../models/base/TaxonomyTerm";
+import { stringIsNullOrEmpty } from "@pnp/common";
 /**
  * Utility class
  */
@@ -25,7 +25,7 @@ export class UtilsService extends BaseService {
             UtilsService.checkOnlinePromise = new Promise<boolean>(async (resolve) => {                
                 let result = false;
                 try {
-                    const response = await fetch(ServicesConfiguration.context.pageContext.web.absoluteUrl + (ServicesConfiguration.configuration.onlineCheckPage || ""), { method: 'HEAD', mode: 'no-cors' }); // head method not cached
+                    const response = await fetch(ServicesConfiguration.baseUrl + (ServicesConfiguration.configuration.onlineCheckPage || ""), { method: 'HEAD', mode: 'no-cors' }); // head method not cached
                     result = (response && (response.ok || response.type === 'opaque'));
                 }
                 catch (ex) {
@@ -89,6 +89,18 @@ export class UtilsService extends BaseService {
     }
 
     /**
+     * Return relative url
+     * @param url - url 
+     */
+     public static getRelativeUrl(url: string): string {
+         if(!stringIsNullOrEmpty(url)) {
+             url = url.replace(/((https?:)?\/\/[^\/]+)?(.*)/,"$3");
+             url = stringIsNullOrEmpty(url) ? "/" : url; 
+         }
+         return url;
+    }
+
+    /**
      * Concatenate array buffers
      * @param arrays - array buffers to concatenate
      */
@@ -137,11 +149,7 @@ export class UtilsService extends BaseService {
         if (listClauses.length === 1)
             return listClauses[0];
         const clause = listClauses[0];
-        return Text.format("<{0}>{1}{2}</{0}>",
-            operande,
-            clause,
-            UtilsService.buildCAMLQueryRecursive(operande, listClauses.slice(1))
-        );
+        return `<${operande}>${clause}${UtilsService.buildCAMLQueryRecursive(operande, listClauses.slice(1))}</${operande}>`;
     }
 
     /**
@@ -212,6 +220,29 @@ export class UtilsService extends BaseService {
         }
         return result;
     }
+
+    public static async executePromisesInStacks<T>(promiseGenerators: (() => Promise<T>)[], stackCount: number): Promise<T[]> {
+        const result: T[] = [];
+        const segments = UtilsService.divideArray(promiseGenerators, stackCount);
+        const results = await Promise.all(segments.map((s) => {
+            return UtilsService.chainPromiseGenerators(s);
+        }));
+        results.forEach((r) => {
+            result.push(...r);
+        });
+        return result;
+    }
+
+    public static async chainPromiseGenerators<T>(promiseGenerators: (() => Promise<T>)[]): Promise<T[]> {
+        const result: T[] = [];
+        while (promiseGenerators.length > 0) {
+            const currentPromise = promiseGenerators.shift()();
+            const currentResult = await currentPromise;
+            result.push(currentResult);
+        }
+        return result;
+    }
+
     public static async runBatchesInStacks(batches: Batch[], stackCount: number): Promise<void> {
         const segments = UtilsService.divideArray(batches, stackCount);
         await Promise.all(segments.map((s) => {
@@ -277,5 +308,49 @@ export class UtilsService extends BaseService {
         const cache = await caches.open(cacheKey);
         const response = await cache.match(url);
         return response !== undefined && response !== null;
+    }
+
+    public static formatText(s: string, ...values: unknown[]): string {        
+        if (s === null) {
+            // tslint:disable-line:no-null-keyword
+            throw new Error(`The value for "${s}" must not be null`);
+        }
+        if (s === undefined) {
+            throw new Error(`The value for "${s}" must not be undefined`);
+        }
+        return s.replace(/\{\d+\}/g, (match: string): string => {
+            // The matchID is the numeric value contained in the brackets. {01} gets converted to 1.
+            const matchId = parseInt(match.replace(/[\{\}]/g, ''), 10);
+            // The matchValue is the string contained in the values' matchId index.
+            // If matchId = 1 and values = ['the', 'bear', 'ate'], then matchValue = 'bear'
+            let matchValue = `${values[matchId]}`;
+            // If you index outside of the values array, return the original matchId in brackets
+            if (matchId >= values.length || matchId < 0) {
+                matchValue = match;
+            }
+            // Logic to convert null and undefined into readable strings
+            /* tslint:disable-next-line:no-null-keyword */
+            if (matchValue === null) {
+                matchValue = 'null';
+            }
+            else if (matchValue === undefined) {
+                matchValue = 'undefined';
+            }
+            return matchValue;
+        });
+    }
+
+    public static generateGuid(): string {
+        return 'AAAAAAAA-AAAA-4AAA-BAAA-AAAAAAAAAAAA'.replace(/[AB]/g, 
+        // Callback for String.replace() when generating a guid.
+        function (character) {
+            const randomNumber = Math.random();
+            /* tslint:disable:no-bitwise */
+            const num = (randomNumber * 16) | 0;
+            // Check for 'A' in template string because the first characters in the
+            // third and fourth blocks must be specific characters (according to "version 4" UUID from RFC 4122)
+            const masked = character === 'A' ? num : (num & 0x3) | 0x8;
+            return masked.toString(16);
+        });
     }
 }

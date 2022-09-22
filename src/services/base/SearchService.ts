@@ -1,4 +1,4 @@
-import { assign, cloneDeep, find } from "@microsoft/sp-lodash-subset";
+import { assign, cloneDeep, find } from "lodash";
 import {
   SearchQueryBuilder,
   SearchResults,

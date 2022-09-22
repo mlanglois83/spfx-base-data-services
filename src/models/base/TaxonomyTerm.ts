@@ -1,4 +1,3 @@
-import { Guid } from "@microsoft/sp-core-library";
 import { stringIsNullOrEmpty } from "@pnp/common/util";
 import { BaseItem } from "../base/BaseItem";
 
@@ -13,7 +12,7 @@ export class TaxonomyTerm extends BaseItem {
     /**
      * Term id (Guid)
      */
-    public id: string = Guid.empty.toString();
+    public id = '00000000-0000-0000-0000-000000000000';
     /**
      * Term label
      */

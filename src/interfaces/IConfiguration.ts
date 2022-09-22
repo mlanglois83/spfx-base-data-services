@@ -1,4 +1,3 @@
-import { BaseComponentContext } from "@microsoft/sp-component-base";
 import { TraceLevel } from "../constants";
 import { ITranslationLabels } from "./";
 
@@ -15,6 +14,10 @@ export interface IConfiguration {
      */
     dbVersion: number;
     /**
+     * SharePoint version for rest calls
+     */
+    spVersion?: "Online" | "SP2013" | "SP2016" | "SP2019";
+    /**
      * Result of the last connection test call
      */
     lastConnectionCheckResult?: boolean;
@@ -22,7 +25,6 @@ export interface IConfiguration {
      * true : services can retrieve data when offline, false : every time a network call is performed
      */
     checkOnline?: boolean;
-
     /**
     * empty : indicate a specific url to test online/offline instead of site root (creating 302 to default page). Fill this value avoid making to many request
     */
@@ -30,7 +32,11 @@ export interface IConfiguration {
     /**
      * SPFX component context
      */
-    context: BaseComponentContext;
+    context?: any; // To avoid spfx dependency --> BaseComponentContext
+    /**
+     * SP Web url in case ther is no context
+     */
+    baseUrl?: string; // for SP farms
     /**
      * Data table names used to update structure (1 by data service)
      */

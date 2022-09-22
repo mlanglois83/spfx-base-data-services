@@ -1,5 +1,4 @@
-import { SPHttpClient } from '@microsoft/sp-http';
-import { cloneDeep, find, findIndex } from "@microsoft/sp-lodash-subset";
+import { cloneDeep, find, findIndex } from "lodash";
 import { isArray, stringIsNullOrEmpty } from "@pnp/common";
 import { sp } from "@pnp/sp";
 import "@pnp/sp/content-types/list";
@@ -56,7 +55,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
      */
     constructor(type: (new (item?: any) => T), listRelativeUrl: string, cacheDuration?: number, checkLastModify?: boolean) {
         super(type, cacheDuration);
-        this.listRelativeUrl = ServicesConfiguration.context.pageContext.web.serverRelativeUrl + listRelativeUrl;
+        this.listRelativeUrl = ServicesConfiguration.serverRelativeUrl + listRelativeUrl;
         if (this.hasAttachments) {
             this.attachmentsService = new BaseDbService<SPFile>(SPFile, "ListAttachments");
         }
@@ -536,21 +535,21 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                         //if not previous result or last check is more than 20 seconds.
                         if (!lastModifiedSave || (!temp || (temp < new Date()))) {
                             try {
-                                //send request
-                                const response = await ServicesConfiguration.context.spHttpClient.get(`${ServicesConfiguration.context.pageContext.web.absoluteUrl}/_api/web/getList('${this.listRelativeUrl}')`,
-                                    SPHttpClient.configurations.v1,
-                                    {
-                                        headers: {
-                                            'Accept': 'application/json;odata.metadata=minimal',
-                                            'Cache-Control': 'no-cache'
-                                        }
-                                    });
+                                let tempList: any = undefined;
+                                const init: RequestInit = {
+                                    headers: {
+                                        'Accept': 'application/json;odata.metadata=minimal',
+                                        'Cache-Control': 'no-cache'
+                                    },
+                                    credentials: 'same-origin',
+                                    method: "GET"
+                                };
+                                const response = await fetch(`${ServicesConfiguration.baseUrl}/_api/web/getList('${this.listRelativeUrl}')`, init);
+                                tempList = await response.json();
 
                                 //store date when last modified date list is checked
                                 this.lastModifiedListCheck = new Date();
 
-                                //get response 
-                                const tempList = await response.json();
                                 lastModifiedSave = new Date(tempList.LastItemUserModifiedDate ? tempList.LastItemUserModifiedDate : tempList.d.LastItemUserModifiedDate);
                                 //store last modified date list
                                 window.sessionStorage.setItem(cacheKey, JSON.stringify(lastModifiedSave));
@@ -648,11 +647,11 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
     @trace(TraceLevel.Queries)
     protected async getItemsById_Query(ids: Array<number>, linkedFields?: Array<string>): Promise<Array<any>> {
         const result: Array<any> = [];
-        const promises: Promise<Array<any>>[] = [];
+        const promises: (() => Promise<Array<any>>)[] = [];
         const copy = cloneDeep(ids);
         while (copy.length > 0) {
             const sub = copy.splice(0, 2000);
-            promises.push(this.get_Query({
+            promises.push(() => this.get_Query({
                 test: {
                     type: "predicate",
                     operator: TestOperator.In,
@@ -662,7 +661,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                 limit: 2000
             }, linkedFields));
         }
-        const res = await UtilsService.runPromisesInStacks(promises, 3);
+        const res = await UtilsService.executePromisesInStacks(promises, 3);
         for (const tmp of res) {
             result.push(...tmp.filter(i => { return i !== null && i !== undefined; }));
         }
@@ -748,17 +747,46 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         const entityTypeFullName = await this.list.getListItemEntityTypeFullName();
         const selectFields = this.getOdataCommonFieldNames();
         // creation batch
-        if (itemsToAdd.length > 0) {
-            let idx = 0;
-            const batches = [];
-            while (itemsToAdd.length > 0) {
-                const sub = itemsToAdd.splice(0, 100);
-                const batch = sp.createBatch();
-                for (const item of sub) {
-                    const currentIdx = idx;
+        if (itemsToAdd.length > 0) {            
+            if(ServicesConfiguration.configuration.spVersion !== "SP2013") {
+                let idx = 0;
+                const batches = [];
+                while (itemsToAdd.length > 0) {
+                    const sub = itemsToAdd.splice(0, 100);
+                    const batch = sp.createBatch();
+                    for (const item of sub) {
+                        const currentIdx = idx;
+                        const itemId = item.id;
+                        const converted = await this.convertItem(item);
+                        this.list.items.select(...selectFields).inBatch(batch).add(converted, entityTypeFullName).then(async (addResult: IItemAddResult) => {
+                            await this.populateCommonFields(item, addResult.data);
+                            await this.updateWssIds(item, addResult.data);
+                            if (itemId < -1) {
+                                await this.updateLinksInDb(Number(itemId), Number(item.id));
+                            }
+                            if (onItemUpdated) {
+                                onItemUpdated(items[currentIdx], item);
+                            }
+                        }).catch((error) => {
+                            item.error = error;
+                            if (onItemUpdated) {
+                                onItemUpdated(items[currentIdx], item);
+                            }
+                        });
+                        idx++;
+                    }
+                    batches.push(batch);
+                }
+                await UtilsService.runBatchesInStacks(batches, 3);
+            }
+            else {
+                const promiseGenerators = [];
+                for (let idx = 0; idx < itemsToAdd.length; idx++) {
+                    const item = itemsToAdd[idx];
                     const itemId = item.id;
+                    const currentIdx = idx;
                     const converted = await this.convertItem(item);
-                    this.list.items.select(...selectFields).inBatch(batch).add(converted, entityTypeFullName).then(async (addResult: IItemAddResult) => {
+                    promiseGenerators.push(() => this.list.items.select(...selectFields).add(converted, entityTypeFullName).then(async (addResult: IItemAddResult) => {
                         await this.populateCommonFields(item, addResult.data);
                         await this.updateWssIds(item, addResult.data);
                         if (itemId < -1) {
@@ -772,23 +800,51 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                         if (onItemUpdated) {
                             onItemUpdated(items[currentIdx], item);
                         }
-                    });
-                    idx++;
+                    }));
                 }
-                batches.push(batch);
+                await UtilsService.executePromisesInStacks(promiseGenerators, 3);
             }
-            await UtilsService.runBatchesInStacks(batches, 3);
         }
         // versionned batch --> check conflicts
         if (versionedItems.length > 0) {
-            let idx = 0;
-            const batches = [];
-            while (versionedItems.length > 0) {
-                const sub = versionedItems.splice(0, 100);
-                const batch = sp.createBatch();
-                for (const item of sub) {
+            if(ServicesConfiguration.configuration.spVersion !== "SP2013") {
+                let idx = 0;
+                const batches = [];
+                while (versionedItems.length > 0) {
+                    const sub = versionedItems.splice(0, 100);
+                    const batch = sp.createBatch();
+                    for (const item of sub) {
+                        const currentIdx = idx;
+                        this.list.items.getById(item.id).select(Constants.commonFields.version).inBatch(batch).get().then(async (existing) => {
+                            if (parseFloat(existing[Constants.commonFields.version]) > item.version) {
+                                const error = new Error(ServicesConfiguration.configuration.translations.versionHigherErrorMessage);
+                                error.name = Constants.Errors.ItemVersionConfict;
+                                item.error = error;
+                                if (onItemUpdated) {
+                                    onItemUpdated(items[currentIdx], item);
+                                }
+                            }
+                            else {
+                                updatedItems.push(item);
+                            }
+                        }).catch((error) => {
+                            item.error = error;
+                            if (onItemUpdated) {
+                                onItemUpdated(items[currentIdx], item);
+                            }
+                        });
+                        idx++;
+                    }
+                    batches.push(batch);
+                }
+                await UtilsService.runBatchesInStacks(batches, 3);
+            }
+            else {
+                const promiseGenerators = [];
+                for (let idx = 0; idx < versionedItems.length; idx++) {
+                    const item = versionedItems[idx];
                     const currentIdx = idx;
-                    this.list.items.getById(item.id).select(Constants.commonFields.version).inBatch(batch).get().then(async (existing) => {
+                    promiseGenerators.push(() => this.list.items.getById(item.id).select(Constants.commonFields.version).get().then(async (existing) => {
                         if (parseFloat(existing[Constants.commonFields.version]) > item.version) {
                             const error = new Error(ServicesConfiguration.configuration.translations.versionHigherErrorMessage);
                             error.name = Constants.Errors.ItemVersionConfict;
@@ -805,26 +861,49 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                         if (onItemUpdated) {
                             onItemUpdated(items[currentIdx], item);
                         }
-                    });
-                    idx++;
+                    }));
                 }
-                batches.push(batch);
+                await UtilsService.executePromisesInStacks(promiseGenerators, 3);
             }
-            await UtilsService.runBatchesInStacks(batches, 3);
+            
         }
         // 
         const resultItems: Array<T> = [];
         // classical update batch + version checked
         if (updatedItems.length > 0) {
-            let idx = 0;
-            const batches = [];
-            while (updatedItems.length > 0) {
-                const sub = updatedItems.splice(0, 100);
-                const batch = sp.createBatch();
-                for (const item of sub) {
+            if(ServicesConfiguration.configuration.spVersion !== "SP2013") {
+                let idx = 0;
+                const batches = [];
+                while (updatedItems.length > 0) {
+                    const sub = updatedItems.splice(0, 100);
+                    const batch = sp.createBatch();
+                    for (const item of sub) {
+                        const currentIdx = idx;
+                        const converted = await this.convertItem(item);
+                        this.list.items.getById(item.id).select(...selectFields).inBatch(batch).update(converted, '*', entityTypeFullName).then(async () => {                                            
+                            if (onItemUpdated) {
+                                onItemUpdated(items[currentIdx], item);
+                            }
+                            resultItems.push(item);
+                        }).catch((error) => {
+                            item.error = error;
+                            if (onItemUpdated) {
+                                onItemUpdated(items[currentIdx], item);
+                            }
+                        });
+                        idx++;
+                    }
+                    batches.push(batch);
+                }
+                await UtilsService.runBatchesInStacks(batches, 3);
+            }
+            else {
+                const promiseGenerators = [];
+                for (let idx = 0; idx < updatedItems.length; idx++) {
+                    const item = updatedItems[idx];
                     const currentIdx = idx;
                     const converted = await this.convertItem(item);
-                    this.list.items.getById(item.id).select(...selectFields).inBatch(batch).update(converted, '*', entityTypeFullName).then(async () => {                                            
+                    promiseGenerators.push(() => this.list.items.getById(item.id).select(...selectFields).update(converted, '*', entityTypeFullName).then(async () => {                                            
                         if (onItemUpdated) {
                             onItemUpdated(items[currentIdx], item);
                         }
@@ -834,24 +913,47 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                         if (onItemUpdated) {
                             onItemUpdated(items[currentIdx], item);
                         }
-                    });
-                    idx++;
+                    }));
                 }
-                batches.push(batch);
+                await UtilsService.executePromisesInStacks(promiseGenerators, 3);
             }
-            await UtilsService.runBatchesInStacks(batches, 3);
+            
         }    
         // update properties
         const resultsLength = resultItems.length;
         if (resultItems.length > 0) {
-            let idx = 0;
-            const batches = [];
-            while (resultItems.length > 0) {
-                const sub = resultItems.splice(0, 100);
-                const batch = sp.createBatch();
-                for (const item of sub) {
+            if(ServicesConfiguration.configuration.spVersion !== "SP2013") {
+                let idx = 0;
+                const batches = [];
+                while (resultItems.length > 0) {
+                    const sub = resultItems.splice(0, 100);
+                    const batch = sp.createBatch();
+                    for (const item of sub) {
+                        const currentIdx = idx;
+                        this.list.items.getById(item.id).select(...selectFields).inBatch(batch).get().then(async (version) => {
+                            await this.populateCommonFields(item, version);
+                            await this.updateWssIds(item, version);
+                            if (onItemRefreshed) {
+                                onItemRefreshed(currentIdx, resultsLength);
+                            }
+                        }).catch((error) => {
+                            item.error = error;
+                            if (onItemRefreshed) {
+                                onItemRefreshed(currentIdx, resultsLength);
+                            }
+                        });
+                        idx++;
+                    }
+                    batches.push(batch);
+                }
+                await UtilsService.runBatchesInStacks(batches, 3);
+            }
+            else {
+                const promiseGenerators = [];
+                for (let idx = 0; idx < resultItems.length; idx++) {
+                    const item = resultItems[idx];
                     const currentIdx = idx;
-                    this.list.items.getById(item.id).select(...selectFields).inBatch(batch).get().then(async (version) => {
+                    promiseGenerators.push(() => this.list.items.getById(item.id).select(...selectFields).get().then(async (version) => {
                         await this.populateCommonFields(item, version);
                         await this.updateWssIds(item, version);
                         if (onItemRefreshed) {
@@ -862,12 +964,11 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                         if (onItemRefreshed) {
                             onItemRefreshed(currentIdx, resultsLength);
                         }
-                    });
-                    idx++;
+                    }));
                 }
-                batches.push(batch);
+                await UtilsService.executePromisesInStacks(promiseGenerators, 3);
             }
-            await UtilsService.runBatchesInStacks(batches, 3);
+            
         }
         return result;
     }
@@ -890,15 +991,28 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
 
     @trace(TraceLevel.Internal)
     protected async deleteItems_Internal(items: Array<T>): Promise<Array<T>> {
-        const batch = sp.createBatch();
-        items.forEach(item => {
-            this.list.items.getById(item.id).inBatch(batch).recycle().then(() => {
-                item.deleted = true;
-            }).catch((error) => {
-                item.error = error;
+        if(ServicesConfiguration.configuration.spVersion !== "SP2013") {
+            const batch = sp.createBatch();
+            items.forEach(item => {
+                this.list.items.getById(item.id).inBatch(batch).recycle().then(() => {
+                    item.deleted = true;
+                }).catch((error) => {
+                    item.error = error;
+                });
             });
-        });
-        await batch.execute();
+            await batch.execute();
+        }
+        else {
+            const promises = [];
+            items.forEach(item => {
+                promises.push(() => this.list.items.getById(item.id).recycle().then(() => {
+                    item.deleted = true;
+                }).catch((error) => {
+                    item.error = error;
+                }));
+            });
+            await UtilsService.executePromisesInStacks(promises, 3);
+        }
         return items;
     }
 
@@ -1390,7 +1504,11 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                     else {
                         value = fieldValue.toISOString().replace(/\.\d+Z/g, "Z");
                     }
-                    break;
+                    break;                    
+                case FieldType.Url:
+                    value = UtilsService.getRelativeUrl(fieldValue);
+                    type = "URL";
+                    break;  
                 case FieldType.Json:
                     type = "Text";
                     value = JSON.stringify(fieldValue);

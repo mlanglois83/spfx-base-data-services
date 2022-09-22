@@ -1,11 +1,12 @@
-import { Text } from "@microsoft/sp-core-library";
-import { cloneDeep, find } from "@microsoft/sp-lodash-subset";
 import { stringIsNullOrEmpty } from "@pnp/common/util";
 import { graph } from "@pnp/graph";
 import "@pnp/graph/users";
-import { sp } from "@pnp/sp";
+import { IPrincipalInfo, PrincipalSource, PrincipalType, sp } from "@pnp/sp";
 import "@pnp/sp/site-users";
+import { ISiteUserInfo } from "@pnp/sp/site-users/types";
 import "@pnp/sp/site-users/web";
+import "@pnp/sp/sputilities";
+import { cloneDeep, find, isArray } from "lodash";
 import { ServicesConfiguration } from "../../configuration/ServicesConfiguration";
 import { PictureSize, TestOperator } from "../../constants";
 import { IPredicate, IQuery } from "../../interfaces";
@@ -19,6 +20,14 @@ const standardUserCacheDuration = 10;
 export abstract class BaseUserService<T extends User> extends BaseDataService<T> {
 
     protected groupsToo = false;
+
+    public static get userField(): keyof Pick<User, "userPrincipalName" | "loginName"> {
+        return ServicesConfiguration.configuration.spVersion === "Online" ? "userPrincipalName" : "loginName";
+    }
+
+    protected get spUserField(): keyof Pick<ISiteUserInfo, "UserPrincipalName" | "LoginName"> {
+        return ServicesConfiguration.configuration.spVersion === "Online" ? "UserPrincipalName" : "LoginName";
+    }
 
     /**
      * Instanciates a user service
@@ -55,25 +64,47 @@ export abstract class BaseUserService<T extends User> extends BaseDataService<T>
         if (parts.length > 1) {
             reverseFilter = parts[1].trim() + " " + parts[0].trim();
         }
+        if(ServicesConfiguration.context) {
+            const [users, spUsers] = await Promise.all([graph.users
+                .filter(
+                    `startswith(displayName,'${queryStr}') or ` +
+                    `startswith(displayName,'${reverseFilter}') or ` +
+                    `startswith(givenName,'${queryStr}') or ` +
+                    `startswith(surname,'${queryStr}') or ` +
+                    `startswith(mail,'${queryStr}') or ` +
+                    `startswith(userPrincipalName,'${queryStr}')`
+                )
+                .get(), sp.web.siteUsers.select("Id", "UserPrincipalName", "LoginName", "Email", "Title", "IsSiteAdmin").get()]);
 
-        const [users, spUsers] = await Promise.all([graph.users
-            .filter(
-                `startswith(displayName,'${queryStr}') or ` +
-                `startswith(displayName,'${reverseFilter}') or ` +
-                `startswith(givenName,'${queryStr}') or ` +
-                `startswith(surname,'${queryStr}') or ` +
-                `startswith(mail,'${queryStr}') or ` +
-                `startswith(userPrincipalName,'${queryStr}')`
-            )
-            .get(), sp.web.siteUsers.select("Id", "UserPrincipalName", "LoginName", "Email", "Title", "IsSiteAdmin").get()]);
-
-        return users.map((u) => {
-            const spuser = find(spUsers, (spu: any) => { return spu.UserPrincipalName?.toLowerCase() === u.userPrincipalName?.toLowerCase(); });
-            if (spuser) {
-                u['id'] = spuser.Id;
+            return users.map((u: any) => {
+                const spuser = find(spUsers, (spu: ISiteUserInfo) => { return spu[this.spUserField]?.toLowerCase() === u[this.spUserField]?.toLowerCase(); });
+                if (spuser) {
+                    u['id'] = spuser.Id;
+                }
+                return u;
+            });
+        }
+        else {
+            const [searchResults, spUsers] = await Promise.all([
+                sp.utility.searchPrincipals(queryStr, (PrincipalType.User | (this.groupsToo ? PrincipalType.SecurityGroup : PrincipalType.None)) , PrincipalSource.All,"", 15),
+                sp.web.siteUsers.select("Id", "UserPrincipalName", "LoginName", "Email", "Title", "IsSiteAdmin").get()
+            ]);
+            let searchConv = searchResults;
+            if(!isArray(searchConv)) // parsing error
+            {
+                searchConv = ((searchConv as any).SearchPrincipalsUsingContextWeb?.results as Array<IPrincipalInfo>) || [];
             }
-            return u;
-        });
+            return searchConv.map((sr): Partial<ISiteUserInfo> => {
+                const spuser = find(spUsers, (spu: any) => { return spu[this.spUserField]?.toLowerCase() === sr.LoginName.toLowerCase(); });
+                return {
+                    Id: spuser ? spuser.Id : sr.PrincipalId,
+                    LoginName: sr.LoginName,
+                    Title: sr.DisplayName,
+                    Email: sr.Email,
+                    IsSiteAdmin: spuser ? spuser.IsSiteAdmin : false
+                };
+            }) || [];
+        }
     }
 
 
@@ -105,7 +136,7 @@ export abstract class BaseUserService<T extends User> extends BaseDataService<T>
         if (this.groupsToo)
             return spUsers;
         else
-            return spUsers.filter(u => !stringIsNullOrEmpty(u.UserPrincipalName));
+            return spUsers.filter(u => ServicesConfiguration.configuration.spVersion === "Online" ? !stringIsNullOrEmpty(u.UserPrincipalName) : u.LoginName.indexOf("i:0#") === 0);
     }
 
     public async getItemById_Query(id: number): Promise<any> {
@@ -113,45 +144,61 @@ export abstract class BaseUserService<T extends User> extends BaseDataService<T>
     }
 
     public async getItemsById_Query(ids: Array<number>): Promise<Array<any>> {
+        // TODO ON PREM
         const results: Array<any> = [];
-        const batches = [];
-        const copy = cloneDeep(ids);
-        while (copy.length > 0) {
-            const sub = copy.splice(0, 100);
-            const batch = sp.createBatch();
-            sub.forEach((id) => {
-                sp.web.siteUsers.getById(id).select("Id", "UserPrincipalName", "Email", "Title", "IsSiteAdmin").inBatch(batch).get().then((spu) => {
-                    if (spu) {
-                        results.push(spu);
-                    }
-                    else {
-                        console.log(`[${this.serviceName}] - user with id ${id} not found`);
-                    }
+        if(ServicesConfiguration.configuration.spVersion !== "SP2013") {
+            const batches = [];
+            const copy = cloneDeep(ids);
+            while (copy.length > 0) {
+                const sub = copy.splice(0, 100);
+                const batch = sp.createBatch();
+                sub.forEach((id) => {
+                    sp.web.siteUsers.getById(id).select("Id", "UserPrincipalName", "Email", "Title", "IsSiteAdmin").inBatch(batch).get().then((spu) => {
+                        if (spu) {
+                            results.push(spu);
+                        }
+                        else {
+                            console.log(`[${this.serviceName}] - user with id ${id} not found`);
+                        }
+                    });
                 });
-            });
-            batches.push(batch);
+                batches.push(batch);
+            }
+            await UtilsService.runBatchesInStacks(batches, 3);
         }
-        await UtilsService.runBatchesInStacks(batches, 3);
+        else {
+            const promises = ids.map(id => ((): Promise<ISiteUserInfo> => sp.web.siteUsers.getById(id).select("Id", "UserPrincipalName", "Email", "Title", "IsSiteAdmin").get()));
+            const responses = await UtilsService.executePromisesInStacks(promises, 3);
+            responses.forEach((spu, idx) => {
+                if (spu) {
+                    results.push(spu);
+                }
+                else {
+                    console.log(`[${this.serviceName}] - user with id ${ids[idx]} not found`);
+                }
+            });
+        }
         return results;
+        
     }
 
     public async linkToSpUser(user: T): Promise<T> {
         // user is not registered (or created offline)    
         if (user.id < 0) {
             const allItems = await this.getAll();
-            const existing = find(allItems, u => u.userPrincipalName?.toLowerCase() === user.userPrincipalName?.toLowerCase() && u.id > 0);
+            const existing = find(allItems, u => u[BaseUserService.userField]?.toLowerCase() === user[BaseUserService.userField]?.toLowerCase() && u.id > 0);
             // remove existing
             if (existing) {
                 user = existing;
             }
             else {
                 // remove existing without id
-                const sameUsers = allItems.filter(u => u.userPrincipalName?.toLowerCase() === user.userPrincipalName?.toLowerCase());
+                const sameUsers = allItems.filter(u => u[BaseUserService.userField]?.toLowerCase() === user[BaseUserService.userField]?.toLowerCase());
                 if (sameUsers.length > 0) {
                     await this.dbService.deleteItems(sameUsers);
                 }
                 // register user
-                const result = await sp.web.ensureUser(user.userPrincipalName);
+                const result = await sp.web.ensureUser(user[BaseUserService.userField]);
                 const userItem = await result.user.select("Id", "UserPrincipalName", "Email", "Title", "IsSiteAdmin").get();
                 user = new this.itemType(userItem);
                 // cache 
@@ -181,13 +228,15 @@ export abstract class BaseUserService<T extends User> extends BaseDataService<T>
                 return user.displayName?.toLowerCase().indexOf(displayName.toLowerCase()) === 0 ||
                     user.displayName?.toLowerCase().indexOf(reverseFilter.toLowerCase()) === 0 ||
                     user.mail?.toLowerCase().indexOf(displayName.toLowerCase()) === 0 ||
-                    user.userPrincipalName?.toLowerCase().indexOf(displayName.toLowerCase()) === 0;
+                    user.userPrincipalName?.toLowerCase().indexOf(displayName.toLowerCase()) === 0 ||
+                    user.cleanLoginName?.toLowerCase().indexOf(displayName.toLowerCase()) === 0 ||
+                    user.cleanLoginNameNoDomain?.toLowerCase().indexOf(displayName.toLowerCase()) === 0;
             });
         }
         return users;
     }
 
     public static getPictureUrl(user: User, size: PictureSize = PictureSize.Large): string {
-        return user.mail ? Text.format("{0}/_layouts/15/userphoto.aspx?accountname={1}&size={2}", ServicesConfiguration.context.pageContext.web.absoluteUrl, user.mail, size) : "";
+        return user[BaseUserService.userField] ? UtilsService.formatText("{0}/_layouts/15/userphoto.aspx?accountname={1}&size={2}", ServicesConfiguration.baseUrl, encodeURIComponent(user[BaseUserService.userField]), size) : "";
     }
 }

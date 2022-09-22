@@ -1,4 +1,3 @@
-import { BaseComponentContext } from "@microsoft/sp-component-base";
 import { sp } from "@pnp/sp/presets/all";
 import { graph } from "@pnp/graph/presets/all";
 import { IConfiguration, IFactoryMapping } from "../interfaces";
@@ -20,8 +19,18 @@ export class ServicesConfiguration {
     /**
      * Web Part Context
      */
-    public static get context(): BaseComponentContext {
+    public static get context(): any {//BaseComponentContext 
         return ServicesConfiguration.configuration.context;
+    }
+    /**
+     * Web Url
+     */
+     public static get baseUrl(): string {//BaseComponentContext 
+        return ServicesConfiguration.configuration.context ? ServicesConfiguration.context.pageContext.web.absoluteUrl : ServicesConfiguration.configuration.baseUrl;
+    }
+
+    public static get serverRelativeUrl(): string {
+        return ServicesConfiguration.configuration.context ? ServicesConfiguration.context.pageContext.web.serverRelativeUrl : ServicesConfiguration.configuration.baseUrl.replace(/^https?:\/\/[^/]+(\/.*)$/g, "$1");
     }
 
     /**
@@ -35,6 +44,7 @@ export class ServicesConfiguration {
      * Default configuration
      */
     private static configurationInternal: IConfiguration = {
+        spVersion: "Online",
         dbName: "spfx-db",
         dbVersion: 1,
         lastConnectionCheckResult: false,
@@ -59,7 +69,8 @@ export class ServicesConfiguration {
      * @param configuration - configuration object
      */
     public static Init(configuration: IConfiguration): void {
-        ServicesConfiguration.configurationInternal = configuration;
+        ServicesConfiguration.configurationInternal = configuration;  
+        configuration.spVersion = configuration.spVersion || "Online";      
         configuration.traceLevel = configuration.traceLevel || TraceLevel.None;
         configuration.tableNames = Constants.tableNames.concat(configuration.tableNames || []);
         configuration.lastConnectionCheckResult = false;
@@ -86,21 +97,24 @@ export class ServicesConfiguration {
         sp.setup({
             spfxContext: ServicesConfiguration.context,
             sp: {
+                baseUrl: ServicesConfiguration.configuration.baseUrl,
                 headers: {
                     "Accept": "application/json; odata=verbose",
                     'Cache-Control': 'no-cache'
                 }
             }
         });
-        graph.setup({
-            spfxContext: ServicesConfiguration.context,
-            graph:{
-                headers: {
-                    "Accept": "application/json;odata.metadata=minimal",
-                    'Cache-Control': 'no-cache'
+        if(ServicesConfiguration.context) { // no graph without context
+            graph.setup({
+                spfxContext: ServicesConfiguration.context,
+                graph:{
+                    headers: {
+                        "Accept": "application/json;odata.metadata=minimal",
+                        'Cache-Control': 'no-cache'
+                    }
                 }
-            }
-        });
+            });
+        }
     }
 
     public static addObjectMapping(typeName: string, objectConstructor: (new () => any)): void {

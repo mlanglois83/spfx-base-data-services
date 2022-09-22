@@ -1,4 +1,4 @@
-import { assign } from "@microsoft/sp-lodash-subset";
+import { assign } from "lodash";
 import { TransactionType } from "../constants";
 import { IBaseItem } from "../interfaces";
 

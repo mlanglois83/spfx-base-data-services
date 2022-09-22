@@ -1,4 +1,4 @@
-import { cloneDeep } from "@microsoft/sp-lodash-subset";
+import { cloneDeep } from "lodash";
 import { sp } from "@pnp/sp";
 import "@pnp/sp/files";
 import "@pnp/sp/folders";
@@ -39,7 +39,7 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
      */
     constructor(type: (new (item?: any) => T), listRelativeUrl: string) {
         super(type);
-        this.listRelativeUrl = ServicesConfiguration.context.pageContext.web.serverRelativeUrl + listRelativeUrl;
+        this.listRelativeUrl = ServicesConfiguration.serverRelativeUrl + listRelativeUrl;
     }
     /**
      * Retrieve all items

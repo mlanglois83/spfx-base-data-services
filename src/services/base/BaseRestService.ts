@@ -1,5 +1,5 @@
 import { ServicesConfiguration } from "../../configuration";
-import { cloneDeep, find } from "@microsoft/sp-lodash-subset";
+import { cloneDeep, find } from "lodash";
 import { Constants, FieldType, TestOperator, TraceLevel } from "../../constants/index";
 import { IFieldDescriptor, IQuery, ILogicalSequence, IRestQuery, IRestLogicalSequence, IEndPointBindings, IPredicate, IRestPredicate, IOrderBy } from "../../interfaces/index";
 import { BaseDataService } from "./BaseDataService";
@@ -337,11 +337,11 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
     @trace(TraceLevel.Queries)
     protected async getItemsById_Query(ids: Array<number>, linkedFields?: Array<string>): Promise<Array<any>> {
         const result: Array<T> = [];
-        const promises: Promise<Array<any>>[] = [];
+        const promises: (() => Promise<Array<any>>)[] = [];
         const copy = cloneDeep(ids);
         while (copy.length > 0) {
             const sub = copy.splice(0, 2000);
-            promises.push(this.get_Query({
+            promises.push(() => this.get_Query({
                 test: {
                     type: "predicate",
                     operator: TestOperator.In,
@@ -351,7 +351,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                 limit: 2000
             }, linkedFields));
         }
-        const res = await UtilsService.runPromisesInStacks(promises, 3);
+        const res = await UtilsService.executePromisesInStacks(promises, 3);
         for (const tmp of res) {
             result.push(...tmp.filter(i => { return i !== null && i !== undefined; }));
         }
@@ -809,7 +809,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                 body: postData,
                 mode: 'cors',
                 headers: headers,
-                referrer: ServicesConfiguration.context.pageContext.web.absoluteUrl,
+                referrer: ServicesConfiguration.baseUrl,
                 referrerPolicy: "no-referrer-when-downgrade"
             };
         }
@@ -817,7 +817,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
             method: method,
             mode: 'cors',
             headers: headers,
-            referrer: ServicesConfiguration.context.pageContext.web.absoluteUrl,
+            referrer: ServicesConfiguration.baseUrl,
             referrerPolicy: "no-referrer-when-downgrade"
         };
     }

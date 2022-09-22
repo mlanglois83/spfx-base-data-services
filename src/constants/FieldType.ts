@@ -8,6 +8,11 @@ export enum FieldType {
      */
     Simple,
     /**
+     * UrlField
+     * Model field type must be IUrl
+     */
+    Url,
+    /**
      * Date field
      * Model field type must be Date
      */

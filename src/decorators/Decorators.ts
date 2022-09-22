@@ -1,4 +1,4 @@
-import { assign } from "@microsoft/sp-lodash-subset";
+import { assign } from "lodash";
 import { ServicesConfiguration } from "../configuration/ServicesConfiguration";
 import { TraceLevel } from "../constants";
 import { IFieldDescriptor, IRestServiceDescriptor } from "../interfaces";

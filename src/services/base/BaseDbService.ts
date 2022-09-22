@@ -1,5 +1,4 @@
-import { Text } from "@microsoft/sp-core-library";
-import { assign, cloneDeep } from "@microsoft/sp-lodash-subset";
+import { assign, cloneDeep } from "lodash";
 import { DB, ObjectStore, openDb } from "idb";
 import { IBaseItem, IDataService, IQuery } from "../../interfaces";
 import { BaseService } from "./BaseService";
@@ -143,7 +142,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                     if (!('indexedDB' in window)) {
                         throw new Error(ServicesConfiguration.configuration.translations.IndexedDBNotDefined);
                     }
-                    const dbName = Text.format(ServicesConfiguration.configuration.dbName, ServicesConfiguration.context.pageContext.web.serverRelativeUrl);
+                    const dbName = UtilsService.formatText(ServicesConfiguration.configuration.dbName, ServicesConfiguration.serverRelativeUrl);
                     try {
                         BaseDbService.db = await openDb(dbName, ServicesConfiguration.configuration.dbVersion, (UpgradeDB) => {
                             // remove old tables

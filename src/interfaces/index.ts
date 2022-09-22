@@ -1,5 +1,6 @@
 export { IBaseItem } from "./IBaseItem";
 export { IBaseFile } from "./IBaseFile";
+export { IUrl } from "./IUrl";
 export { IDataService } from "./IDataService";
 export { IConfiguration } from "./IConfiguration";
 export { ITranslationLabels } from "./ITranslationLabels";

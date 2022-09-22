@@ -2,12 +2,12 @@
 import { BaseService } from "../base/BaseService";
 import { BaseItem, OfflineTransaction, SPFile } from "../../models/index";
 import { TransactionType, Constants } from "../../constants/index";
-import { assign } from "@microsoft/sp-lodash-subset";
+import { assign } from "lodash";
 import { IItemSynchronized, ISynchronizationEnded } from "../../interfaces/index";
 import { TransactionService } from "./TransactionService";
-import { Text } from "@microsoft/sp-core-library";
 import { ServicesConfiguration } from "../../configuration/ServicesConfiguration";
 import { ServiceFactory } from "../ServiceFactory";
+import { UtilsService } from "../UtilsService";
 
 
 export class SynchronizationService extends BaseService {
@@ -198,7 +198,7 @@ export class SynchronizationService extends BaseService {
             default: break;
         }
         const itemTypeLabel = ServicesConfiguration.configuration.translations.typeTranslations[transaction.itemType] ? ServicesConfiguration.configuration.translations.typeTranslations[transaction.itemType] : transaction.itemType;
-        return Text.format(ServicesConfiguration.configuration.translations.SynchronisationErrorFormat, itemTypeLabel, operationLabel, item.title, item.id, message);
+        return UtilsService.formatText(ServicesConfiguration.configuration.translations.SynchronisationErrorFormat, itemTypeLabel, operationLabel, item.title, item.id, message);
     }
 
 }
