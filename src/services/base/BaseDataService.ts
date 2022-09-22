@@ -1807,7 +1807,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
             value = new Date(value.getFullYear(), value.getMonth(), value.getDate());
         }
         // url
-        if(value.hasOwnProperty("url")) {
+        if(value && value.hasOwnProperty("url")) {
             value = value.url;
         }
         // Lookups
