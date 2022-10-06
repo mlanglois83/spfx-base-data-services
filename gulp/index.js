@@ -20,7 +20,7 @@ const stream = function (injectMethod) {
     });
 };
 
-const baseItems = ["BaseFile", "BaseItem", "RestFile", "RestItem", "SPFile", "SPItem", "TaxonomyTerm"];
+const baseItems = ["BaseFile", "BaseItem", "RestFile", "RestItem", "SPFile", "SPItem", "TaxonomyTerm", "TaxonomyHidden", "User", "Entity"];
 
 const inject = function (imports, filePath) {
     const begin = "//inject:imports", end = "//endinject";
