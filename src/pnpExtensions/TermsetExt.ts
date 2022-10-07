@@ -40,7 +40,7 @@ extendFactory(TermSet, {
     },
     // ordered terms with custom properties and custom sort order
     async getAllChildrenAsOrderedTreeFull(this: ITermSet): Promise<IOrderedTermInfo[]> {
-        const setInfo = await this.select("*", "customSortOrder")();
+        const setInfo = await this.select("*", "CustomSortOrder")();
         const tree: IOrderedTermInfo[] = [];
 
         const ensureOrder = (terms: IOrderedTermInfo[], sorts: ITermSortOrderInfo[], setSorts?: string[]): IOrderedTermInfo[] => {
@@ -81,7 +81,7 @@ extendFactory(TermSet, {
 
         const visitor = async (source: ITermSet | ITerm, parent: IOrderedTermInfo[]): Promise<void> => {
 
-            const children = await source.getLegacyChildren().top(1000).select("*", "customSortOrder", "properties", "localProperties").get();
+            const children = await source.getLegacyChildren().top(1000).select("*", "CustomSortOrder", "properties", "localProperties").get();
 
             for (let i = 0; i < children.length; i++) {
 
