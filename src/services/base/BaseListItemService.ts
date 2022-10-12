@@ -694,7 +694,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
             const addResult = await this.list.items.select(...selectFields).add(converted);
             await this.populateCommonFields(result, addResult.data);
             await this.updateWssIds(result, addResult.data);
-            await this.updateAttachments(result, addResult.item);
+            await this.updateAttachments(result, addResult);
             if (item.id < -1) {
                 await this.updateLinksInDb(Number(item.id), Number(result.id));
             }
@@ -761,6 +761,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                         this.list.items.select(...selectFields).inBatch(batch).add(converted, entityTypeFullName).then(async (addResult: IItemAddResult) => {
                             await this.populateCommonFields(item, addResult.data);
                             await this.updateWssIds(item, addResult.data);
+                            await this.updateAttachments(item, addResult);
                             if (itemId < -1) {
                                 await this.updateLinksInDb(Number(itemId), Number(item.id));
                             }
