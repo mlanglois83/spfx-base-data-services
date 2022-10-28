@@ -922,6 +922,41 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
         return item;
     }
 
+    protected abstract recycleItems_Internal(items: Array<T>): Promise<Array<T>>;
+
+    @trace(TraceLevel.Service)
+    public async recycleItems(items: Array<T>): Promise<Array<T>> {
+        items.filter(i => (typeof (i.id) === "number" && i.id === -1)).forEach(i => {
+            i.error = undefined;
+            i.deleted = true;
+        });
+        let isconnected = true;
+        if (ServicesConfiguration.configuration.checkOnline) {
+            isconnected = await UtilsService.CheckOnline();
+        }
+        if (isconnected) {
+            await this.deleteItems_Internal(items.filter(i => (typeof (i.id) !== "number" || i.id > -1)));
+            await this.dbService.deleteItems(items.filter(i => i.deleted || i.id < -1));
+        }
+        else {
+            await this.dbService.deleteItems(items.filter(i => i.id > -1));
+            const transactions: Array<OfflineTransaction> = [];
+            // TODO: promise.All
+            for (const item of items) {
+                // create a new transaction
+                const ot: OfflineTransaction = new OfflineTransaction();
+                const converted = this.convertItemToDbFormat(item);
+                ot.itemData = assign({}, converted);
+                ot.itemType = item.constructor["name"];
+                ot.title = TransactionType.Delete;
+                transactions.push(ot);
+            }
+            await this.transactionService.addOrUpdateItems(transactions);
+        }
+
+        return items;
+    }
+
     protected abstract deleteItems_Internal(items: Array<T>): Promise<Array<T>>;
 
     @trace(TraceLevel.Service)
@@ -1379,7 +1414,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
                                 const ids = [];
                                 if (item[propertyName]) {
                                     (item[propertyName] as unknown as BaseItem[]).forEach(element => {
-                                        if (element.id) {
+                                        if (element?.id) {
                                             if ((typeof (element.id) === "number" && element.id > 0) || (typeof (element.id) === "string" && !stringIsNullOrEmpty(element.id))) {
                                                 ids.push(element.id);
                                             }

@@ -972,7 +972,50 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
             
         }
         return result;
-    }
+    }    
+
+    /**
+     * Recycle an item
+     * @param item - SPItem derived class to be recycled
+     */
+     @trace(TraceLevel.Internal)
+     protected async recycleItem_Internal(item: T): Promise<T> {
+         try {
+             await this.list.items.getById(item.id).recycle();
+             item.deleted = true;
+         }
+         catch (error) {
+             item.error = error;
+         }
+         return item;
+     }
+ 
+     @trace(TraceLevel.Internal)
+     protected async recycleItems_Internal(items: Array<T>): Promise<Array<T>> {
+         if(ServicesConfiguration.configuration.spVersion !== "SP2013") {
+             const batch = sp.createBatch();
+             items.forEach(item => {
+                 this.list.items.getById(item.id).inBatch(batch).recycle().then(() => {
+                     item.deleted = true;
+                 }).catch((error) => {
+                     item.error = error;
+                 });
+             });
+             await batch.execute();
+         }
+         else {
+             const promises = [];
+             items.forEach(item => {
+                 promises.push(() => this.list.items.getById(item.id).recycle().then(() => {
+                     item.deleted = true;
+                 }).catch((error) => {
+                     item.error = error;
+                 }));
+             });
+             await UtilsService.executePromisesInStacks(promises, 3);
+         }
+         return items;
+     }
 
     /**
      * Delete an item
@@ -981,7 +1024,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
     @trace(TraceLevel.Internal)
     protected async deleteItem_Internal(item: T): Promise<T> {
         try {
-            await this.list.items.getById(item.id).recycle();
+            await this.list.items.getById(item.id).delete();
             item.deleted = true;
         }
         catch (error) {
@@ -995,7 +1038,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         if(ServicesConfiguration.configuration.spVersion !== "SP2013") {
             const batch = sp.createBatch();
             items.forEach(item => {
-                this.list.items.getById(item.id).inBatch(batch).recycle().then(() => {
+                this.list.items.getById(item.id).inBatch(batch).delete().then(() => {
                     item.deleted = true;
                 }).catch((error) => {
                     item.error = error;
@@ -1006,7 +1049,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         else {
             const promises = [];
             items.forEach(item => {
-                promises.push(() => this.list.items.getById(item.id).recycle().then(() => {
+                promises.push(() => this.list.items.getById(item.id).delete().then(() => {
                     item.deleted = true;
                 }).catch((error) => {
                     item.error = error;
