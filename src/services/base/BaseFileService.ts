@@ -171,6 +171,52 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
     @trace(TraceLevel.Internal)
     public async deleteItem_Internal(item: T): Promise<T> {        
         if(item.id) {
+            await sp.web.getFileByServerRelativeUrl(item.serverRelativeUrl).delete();
+            const folderUrl = UtilsService.getParentFolderUrl(item.serverRelativeUrl);
+            const folder: IFolder = sp.web.getFolderByServerRelativeUrl(folderUrl);
+            const files = await folder.files.get();
+            if (!files || files.length === 0) {
+                await folder.delete();
+            }
+            item.deleted = true;
+        }
+        else {
+            item.deleted = true;
+        }        
+        return item;
+    }
+
+    @trace(TraceLevel.Internal)
+    public async deleteItems_Internal(items: Array<T>): Promise<Array<T>> { 
+        items.filter(i => !i.id).forEach(i => i.deleted = true);   
+        const batch = sp.createBatch();   
+        const folders = [];
+        items.filter(i => i.id).forEach(item => {
+            sp.web.getFileByServerRelativeUrl(item.serverRelativeUrl).inBatch(batch).delete().then(() => {
+                item.deleted = true;
+            }).catch((error) => {
+                item.error = error;
+            });
+            const folderUrl = UtilsService.getParentFolderUrl(item.serverRelativeUrl);
+            if(folders.indexOf(folderUrl) === -1) {
+                folders.push(folderUrl);
+            }
+        });  
+        await batch.execute();
+        const folderbatch = sp.createBatch();
+        folders.forEach(f => {
+            sp.web.getFolderByServerRelativeUrl(f).files.inBatch(folderbatch).get().then(async (files) => {
+                if (!files || files.length === 0) {
+                    await sp.web.getFolderByServerRelativeUrl(f).delete();
+                } 
+            });
+        });   
+        return items;
+    }
+
+    @trace(TraceLevel.Internal)
+    public async recycleItem_Internal(item: T): Promise<T> {        
+        if(item.id) {
             await sp.web.getFileByServerRelativeUrl(item.serverRelativeUrl).recycle();
             const folderUrl = UtilsService.getParentFolderUrl(item.serverRelativeUrl);
             const folder: IFolder = sp.web.getFolderByServerRelativeUrl(folderUrl);
@@ -187,7 +233,7 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
     }
 
     @trace(TraceLevel.Internal)
-    public async deleteItems_Internal(items: Array<T>): Promise<Array<T>> { 
+    public async recycleItems_Internal(items: Array<T>): Promise<Array<T>> { 
         items.filter(i => !i.id).forEach(i => i.deleted = true);   
         const batch = sp.createBatch();   
         const folders = [];

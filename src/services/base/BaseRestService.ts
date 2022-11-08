@@ -593,7 +593,15 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         return items;
     }
 
+    @trace(TraceLevel.Internal)
+    protected recycleItem_Internal(items: T[]): Promise<T[]> {
+        throw new Error("Method not implemented." + JSON.stringify(items));
+    }
 
+    @trace(TraceLevel.Internal)
+    protected recycleItems_Internal(items: T[]): Promise<T[]> {
+        throw new Error("Method not implemented." + JSON.stringify(items));
+    }
 
     @trace(TraceLevel.Service)
     public async getByRestQuery(restQuery: IEndPointBinding, data?: any, linkedFields?: Array<string>): Promise<Array<T>> {

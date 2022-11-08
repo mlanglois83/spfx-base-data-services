@@ -128,6 +128,16 @@ export abstract class BaseUserService<T extends User> extends BaseDataService<T>
         throw new Error("Not implemented");
     }
 
+    protected async recycleItem_Internal(item: T): Promise<T> {
+        console.log("[" + this.serviceName + ".recycleItem_Internal] - " + JSON.stringify(item));
+        throw new Error("Not implemented");
+    }
+
+    protected async recycleItems_Internal(items: Array<T>): Promise<Array<T>> {
+        console.log("[" + this.serviceName + ".recycleItems_Internal] - " + JSON.stringify(items));
+        throw new Error("Not implemented");
+    }
+
     /**
      * Retrieve all users (sp)
      */

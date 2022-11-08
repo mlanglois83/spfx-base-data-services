@@ -6,7 +6,7 @@ import "@pnp/sp/sites";
 import { IOrderedTermInfo, ITermSet } from "@pnp/sp/taxonomy";
 import "@pnp/sp/webs";
 import { ServicesConfiguration } from "../../configuration";
-import { TraceLevel } from "../../constants/index";
+import { Constants, TraceLevel } from "../../constants/index";
 import { Decorators } from "../../decorators";
 import { TaxonomyHidden, TaxonomyTerm } from "../../models";
 import { ServiceFactory } from "../ServiceFactory";
@@ -25,6 +25,14 @@ export class BaseTermsetService<
     protected termsetnameorid: string;
     protected isGlobal: boolean;
     protected static siteCollectionTermsetId: string;
+
+    
+    protected set customSortOrder(value: string) {
+        localStorage.setItem(UtilsService.formatText(Constants.cacheKeys.termsetCustomOrder, ServicesConfiguration.serverRelativeUrl, this.serviceName), value ? value : "");
+    }
+    protected get customSortOrder(): string {
+        return localStorage.getItem(UtilsService.formatText(Constants.cacheKeys.termsetCustomOrder, ServicesConfiguration.serverRelativeUrl, this.serviceName));
+    }
 
     /**
      * Get site collection group
@@ -127,6 +135,7 @@ export class BaseTermsetService<
                             );
                             if (ts) {
                                 this._tsId = ts.id;
+                                this.customSortOrder = ts.customSortOrder?.join(":");
                                 resolve(sp.termStore.sets.getById(this._tsId));
                             } else {
                                 reject(new Error("Termset not found: " + this.termsetnameorid));
@@ -147,6 +156,7 @@ export class BaseTermsetService<
                             );
                             if (ts) {
                                 this._tsId = ts.id;
+                                this.customSortOrder = ts.customSortOrder?.join(":");
                                 resolve(sp.termStore.sets.getById(this._tsId));
                             } else {
                                 reject(
@@ -369,6 +379,64 @@ export class BaseTermsetService<
         return results;
     }
 
+    @trace(TraceLevel.Service)
+    public async getAll(): Promise<Array<T>> {
+        const items = await super.getAll();
+        const result = [];
+        let rootTerms = items.filter((item: T) => { return item.path.indexOf(";") === -1; });
+        const terms = [];
+        const orderIds = stringIsNullOrEmpty(this.customSortOrder) ? [] : this.customSortOrder.split(":");
+        orderIds.forEach(id => {
+            const term = find(rootTerms, (spterm) => {
+                return spterm.id === id;
+            });
+            terms.push(term);
+        });
+        const otherterms = rootTerms.filter(spterm => !orderIds.some(o => o === spterm.id));
+        otherterms.sort((a, b) => {
+            return a.title?.localeCompare(b.title);
+        });
+        terms.push(...otherterms);
+        rootTerms = terms;
+        rootTerms.filter(Boolean).forEach((rt) => {
+            result.push(rt);
+            const rtchildren = this.getOrderedChildTerms(rt, items);
+            if (rtchildren.length > 0) {
+                result.push(...rtchildren);
+            }
+        });
+        return result;
+    }
+
+    private getOrderedChildTerms(term: T, allTerms: Array<T>): Array<T> {
+        const result = [];
+        const childterms = allTerms.filter((t) => { return t.path.indexOf(term.path + ";") == 0; });
+        const level = term.path.split(";").length;
+        let directChilds = childterms.filter((ct) => { return ct.path.split(";").length === level + 1; });
+        const terms = [];
+        const orderIds = stringIsNullOrEmpty(term.customSortOrder) ? [] : term.customSortOrder.split(":");
+        orderIds.forEach(id => {
+            const t = find(directChilds, (spterm) => {
+                return spterm.id === id;
+            });
+            terms.push(t);
+        });
+        const otherterms = directChilds.filter(spterm => !orderIds.some(o => o === spterm.id));
+        otherterms.sort((a, b) => {
+            return a.title?.localeCompare(b.title);
+        });
+        terms.push(...otherterms);
+        directChilds = terms;
+        directChilds.filter(Boolean).forEach((dc) => {
+            result.push(dc);
+            const dcchildren = this.getOrderedChildTerms(dc, childterms);
+            if (dcchildren.length > 0) {
+                result.push(...dcchildren);
+            }
+        });
+        return result;
+    }
+
     @trace(TraceLevel.Internal)
     protected async getItemById_Internal(id: string): Promise<T> {
         let result = null;
@@ -459,6 +527,23 @@ export class BaseTermsetService<
             "[" +
             this.serviceName +
             ".deleteItems_Internal] - " +
+            JSON.stringify(items)
+        );
+        throw new Error("Not implemented");
+    }
+
+    protected async recycleItem_Internal(item: T): Promise<T> {
+        console.error(
+            "[" + this.serviceName + ".recycleItem_Internal] - " + JSON.stringify(item)
+        );
+        throw new Error("Not implemented");
+    }
+
+    protected async recycleItems_Internal(items: Array<T>): Promise<Array<T>> {
+        console.error(
+            "[" +
+            this.serviceName +
+            ".recycleItems_Internal] - " +
             JSON.stringify(items)
         );
         throw new Error("Not implemented");

@@ -15,10 +15,13 @@ import { IFieldDescriptor, ILogicalSequence, IPredicate, IQuery } from "../../in
  *
  * Base service search
  */
-export class SearchService<T extends BaseItem> extends BaseDataService<T> {
-
-
-
+export class SearchService<T extends BaseItem> extends BaseDataService<T> {  
+  protected recycleItem_Internal(item: T): Promise<T> {
+    throw new Error("Method not implemented." + item.toString());
+  }
+  protected recycleItems_Internal(items: T[]): Promise<T[]> {
+    throw new Error("Method not implemented." + items.toString());
+  }
   protected deleteItem_Internal(item: T): Promise<T> {
     throw new Error("Method not implemented." + item.toString());
   }
