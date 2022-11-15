@@ -4,3 +4,4 @@ gulpfile.js
 tslint.json
 .vs
 .vscode
+.idea
