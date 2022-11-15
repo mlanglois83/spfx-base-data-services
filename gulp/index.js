@@ -217,15 +217,29 @@ function mergeWebPackConfig(build, config, basePath, includeSourceMap, sourceMap
         build.verbose("Reserved names : " + reserved.join(", "));
         if (TerserPluginVersion.major >= 2) {
             TerserPlugin.isWebpack4 = () => true;
+            function escapeRegExp(string) {
+                return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
+            }
+            const reservedRegex = new RegExp(`^${reserved.map(escapeRegExp).join('|')}$`);
             config.optimization.minimizer = [
                 new TerserPlugin({
                     extractComments: false,
                     parallel: false,
                     terserOptions: {
+                        ecma: 2019,
+                        keep_classnames: reservedRegex,
+                        keep_fnames: reservedRegex,
                         sourceMap: false,
-                        output: { comments: false },
-                        compress: { warnings: false },
-                        mangle: { reserved },
+                        format: { comments: false },
+                        mangle: {
+                            reserved,
+                            keep_classnames: reservedRegex,
+                            keep_fnames: reservedRegex,
+                            properties: {
+                                keep_classnames: reservedRegex,
+                                keep_fnames: reservedRegex,
+                            },
+                        },
                     },
                 }),
             ];
