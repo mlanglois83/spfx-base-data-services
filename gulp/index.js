@@ -226,7 +226,6 @@ function mergeWebPackConfig(build, config, basePath, includeSourceMap, sourceMap
                     extractComments: false,
                     parallel: false,
                     terserOptions: {
-                        ecma: 2019,
                         keep_classnames: reservedRegex,
                         keep_fnames: reservedRegex,
                         sourceMap: false,
@@ -235,10 +234,6 @@ function mergeWebPackConfig(build, config, basePath, includeSourceMap, sourceMap
                             reserved,
                             keep_classnames: reservedRegex,
                             keep_fnames: reservedRegex,
-                            properties: {
-                                keep_classnames: reservedRegex,
-                                keep_fnames: reservedRegex,
-                            },
                         },
                     },
                 }),
