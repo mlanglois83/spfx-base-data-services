@@ -65,7 +65,7 @@ export abstract class BaseUserService<T extends User> extends BaseDataService<T>
             reverseFilter = parts[1].trim() + " " + parts[0].trim();
         }
         if(ServicesConfiguration.context) {
-            const [users, spUsers] = await Promise.all([graph.users
+            const [users, spUsers, cached] = await Promise.all([graph.users
                 .filter(
                     `startswith(displayName,'${queryStr}') or ` +
                     `startswith(displayName,'${reverseFilter}') or ` +
@@ -74,20 +74,28 @@ export abstract class BaseUserService<T extends User> extends BaseDataService<T>
                     `startswith(mail,'${queryStr}') or ` +
                     `startswith(userPrincipalName,'${queryStr}')`
                 )
-                .get(), sp.web.siteUsers.select("Id", "UserPrincipalName", "LoginName", "Email", "Title", "IsSiteAdmin").get()]);
+                .get(), 
+                sp.web.siteUsers.select("Id", "UserPrincipalName", "LoginName", "Email", "Title", "IsSiteAdmin").get(),
+                this.dbService.getAll()
+            ]);
 
             return users.map((u: any) => {
                 const spuser = find(spUsers, (spu: ISiteUserInfo) => { return spu[this.spUserField]?.toLowerCase() === u[this.spUserField]?.toLowerCase(); });
+                const cachedUser = find(cached, (spu) => { return spu[BaseUserService.userField]?.toLowerCase() === u[this.spUserField]?.toLowerCase(); });
                 if (spuser) {
                     u['id'] = spuser.Id;
+                }
+                else if(cachedUser) {
+                    u['id'] = cachedUser.id;
                 }
                 return u;
             });
         }
         else {
-            const [searchResults, spUsers] = await Promise.all([
+            const [searchResults, spUsers, cached] = await Promise.all([
                 sp.utility.searchPrincipals(queryStr, (PrincipalType.User | (this.groupsToo ? PrincipalType.SecurityGroup : PrincipalType.None)) , PrincipalSource.All,"", 15),
-                sp.web.siteUsers.select("Id", "UserPrincipalName", "LoginName", "Email", "Title", "IsSiteAdmin").get()
+                sp.web.siteUsers.select("Id", "UserPrincipalName", "LoginName", "Email", "Title", "IsSiteAdmin").get(),
+                this.dbService.getAll()
             ]);
             let searchConv = searchResults;
             if(!isArray(searchConv)) // parsing error
@@ -96,8 +104,9 @@ export abstract class BaseUserService<T extends User> extends BaseDataService<T>
             }
             return searchConv.map((sr): Partial<ISiteUserInfo> => {
                 const spuser = find(spUsers, (spu: any) => { return spu[this.spUserField]?.toLowerCase() === sr.LoginName.toLowerCase(); });
+                const cachedUser = find(cached, (spu) => { return spu.loginName?.toLowerCase() === sr.LoginName.toLowerCase(); });
                 return {
-                    Id: spuser ? spuser.Id : sr.PrincipalId,
+                    Id: spuser ? spuser.Id : (cachedUser ? cachedUser.id : sr.PrincipalId),
                     LoginName: sr.LoginName,
                     Title: sr.DisplayName,
                     Email: sr.Email,
