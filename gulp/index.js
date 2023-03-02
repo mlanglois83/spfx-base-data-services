@@ -1,10 +1,30 @@
 // dev deps in spfx package
 const TerserPlugin = require('terser-webpack-plugin');
 
-// From node 
+// From node
 const fs = require('fs');
 const glob = require('glob');
 const path = require('path');
+
+const TerserPluginVersion = (() => {
+    try {
+        const terserPath = require.resolve('terser-webpack-plugin');
+        const rootTerser = path.dirname(path.dirname(terserPath));
+        const packageJSON = path.join(rootTerser, 'package.json');
+
+        let label = '';
+        let [major='0', minor='0', fix='0'] = require(packageJSON).version.split('.');
+        [fix='0', ...label] = fix.split('-');
+        label = label?.join('-') ?? '';
+
+        [major, minor, fix] = [major, minor, fix].map(Number);
+
+        return {major, minor, fix, label};
+    } catch (error) {
+        // known version transversal used on old spfx version
+        return {major: 1, minor: 4, fix: 5, label: ''};
+    }
+})();
 
 // dev deps
 var es = require('event-stream'), PluginError = require('plugin-error');
@@ -195,26 +215,45 @@ function mergeWebPackConfig(build, config, basePath, includeSourceMap, sourceMap
 
 
         build.verbose("Reserved names : " + reserved.join(", "));
-        config.optimization.minimizer =
-            [
-                new TerserPlugin
-                    (
-                        {
-                            extractComments: false,
-                            sourceMap: false,
-                            cache: false,
-                            parallel: false,
-                            terserOptions:
-                            {
-                                output: { comments: false },
-                                compress: { warnings: false },
-                                mangle: {
-                                    reserved: reserved // rem sample from doc ['$super', '$', 'exports', 'require']
-                                }
-                            }
-                        }
-                    )
+        if (TerserPluginVersion.major >= 2) {
+            TerserPlugin.isWebpack4 = () => true;
+            function escapeRegExp(string) {
+                return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
+            }
+            const reservedRegex = new RegExp(`^${reserved.map(escapeRegExp).join('|')}$`);
+            config.optimization.minimizer = [
+                new TerserPlugin({
+                    extractComments: false,
+                    parallel: false,
+                    terserOptions: {
+                        keep_classnames: reservedRegex,
+                        keep_fnames: reservedRegex,
+                        sourceMap: false,
+                        format: { comments: false },
+                        mangle: {
+                            reserved,
+                            keep_classnames: reservedRegex,
+                            keep_fnames: reservedRegex,
+                        },
+                    },
+                }),
             ];
+        }
+        else {
+            config.optimization.minimizer = [
+                new TerserPlugin({
+                    extractComments: false,
+                    sourceMap: false,
+                    cache: false,
+                    parallel: false,
+                    terserOptions: {
+                        output: { comments: false },
+                        compress: { warnings: false },
+                        mangle: { reserved }, // rem sample from doc ['$super', '$', 'exports', 'require']
+                    },
+                }),
+            ];
+        }
     }
     // alias
     config.resolve = config.resolve || { modules: ['node_modules'] };
@@ -260,7 +299,7 @@ function mergeWebPackConfig(build, config, basePath, includeSourceMap, sourceMap
     }
     if (afterMergeConfig) {
         build.log("Running addintionnal config");
-        afterSetConfig(config);
+        afterMergeConfig(config);
     }
     return config;
 }
@@ -271,7 +310,7 @@ function configureSpfxProject(build, basePath, includeSourceMap, sourceMapExclus
 
     /*
     * modify webpack config :
-    *    - to avoid uglyfying reserved names (services & models) 
+    *    - to avoid uglyfying reserved names (services & models)
     *    - to handle aliases
     *    - to link sourcmaps
     */
