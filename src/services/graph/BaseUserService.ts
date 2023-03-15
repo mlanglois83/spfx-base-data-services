@@ -83,10 +83,10 @@ export abstract class BaseUserService<T extends User> extends BaseDataService<T>
                 const spuser = find(spUsers, (spu: ISiteUserInfo) => { return spu[this.spUserField]?.toLowerCase() === u[this.spUserField]?.toLowerCase(); });
                 const cachedUser = find(cached, (spu) => { return spu[BaseUserService.userField]?.toLowerCase() === u[this.spUserField]?.toLowerCase(); });
                 if (spuser) {
-                    u['id'] = spuser.Id;
+                    u.id = spuser.Id;
                 }
                 else if(cachedUser) {
-                    u['id'] = cachedUser.id;
+                    u.id = cachedUser.id;
                 }
                 return u;
             });

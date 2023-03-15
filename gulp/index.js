@@ -13,16 +13,16 @@ const TerserPluginVersion = (() => {
         const packageJSON = path.join(rootTerser, 'package.json');
 
         let label = '';
-        let [major='0', minor='0', fix='0'] = require(packageJSON).version.split('.');
-        [fix='0', ...label] = fix.split('-');
+        let [major = '0', minor = '0', fix = '0'] = require(packageJSON).version.split('.');
+        [fix = '0', ...label] = fix.split('-');
         label = label?.join('-') ?? '';
 
         [major, minor, fix] = [major, minor, fix].map(Number);
 
-        return {major, minor, fix, label};
+        return { major, minor, fix, label };
     } catch (error) {
         // known version transversal used on old spfx version
-        return {major: 1, minor: 4, fix: 5, label: ''};
+        return { major: 1, minor: 4, fix: 5, label: '' };
     }
 })();
 
@@ -63,7 +63,7 @@ const inject = function (imports, filePath) {
 
             }
         }
-        const str = importString + `\nconsole.groupCollapsed("spfx-base-data-services - register services");\n[\n${declarations.map(d => "\t" + d).join(",\n")}\n].forEach(function (value) { \n\tconsole.log(value["name"] + " added to ServiceFactory");\n});\nconsole.groupEnd();\n`;
+        const str = importString + `\nconsole.groupCollapsed("spfx-base-data-services - register services");\n[\n${declarations.map(d => "\t" + d).join(",\n")}\n].forEach(function (value) { \n\tconsole.log((value as any).name + " added to ServiceFactory");\n});\nconsole.groupEnd();\n`;
         const regex = new RegExp(begin + ".*" + end, 's');
         if (fileContents.match(regex)) {
             return fileContents.replace(new RegExp(begin + ".*" + end, 's'), begin + comment + "\n" + str + end);
@@ -324,5 +324,5 @@ function configureSpfxProject(build, basePath, includeSourceMap, sourceMapExclus
 module.exports = {
     getInjectionTask: getInjectionTask,
     mergeWebPackConfig: mergeWebPackConfig,
-    configureSpfxProject:configureSpfxProject
+    configureSpfxProject: configureSpfxProject
 };
