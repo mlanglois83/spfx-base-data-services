@@ -1,7 +1,7 @@
 import { BaseFile } from "./BaseFile";
 import { Decorators } from "../../decorators";
 import { Constants } from "../../constants";
-import { stringIsNullOrEmpty } from "@pnp/common/util";
+import { stringIsNullOrEmpty } from "@pnp/core";
 import { UtilsService } from "../../services";
 
 const field = Decorators.field;

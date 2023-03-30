@@ -1,6 +1,5 @@
 import { cloneDeep, find, findIndex } from "lodash";
-import { isArray, stringIsNullOrEmpty } from "@pnp/common";
-import { sp } from "@pnp/sp";
+import { isArray, stringIsNullOrEmpty } from "@pnp/core";
 import "@pnp/sp/content-types/list";
 import "@pnp/sp/fields/list";
 import { IItemAddResult } from '@pnp/sp/items';
@@ -20,6 +19,8 @@ import { UtilsService } from "../UtilsService";
 import { BaseDataService } from "./BaseDataService";
 import { BaseDbService } from "./BaseDbService";
 
+import "@pnp/sp/batching";
+import { SPFI } from "@pnp/sp";
 
 
 const trace = Decorators.trace;
@@ -43,7 +44,11 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
      * Associeted list (pnpjs)
      */
     protected get list(): IList {
-        return sp.web.getList(this.listRelativeUrl);
+        return ServicesConfiguration.sp.web.getList(this.listRelativeUrl);
+    }
+
+    protected batchedList(batch: SPFI): IList {
+        return batch.web.getList(this.listRelativeUrl);
     }
     /***************************** Constructor **************************************/
     /**
@@ -93,7 +98,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                             }
                         }
                         await Promise.all(taxofields.map(async (tf) => {
-                            const hiddenField = await this.list.fields.getByTitle(`${tf}_0`).select("InternalName").get();
+                            const hiddenField = await this.list.fields.getByTitle(`${tf}_0`).select("InternalName")();
                             this.taxoMultiFieldNames[tf] = hiddenField.InternalName;
                         }));
                         this.fieldsInitialized = true;
@@ -636,7 +641,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         const selectFields = this.getOdataFieldNames(linkedFields);
         const expandFields = this.getOdataExpandFieldNames(linkedFields);
         const itemsQuery = this.list.items.getById(id).select(...selectFields).expand(...expandFields);
-        return itemsQuery.get();
+        return itemsQuery();
     }
 
 
@@ -677,7 +682,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         const selectFields = this.getOdataFieldNames(linkedFields);        
         const expandFields = this.getOdataExpandFieldNames(linkedFields);
         const itemsQuery = this.list.items.select(...selectFields).expand(...expandFields);
-        return itemsQuery.getAll();
+        return itemsQuery();
     }
 
     /**
@@ -702,7 +707,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         else {
             // check version (cannot update if newer)
             if (item.version) {
-                const existing = await this.list.items.getById(item.id).select(Constants.commonFields.version).get();
+                const existing = await this.list.items.getById(item.id).select(Constants.commonFields.version)();
                 if (parseFloat(existing[Constants.commonFields.version]) > item.version) {
                     const error = new Error(ServicesConfiguration.configuration.translations.versionHigherErrorMessage);
                     error.name = Constants.Errors.ItemVersionConfict;
@@ -711,7 +716,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                 else {
                     const converted = await this.convertItem(item);
                     const updateResult = await this.list.items.getById(item.id).select(...selectFields).update(converted);
-                    const version = await updateResult.item.select(...selectFields).get();
+                    const version = await updateResult.item.select(...selectFields)();
                     await this.populateCommonFields(result, version);
                     await this.updateWssIds(result, version);
                     await this.updateAttachments(result, updateResult);
@@ -720,7 +725,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
             else {
                 const converted = await this.convertItem(item);
                 const updateResult = await this.list.items.getById(item.id).update(converted);
-                const version = await updateResult.item.select(...selectFields).get();
+                const version = await updateResult.item.select(...selectFields)();
                 await this.populateCommonFields(result, version);
                 await this.updateWssIds(result, version);
                 await this.updateAttachments(result, updateResult);
@@ -744,7 +749,6 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
         });
 
         await this.initFields();
-        const entityTypeFullName = await this.list.getListItemEntityTypeFullName();
         const selectFields = this.getOdataCommonFieldNames();
         // creation batch
         if (itemsToAdd.length > 0) {            
@@ -753,12 +757,12 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                 const batches = [];
                 while (itemsToAdd.length > 0) {
                     const sub = itemsToAdd.splice(0, 100);
-                    const batch = sp.createBatch();
+                    const [batchedSp, execute]  = ServicesConfiguration.sp.batched();
                     for (const item of sub) {
                         const currentIdx = idx;
                         const itemId = item.id;
                         const converted = await this.convertItem(item);
-                        this.list.items.select(...selectFields).inBatch(batch).add(converted, entityTypeFullName).then(async (addResult: IItemAddResult) => {
+                        this.batchedList(batchedSp).items.select(...selectFields).add(converted).then(async (addResult: IItemAddResult) => {
                             await this.populateCommonFields(item, addResult.data);
                             await this.updateWssIds(item, addResult.data);
                             await this.updateAttachments(item, addResult);
@@ -776,7 +780,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                         });
                         idx++;
                     }
-                    batches.push(batch);
+                    batches.push(execute);
                 }
                 await UtilsService.runBatchesInStacks(batches, 3);
             }
@@ -787,7 +791,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                     const itemId = item.id;
                     const currentIdx = idx;
                     const converted = await this.convertItem(item);
-                    promiseGenerators.push(() => this.list.items.select(...selectFields).add(converted, entityTypeFullName).then(async (addResult: IItemAddResult) => {
+                    promiseGenerators.push(() => this.list.items.select(...selectFields).add(converted).then(async (addResult: IItemAddResult) => {
                         await this.populateCommonFields(item, addResult.data);
                         await this.updateWssIds(item, addResult.data);
                         if (itemId < -1) {
@@ -813,10 +817,10 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                 const batches = [];
                 while (versionedItems.length > 0) {
                     const sub = versionedItems.splice(0, 100);
-                    const batch = sp.createBatch();
+                    const [batchedSP, execute] = ServicesConfiguration.sp.batched();
                     for (const item of sub) {
                         const currentIdx = idx;
-                        this.list.items.getById(item.id).select(Constants.commonFields.version).inBatch(batch).get().then(async (existing) => {
+                        this.batchedList(batchedSP).items.getById(item.id).select(Constants.commonFields.version)().then(async (existing) => {
                             if (parseFloat(existing[Constants.commonFields.version]) > item.version) {
                                 const error = new Error(ServicesConfiguration.configuration.translations.versionHigherErrorMessage);
                                 error.name = Constants.Errors.ItemVersionConfict;
@@ -836,7 +840,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                         });
                         idx++;
                     }
-                    batches.push(batch);
+                    batches.push(execute);
                 }
                 await UtilsService.runBatchesInStacks(batches, 3);
             }
@@ -845,7 +849,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                 for (let idx = 0; idx < versionedItems.length; idx++) {
                     const item = versionedItems[idx];
                     const currentIdx = idx;
-                    promiseGenerators.push(() => this.list.items.getById(item.id).select(Constants.commonFields.version).get().then(async (existing) => {
+                    promiseGenerators.push(() => this.list.items.getById(item.id).select(Constants.commonFields.version)().then(async (existing) => {
                         if (parseFloat(existing[Constants.commonFields.version]) > item.version) {
                             const error = new Error(ServicesConfiguration.configuration.translations.versionHigherErrorMessage);
                             error.name = Constants.Errors.ItemVersionConfict;
@@ -877,11 +881,11 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                 const batches = [];
                 while (updatedItems.length > 0) {
                     const sub = updatedItems.splice(0, 100);
-                    const batch = sp.createBatch();
+                    const [batchedSp, execute] = ServicesConfiguration.sp.batched();
                     for (const item of sub) {
                         const currentIdx = idx;
                         const converted = await this.convertItem(item);
-                        this.list.items.getById(item.id).select(...selectFields).inBatch(batch).update(converted, '*', entityTypeFullName).then(async () => {                                            
+                        this.batchedList(batchedSp).items.getById(item.id).select(...selectFields).update(converted, '*').then(async () => {                                            
                             if (onItemUpdated) {
                                 onItemUpdated(items[currentIdx], item);
                             }
@@ -894,7 +898,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                         });
                         idx++;
                     }
-                    batches.push(batch);
+                    batches.push(execute);
                 }
                 await UtilsService.runBatchesInStacks(batches, 3);
             }
@@ -904,7 +908,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                     const item = updatedItems[idx];
                     const currentIdx = idx;
                     const converted = await this.convertItem(item);
-                    promiseGenerators.push(() => this.list.items.getById(item.id).select(...selectFields).update(converted, '*', entityTypeFullName).then(async () => {                                            
+                    promiseGenerators.push(() => this.list.items.getById(item.id).select(...selectFields).update(converted, '*').then(async () => {                                            
                         if (onItemUpdated) {
                             onItemUpdated(items[currentIdx], item);
                         }
@@ -928,10 +932,10 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                 const batches = [];
                 while (resultItems.length > 0) {
                     const sub = resultItems.splice(0, 100);
-                    const batch = sp.createBatch();
+                    const [batchedSP, execute] = ServicesConfiguration.sp.batched();
                     for (const item of sub) {
                         const currentIdx = idx;
-                        this.list.items.getById(item.id).select(...selectFields).inBatch(batch).get().then(async (version) => {
+                        this.batchedList(batchedSP).items.getById(item.id).select(...selectFields)().then(async (version) => {
                             await this.populateCommonFields(item, version);
                             await this.updateWssIds(item, version);
                             if (onItemRefreshed) {
@@ -945,7 +949,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                         });
                         idx++;
                     }
-                    batches.push(batch);
+                    batches.push(execute);
                 }
                 await UtilsService.runBatchesInStacks(batches, 3);
             }
@@ -954,7 +958,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                 for (let idx = 0; idx < resultItems.length; idx++) {
                     const item = resultItems[idx];
                     const currentIdx = idx;
-                    promiseGenerators.push(() => this.list.items.getById(item.id).select(...selectFields).get().then(async (version) => {
+                    promiseGenerators.push(() => this.list.items.getById(item.id).select(...selectFields)().then(async (version) => {
                         await this.populateCommonFields(item, version);
                         await this.updateWssIds(item, version);
                         if (onItemRefreshed) {
@@ -993,15 +997,15 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
      @trace(TraceLevel.Internal)
      protected async recycleItems_Internal(items: Array<T>): Promise<Array<T>> {
          if(ServicesConfiguration.configuration.spVersion !== "SP2013") {
-             const batch = sp.createBatch();
+             const [batchedSP, execute] = ServicesConfiguration.sp.batched();
              items.forEach(item => {
-                 this.list.items.getById(item.id).inBatch(batch).recycle().then(() => {
+                 this.batchedList(batchedSP).items.getById(item.id).recycle().then(() => {
                      item.deleted = true;
                  }).catch((error) => {
                      item.error = error;
                  });
              });
-             await batch.execute();
+             await execute();
          }
          else {
              const promises = [];
@@ -1036,15 +1040,15 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
     @trace(TraceLevel.Internal)
     protected async deleteItems_Internal(items: Array<T>): Promise<Array<T>> {
         if(ServicesConfiguration.configuration.spVersion !== "SP2013") {
-            const batch = sp.createBatch();
+            const [batchedSP, execute] = ServicesConfiguration.sp.batched();
             items.forEach(item => {
-                this.list.items.getById(item.id).inBatch(batch).delete().then(() => {
+                this.batchedList(batchedSP).items.getById(item.id).delete().then(() => {
                     item.deleted = true;
                 }).catch((error) => {
                     item.error = error;
                 });
             });
-            await batch.execute();
+            await execute();
         }
         else {
             const promises = [];
@@ -1063,7 +1067,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
 
     @trace(TraceLevel.ServiceUtilities)
     private async getAttachmentContent(attachment: SPFile): Promise<void> {
-        const content = await sp.web.getFileByServerRelativeUrl(attachment.serverRelativeUrl).getBuffer();
+        const content = await ServicesConfiguration.sp.web.getFileByServerRelativePath(attachment.serverRelativeUrl).getBuffer();
         attachment.content = content;
     }
 

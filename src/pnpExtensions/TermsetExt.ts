@@ -1,17 +1,15 @@
-import { find, findIndex } from "lodash";
-import { isArray } from "@pnp/common";
-import { extendFactory } from "@pnp/odata";
-import { defaultPath, SPRest } from "@pnp/sp";
-import { spInvokableFactory, _SharePointQueryableCollection } from "@pnp/sp/sharepointqueryable";
+import { isArray } from "@pnp/core";
+import { extendFactory } from "@pnp/core";
+import { defaultPath, spInvokableFactory, _SPCollection } from "@pnp/sp";
 import "@pnp/sp/taxonomy";
 import { IOrderedTermInfo, ITerm, ITermInfo, ITermSet, ITermSortOrderInfo, Term, TermSet } from "@pnp/sp/taxonomy";
-import { tag } from "@pnp/sp/telemetry";
+import { find, findIndex } from "lodash";
+import { ServicesConfiguration } from "../configuration";
 
 // Legacy children enables retrieving reused child terms
 
 @defaultPath("getLegacyChildren()")
-// eslint-disable-next-line @typescript-eslint/class-name-casing
-export class _LegacyChildren extends _SharePointQueryableCollection<ITermInfo[]> { }
+export class _LegacyChildren extends _SPCollection<ITermInfo[]> { }
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface ILegacyChildren extends _LegacyChildren { }
 export const LegacyChildren = spInvokableFactory<ILegacyChildren>(_LegacyChildren);
@@ -29,14 +27,14 @@ declare module "@pnp/sp/taxonomy" {
 // child terms for term
 extendFactory(Term, {
     getLegacyChildren(this: ITerm): ILegacyChildren {
-        return tag.configure(LegacyChildren(this), "txt.getLegacyChildren");
+        return LegacyChildren(this);
     }
 });
 
 extendFactory(TermSet, {
     // child terms for termset
     getLegacyChildren(this: ITermSet): ILegacyChildren {
-        return tag.configure(LegacyChildren(this), "txtg.getLegacyChildren");
+        return LegacyChildren(this);
     },
     // ordered terms with custom properties and custom sort order
     async getAllChildrenAsOrderedTreeFull(this: ITermSet): Promise<IOrderedTermInfo[]> {
@@ -81,7 +79,7 @@ extendFactory(TermSet, {
 
         const visitor = async (source: ITermSet | ITerm, parent: IOrderedTermInfo[]): Promise<void> => {
 
-            const children = await source.getLegacyChildren().top(1000).select("*", "CustomSortOrder", "properties", "localProperties").get();
+            const children = await source.getLegacyChildren().top(1000).select("*", "CustomSortOrder", "properties", "localProperties")();
 
             for (let i = 0; i < children.length; i++) {
 
@@ -94,8 +92,8 @@ extendFactory(TermSet, {
                 };
 
                 if (child.childrenCount > 0) {
-                    await visitor(this.getTermById(children[i].id), orderedTerm.children);
-                    orderedTerm.children = ensureOrder(orderedTerm.children, child.customSortOrder);
+                    await visitor(this.getTermById(children[i].id), orderedTerm.children as Array<IOrderedTermInfo>);
+                    orderedTerm.children = ensureOrder(orderedTerm.children as Array<IOrderedTermInfo>, child.customSortOrder);
                 }
 
                 parent.push(orderedTerm);
@@ -108,4 +106,4 @@ extendFactory(TermSet, {
     }
 });
 
-export const sp = new SPRest();
+export const sp = ServicesConfiguration.sp;sp.web.lists

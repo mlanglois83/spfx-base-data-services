@@ -7,7 +7,7 @@ import { BaseDbService } from "./BaseDbService";
 import { BaseService } from "./BaseService";
 import { TransactionType, Constants, LogicalOperator, TestOperator, QueryToken, FieldType, TraceLevel } from "../../constants";
 import { ServicesConfiguration } from "../../configuration";
-import { isArray, stringIsNullOrEmpty } from "@pnp/common";
+import { isArray, stringIsNullOrEmpty } from "@pnp/core";
 import { ServiceFactory } from "../ServiceFactory";
 import { Decorators } from "../../decorators";
 const trace = Decorators.trace;
@@ -843,7 +843,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
             if (versionErrors.length > 0) {
                 const spitems = await this.getItemsById_Internal(versionErrors.map(ve => ve.id));
                 spitems.forEach((retrieved) => {
-                    const idx = findIndex(results, { id: retrieved.id });
+                    const idx = findIndex(results, (r) => r.id === retrieved.id);
                     if (idx > -1) {
                         retrieved.error = results[idx].error;
                         results[idx] = retrieved;

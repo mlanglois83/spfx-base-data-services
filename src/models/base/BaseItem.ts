@@ -1,5 +1,5 @@
 import { assign, findIndex } from "lodash";
-import { stringIsNullOrEmpty } from "@pnp/common/util";
+import { stringIsNullOrEmpty } from "@pnp/core";
 import { FieldType } from "../../constants";
 import { IBaseItem, IFieldDescriptor } from "../../interfaces";
 import { ServiceFactory } from "../../services/ServiceFactory";

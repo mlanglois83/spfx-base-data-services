@@ -1,6 +1,5 @@
 import { find } from "lodash";
-import { PnPClientStorage } from "@pnp/common";
-import { dateAdd, stringIsNullOrEmpty } from "@pnp/common/util";
+import { dateAdd, stringIsNullOrEmpty, PnPClientStorage } from "@pnp/core";
 import { sp } from "../../pnpExtensions/TermsetExt";
 import "@pnp/sp/sites";
 import { IOrderedTermInfo, ITermSet } from "@pnp/sp/taxonomy";
@@ -46,8 +45,8 @@ export class BaseTermsetService<
                     async (resolve, reject) => {
                         try {
                             const [ts, properties] = await Promise.all([
-                                sp.termStore.get(),
-                                sp.site.rootWeb.allProperties.get(),
+                                sp.termStore(),
+                                sp.site.rootWeb.allProperties(),
                             ]);
                             BaseTermsetService._siteCollectionGroupId =
                                 properties["SiteCollectionGroupId" + ts.id] ||
@@ -82,7 +81,7 @@ export class BaseTermsetService<
                 BaseTermsetService._termStoreLanguagePromise = new Promise<string>(
                     async (resolve, reject) => {
                         try {
-                            const ts = await sp.termStore.get();
+                            const ts = await sp.termStore();
                             BaseTermsetService._termStoreDefaultLanguageTag =
                                 ts.defaultLanguageTag;
                             resolve(ts.defaultLanguageTag);
@@ -123,7 +122,7 @@ export class BaseTermsetService<
                     try {
                         if (this.isGlobal) {
                             const [termsets, tsLngTag] = await Promise.all([
-                                sp.termStore.sets.get(),
+                                sp.termStore.sets(),
                                 BaseTermsetService.initTermStoreDefaultLanguageTag(),
                             ]);
                             const ts = find(termsets, (t) =>
@@ -144,7 +143,7 @@ export class BaseTermsetService<
                             const groupId =
                                 await BaseTermsetService.getSiteCollectionGroupId();
                             const [termsets, tsLngTag] = await Promise.all([
-                                sp.termStore.groups.getById(groupId).sets.get(),
+                                sp.termStore.groups.getById(groupId).sets(),
                                 BaseTermsetService.initTermStoreDefaultLanguageTag(),
                             ]);
                             const ts = find(termsets, (t) =>
@@ -222,7 +221,7 @@ export class BaseTermsetService<
             const item = this.populateTerm(term, basePath);
             result.push(item);
             if (term.childrenCount > 0) {
-                result.push(...this.populateTerms(term.children, item.path));
+                result.push(...this.populateTerms(term.children as IOrderedTermInfo[], item.path));
             }
         }
         return result;

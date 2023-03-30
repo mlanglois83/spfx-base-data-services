@@ -1,4 +1,4 @@
-import { stringIsNullOrEmpty } from "@pnp/common/util";
+import { stringIsNullOrEmpty } from "@pnp/core";
 import { BaseItem } from "../base/BaseItem";
 
 /**

@@ -6,7 +6,7 @@ import { BaseDataService } from "./BaseDataService";
 import { UtilsService } from "../UtilsService";
 import { RestItem, User, RestResultMapping } from "../../models";
 import { UserService } from "../graph/UserService";
-import { isArray, stringIsNullOrEmpty } from "@pnp/common";
+import { isArray, stringIsNullOrEmpty } from "@pnp/core";
 import { RestFile } from "../../models/base/RestFile";
 import * as mime from "mime-types";
 import { ServiceFactory } from "../ServiceFactory";

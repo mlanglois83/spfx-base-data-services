@@ -4,21 +4,9 @@ var del = require('del');
 var ts = require('gulp-typescript');
 var tsProject = ts.createProject('tsconfig.json');
 var sourcemaps = require('gulp-sourcemaps');
-var tslint = require("gulp-tslint");
 var eslint = require('gulp-eslint');
 var gulpIf = require('gulp-if');
 
-gulp.task("tslint", () =>
-    tsProject.src()
-        .pipe(tslint({
-            formatter: "verbose", 
-        }))
-        .pipe(tslint.report())
-);
-
-function isFixed(file) {
-	return file.eslint != null && file.eslint.fixed;
-}
 
 gulp.task('eslint', () => {
     const hasFixFlag = process.argv.slice(2).includes('--fix');
@@ -29,9 +17,6 @@ gulp.task('eslint', () => {
         // eslint.format() outputs the lint results to the console.
         // Alternatively use eslint.formatEach() (see Docs).
         .pipe(eslint.format())
-        // To have the process exit with an error code (1) on
-        // lint error, return the stream and pipe to failAfterError last.
-        .pipe(gulpIf(isFixed, gulp.dest("./src")));
 });
 
 gulp.task('clean', function() {
@@ -46,5 +31,5 @@ gulp.task('build', function() {
         .pipe(gulp.dest('dist'));
 });
 
-gulp.task('default', gulp.series(['clean', "tslint", "eslint", 'build']));
+gulp.task('default', gulp.series(['clean', "eslint", 'build']));
 

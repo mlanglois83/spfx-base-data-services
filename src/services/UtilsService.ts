@@ -1,9 +1,9 @@
 import { BaseService } from "./base/BaseService";
 import { ServicesConfiguration } from "../configuration/ServicesConfiguration";
 import { cloneDeep, find } from "lodash";
-import { Batch } from "@pnp/odata";
+//import { Batch } from "@pnp/odata";
 import { TaxonomyTerm } from "../models/base/TaxonomyTerm";
-import { stringIsNullOrEmpty } from "@pnp/common";
+import { stringIsNullOrEmpty } from "@pnp/core";
 /**
  * Utility class
  */
@@ -243,17 +243,17 @@ export class UtilsService extends BaseService {
         return result;
     }
 
-    public static async runBatchesInStacks(batches: Batch[], stackCount: number): Promise<void> {
+    public static async runBatchesInStacks(batches: Array<() => Promise<void>>, stackCount: number): Promise<void> {
         const segments = UtilsService.divideArray(batches, stackCount);
         await Promise.all(segments.map((s) => {
             return UtilsService.chainBatches(s);
         }));
     }
 
-    public static async chainBatches(batches: Batch[]): Promise<void> {
+    public static async chainBatches(batches: Array<() => Promise<void>>): Promise<void> {
         while (batches.length > 0) {
             const currentBatch = batches.shift();
-            await currentBatch.execute();
+            await currentBatch();
         }
     }
 

@@ -1,5 +1,5 @@
-import { sp } from "@pnp/sp/presets/all";
-import { graph } from "@pnp/graph/presets/all";
+import { SPBrowser, SPFI, spfi, SPFx as spSPFx } from "@pnp/sp/presets/all";
+import { GraphFI, graphfi, SPFx as graphSPFx } from "@pnp/graph/presets/all";
 import { IConfiguration, IFactoryMapping } from "../interfaces";
 import { Constants, TraceLevel } from "../constants";
 
@@ -21,6 +21,23 @@ export class ServicesConfiguration {
      */
     public static get context(): any {//BaseComponentContext 
         return ServicesConfiguration.configuration.context;
+    }
+    /**
+     * Sp object for pnp call
+     */
+    public static get sp(): SPFI {
+        if(ServicesConfiguration.context) {
+            return spfi().using(spSPFx(ServicesConfiguration.context));
+        }
+        else {
+            return spfi().using(SPBrowser({ baseUrl: ServicesConfiguration.baseUrl }));
+        }
+    }
+    /**
+     * graph object for pnp call
+     */
+    public static get graph(): GraphFI {
+        return graphfi().using(graphSPFx(ServicesConfiguration.context));
     }
     /**
      * Web Url
@@ -93,8 +110,8 @@ export class ServicesConfiguration {
                 configuration.tableNames.push(key); 
             }
         }
-        // SP calls init with no cache
-        sp.setup({
+        
+        /*sp.setup({
             spfxContext: ServicesConfiguration.context,
             sp: {
                 baseUrl: ServicesConfiguration.configuration.baseUrl,
@@ -114,7 +131,7 @@ export class ServicesConfiguration {
                     }
                 }
             });
-        }
+        }*/
     }
 
     public static addObjectMapping(typeName: string, objectConstructor: (new () => any)): void {

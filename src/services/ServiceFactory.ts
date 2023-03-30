@@ -1,5 +1,5 @@
 import { BaseDataService } from "./base/BaseDataService";
-import { stringIsNullOrEmpty } from "@pnp/common/util";
+import { stringIsNullOrEmpty } from "@pnp/core";
 import { ServicesConfiguration } from "../configuration/ServicesConfiguration";
 import { BaseItem } from "../models/base/BaseItem";
 import { IFieldDescriptor } from "../interfaces";

@@ -1,7 +1,6 @@
-import { stringIsNullOrEmpty } from "@pnp/common/util";
-import { graph } from "@pnp/graph";
+import { stringIsNullOrEmpty } from "@pnp/core";
 import "@pnp/graph/users";
-import { IPrincipalInfo, PrincipalSource, PrincipalType, sp } from "@pnp/sp";
+import { IPrincipalInfo, PrincipalSource, PrincipalType } from "@pnp/sp";
 import "@pnp/sp/site-users";
 import { ISiteUserInfo } from "@pnp/sp/site-users/types";
 import "@pnp/sp/site-users/web";
@@ -40,7 +39,7 @@ export abstract class BaseUserService<T extends User> extends BaseDataService<T>
 
     public async currentUser(extendedProperties: Array<string>): Promise<User> {
         let result: User = null;
-        const me = await graph.me.select("displayName", "givenName", "jobTitle", "mail", "mobilePhone", "officeLocation", "preferredLanguage", "surname", "userPrincipalName", "id", ...extendedProperties).get();
+        const me = await ServicesConfiguration.graph.me.select("displayName", "givenName", "jobTitle", "mail", "mobilePhone", "officeLocation", "preferredLanguage", "surname", "userPrincipalName", "id", ...extendedProperties)();
         if (me) {
             result = new User(me);
         }
@@ -49,7 +48,7 @@ export abstract class BaseUserService<T extends User> extends BaseDataService<T>
 
     public async currentSPUser(): Promise<User> {
         let result: User = null;
-        const me = await sp.web.currentUser.select("Id", "UserPrincipalName", "LoginName", "Email", "Title", "IsSiteAdmin").get();
+        const me = await ServicesConfiguration.sp.web.currentUser.select("Id", "UserPrincipalName", "LoginName", "Email", "Title", "IsSiteAdmin")();
         if (me) {
             result = new User(me);
         }
@@ -65,7 +64,7 @@ export abstract class BaseUserService<T extends User> extends BaseDataService<T>
             reverseFilter = parts[1].trim() + " " + parts[0].trim();
         }
         if(ServicesConfiguration.context) {
-            const [users, spUsers, cached] = await Promise.all([graph.users
+            const [users, spUsers, cached] = await Promise.all([ServicesConfiguration.graph.users
                 .filter(
                     `startswith(displayName,'${queryStr}') or ` +
                     `startswith(displayName,'${reverseFilter}') or ` +
@@ -74,8 +73,8 @@ export abstract class BaseUserService<T extends User> extends BaseDataService<T>
                     `startswith(mail,'${queryStr}') or ` +
                     `startswith(userPrincipalName,'${queryStr}')`
                 )
-                .get(), 
-                sp.web.siteUsers.select("Id", "UserPrincipalName", "LoginName", "Email", "Title", "IsSiteAdmin").get(),
+                (), 
+                ServicesConfiguration.sp.web.siteUsers.select("Id", "UserPrincipalName", "LoginName", "Email", "Title", "IsSiteAdmin")(),
                 this.dbService.getAll()
             ]);
 
@@ -93,8 +92,8 @@ export abstract class BaseUserService<T extends User> extends BaseDataService<T>
         }
         else {
             const [searchResults, spUsers, cached] = await Promise.all([
-                sp.utility.searchPrincipals(queryStr, (PrincipalType.User | (this.groupsToo ? PrincipalType.SecurityGroup : PrincipalType.None)) , PrincipalSource.All,"", 15),
-                sp.web.siteUsers.select("Id", "UserPrincipalName", "LoginName", "Email", "Title", "IsSiteAdmin").get(),
+                ServicesConfiguration.sp.utility.searchPrincipals(queryStr, (PrincipalType.User | (this.groupsToo ? PrincipalType.SecurityGroup : PrincipalType.None)) , PrincipalSource.All,"", 15),
+                ServicesConfiguration.sp.web.siteUsers.select("Id", "UserPrincipalName", "LoginName", "Email", "Title", "IsSiteAdmin")(),
                 this.dbService.getAll()
             ]);
             let searchConv = searchResults;
@@ -151,7 +150,7 @@ export abstract class BaseUserService<T extends User> extends BaseDataService<T>
      * Retrieve all users (sp)
      */
     protected async getAll_Query(): Promise<Array<any>> {
-        const spUsers = await sp.web.siteUsers.select("Id", "UserPrincipalName", "LoginName", "Email", "Title", "IsSiteAdmin").get();
+        const spUsers = await ServicesConfiguration.sp.web.siteUsers.select("Id", "UserPrincipalName", "LoginName", "Email", "Title", "IsSiteAdmin")();
         if (this.groupsToo)
             return spUsers;
         else
@@ -159,7 +158,7 @@ export abstract class BaseUserService<T extends User> extends BaseDataService<T>
     }
 
     public async getItemById_Query(id: number): Promise<any> {
-        return sp.web.siteUsers.getById(id).select("Id", "UserPrincipalName", "Email", "LoginName", "Title", "IsSiteAdmin").get();
+        return ServicesConfiguration.sp.web.siteUsers.getById(id).select("Id", "UserPrincipalName", "Email", "LoginName", "Title", "IsSiteAdmin")();
     }
 
     public async getItemsById_Query(ids: Array<number>): Promise<Array<any>> {
@@ -170,9 +169,9 @@ export abstract class BaseUserService<T extends User> extends BaseDataService<T>
             const copy = cloneDeep(ids);
             while (copy.length > 0) {
                 const sub = copy.splice(0, 100);
-                const batch = sp.createBatch();
+                const [batchedSP, execute] = ServicesConfiguration.sp.batched();
                 sub.forEach((id) => {
-                    sp.web.siteUsers.getById(id).select("Id", "UserPrincipalName", "Email", "Title", "IsSiteAdmin").inBatch(batch).get().then((spu) => {
+                    batchedSP.web.siteUsers.getById(id).select("Id", "UserPrincipalName", "Email", "Title", "IsSiteAdmin")().then((spu) => {
                         if (spu) {
                             results.push(spu);
                         }
@@ -181,12 +180,12 @@ export abstract class BaseUserService<T extends User> extends BaseDataService<T>
                         }
                     });
                 });
-                batches.push(batch);
+                batches.push(execute);
             }
             await UtilsService.runBatchesInStacks(batches, 3);
         }
         else {
-            const promises = ids.map(id => ((): Promise<ISiteUserInfo> => sp.web.siteUsers.getById(id).select("Id", "UserPrincipalName", "Email", "Title", "IsSiteAdmin").get()));
+            const promises = ids.map(id => ((): Promise<ISiteUserInfo> => ServicesConfiguration.sp.web.siteUsers.getById(id).select("Id", "UserPrincipalName", "Email", "Title", "IsSiteAdmin")()));
             const responses = await UtilsService.executePromisesInStacks(promises, 3);
             responses.forEach((spu, idx) => {
                 if (spu) {
@@ -217,8 +216,8 @@ export abstract class BaseUserService<T extends User> extends BaseDataService<T>
                     await this.dbService.deleteItems(sameUsers);
                 }
                 // register user
-                const result = await sp.web.ensureUser(user[BaseUserService.userField]);
-                const userItem = await result.user.select("Id", "UserPrincipalName", "Email", "Title", "IsSiteAdmin").get();
+                const result = await ServicesConfiguration.sp.web.ensureUser(user[BaseUserService.userField]);
+                const userItem = await result.user.select("Id", "UserPrincipalName", "Email", "Title", "IsSiteAdmin")();
                 user = new this.itemType(userItem);
                 // cache 
                 const dbresult = await this.dbService.addOrUpdateItem(user);

@@ -5,11 +5,11 @@ import {
   SortDirection,
   ISearchResult
 } from "@pnp/sp/search";
-import { sp } from "@pnp/sp";
 import { BaseDataService, ServiceFactory } from "..";
 import { BaseItem, SPItem, TaxonomyTerm } from "../../models";
 import { FieldType, LogicalOperator, QueryToken, TestOperator } from "../../constants";
 import { IFieldDescriptor, ILogicalSequence, IPredicate, IQuery } from "../../interfaces";
+import { ServicesConfiguration } from "../../configuration";
 
 /**
  *
@@ -211,7 +211,7 @@ export class SearchService<T extends BaseItem> extends BaseDataService<T> {
     searchQuery.TrimDuplicates = false;
 
     //Execute query
-    const searchItems: SearchResults = await sp.search(searchQuery);
+    const searchItems: SearchResults = await ServicesConfiguration.sp.search(searchQuery);
 
     //browse results
     const results = searchItems.PrimarySearchResults.map(r => {
@@ -262,7 +262,7 @@ export class SearchService<T extends BaseItem> extends BaseDataService<T> {
     const searchQuery = builder.toSearchQuery();
     searchQuery.TrimDuplicates = false;
     //Execute query
-    const searchItems: SearchResults = await sp.search(searchQuery);
+    const searchItems: SearchResults = await ServicesConfiguration.sp.search(searchQuery);
 
     //browse results
     const results = searchItems.PrimarySearchResults.map(r => {
@@ -547,7 +547,7 @@ export class SearchService<T extends BaseItem> extends BaseDataService<T> {
           break;
       }
     } else {
-      throw new Error("Field was not found : " + propertyName);
+      throw new Error("Field was not found : " + propertyName.toString());
     }
 
     return transformValue;
