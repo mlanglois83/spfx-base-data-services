@@ -2,7 +2,6 @@ import { SPBrowser, SPFI, spfi, SPFx as spSPFx } from "@pnp/sp/presets/all";
 import { GraphFI, graphfi, SPFx as graphSPFx } from "@pnp/graph/presets/all";
 import { IConfiguration, IFactoryMapping } from "../interfaces";
 import { Constants, TraceLevel } from "../constants";
-import PnPTelemetry from "@pnp/"
 
 /**
  * Configuration class for spfx base data services
@@ -111,9 +110,7 @@ export class ServicesConfiguration {
                 configuration.tableNames.push(key); 
             }
         }
-        // disable telemtry
-        const telemetry = PnPTelemetry.getInstance();
-        telemetry.optOut();
+        
     }
 
     public static addObjectMapping(typeName: string, objectConstructor: (new () => any)): void {
