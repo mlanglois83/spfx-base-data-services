@@ -1,13 +1,11 @@
-import { isArray } from "@pnp/core";
-import { extendFactory } from "@pnp/core";
+import { extendFactory, isArray } from "@pnp/core";
 import { defaultPath, spInvokableFactory, _SPCollection } from "@pnp/sp";
 import "@pnp/sp/taxonomy";
 import { IOrderedTermInfo, ITerm, ITermInfo, ITermSet, ITermSortOrderInfo, Term, TermSet } from "@pnp/sp/taxonomy";
 import { find, findIndex } from "lodash";
-import { ServicesConfiguration } from "../configuration";
+
 
 // Legacy children enables retrieving reused child terms
-
 @defaultPath("getLegacyChildren()")
 export class _LegacyChildren extends _SPCollection<ITermInfo[]> { }
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
@@ -36,6 +34,7 @@ extendFactory(TermSet, {
     getLegacyChildren(this: ITermSet): ILegacyChildren {
         return LegacyChildren(this);
     },
+    
     // ordered terms with custom properties and custom sort order
     async getAllChildrenAsOrderedTreeFull(this: ITermSet): Promise<IOrderedTermInfo[]> {
         const setInfo = await this.select("*", "CustomSortOrder")();
@@ -105,5 +104,3 @@ extendFactory(TermSet, {
         return ensureOrder(tree, null, setInfo.customSortOrder);
     }
 });
-
-export const sp = ServicesConfiguration.sp;sp.web.lists

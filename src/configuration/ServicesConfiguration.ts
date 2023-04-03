@@ -2,6 +2,7 @@ import { SPBrowser, SPFI, spfi, SPFx as spSPFx } from "@pnp/sp/presets/all";
 import { GraphFI, graphfi, SPFx as graphSPFx } from "@pnp/graph/presets/all";
 import { IConfiguration, IFactoryMapping } from "../interfaces";
 import { Constants, TraceLevel } from "../constants";
+import PnPTelemetry from "@pnp/"
 
 /**
  * Configuration class for spfx base data services
@@ -110,28 +111,9 @@ export class ServicesConfiguration {
                 configuration.tableNames.push(key); 
             }
         }
-        
-        /*sp.setup({
-            spfxContext: ServicesConfiguration.context,
-            sp: {
-                baseUrl: ServicesConfiguration.configuration.baseUrl,
-                headers: {
-                    "Accept": "application/json; odata=verbose",
-                    'Cache-Control': 'no-cache'
-                }
-            }
-        });
-        if(ServicesConfiguration.context) { // no graph without context
-            graph.setup({
-                spfxContext: ServicesConfiguration.context,
-                graph:{
-                    headers: {
-                        "Accept": "application/json;odata.metadata=minimal",
-                        'Cache-Control': 'no-cache'
-                    }
-                }
-            });
-        }*/
+        // disable telemtry
+        const telemetry = PnPTelemetry.getInstance();
+        telemetry.optOut();
     }
 
     public static addObjectMapping(typeName: string, objectConstructor: (new () => any)): void {
