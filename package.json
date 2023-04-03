@@ -1,7 +1,7 @@
 {
   "name": "spfx-base-data-services",
   "description": "A set of tools to create powerfull dataservices on spfx applications",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "author": {
     "name": "Matthieu LANGLOIS",
     "email": "matthieu.langlois@gmail.com"
