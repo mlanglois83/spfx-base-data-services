@@ -161,7 +161,7 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
         }, Promise.resolve()).then((item) => {
             result.push(item);       
             if(onItemUpdated) {
-                onItemUpdated(item, item);
+                onItemUpdated(item as T, item as T);
             }     
         });
         return items;

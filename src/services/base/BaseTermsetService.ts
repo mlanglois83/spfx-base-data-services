@@ -1,6 +1,6 @@
 import { find } from "lodash";
 import { dateAdd, stringIsNullOrEmpty, PnPClientStorage } from "@pnp/core";
-import { sp } from "../../pnpExtensions/TermsetExt";
+import "../../pnpExtensions/TermsetExt";
 import "@pnp/sp/sites";
 import { IOrderedTermInfo, ITermSet } from "@pnp/sp/taxonomy";
 import "@pnp/sp/webs";
@@ -45,8 +45,8 @@ export class BaseTermsetService<
                     async (resolve, reject) => {
                         try {
                             const [ts, properties] = await Promise.all([
-                                sp.termStore(),
-                                sp.site.rootWeb.allProperties(),
+                                ServicesConfiguration.sp.termStore(),
+                                ServicesConfiguration.sp.site.rootWeb.allProperties(),
                             ]);
                             BaseTermsetService._siteCollectionGroupId =
                                 properties["SiteCollectionGroupId" + ts.id] ||
@@ -81,7 +81,7 @@ export class BaseTermsetService<
                 BaseTermsetService._termStoreLanguagePromise = new Promise<string>(
                     async (resolve, reject) => {
                         try {
-                            const ts = await sp.termStore();
+                            const ts = await ServicesConfiguration.sp.termStore();
                             BaseTermsetService._termStoreDefaultLanguageTag =
                                 ts.defaultLanguageTag;
                             resolve(ts.defaultLanguageTag);
@@ -122,7 +122,7 @@ export class BaseTermsetService<
                     try {
                         if (this.isGlobal) {
                             const [termsets, tsLngTag] = await Promise.all([
-                                sp.termStore.sets(),
+                                ServicesConfiguration.sp.termStore.sets(),
                                 BaseTermsetService.initTermStoreDefaultLanguageTag(),
                             ]);
                             const ts = find(termsets, (t) =>
@@ -135,7 +135,7 @@ export class BaseTermsetService<
                             if (ts) {
                                 this._tsId = ts.id;
                                 this.customSortOrder = ts.customSortOrder?.join(":");
-                                resolve(sp.termStore.sets.getById(this._tsId));
+                                resolve(ServicesConfiguration.sp.termStore.sets.getById(this._tsId));
                             } else {
                                 reject(new Error("Termset not found: " + this.termsetnameorid));
                             }
@@ -143,7 +143,7 @@ export class BaseTermsetService<
                             const groupId =
                                 await BaseTermsetService.getSiteCollectionGroupId();
                             const [termsets, tsLngTag] = await Promise.all([
-                                sp.termStore.groups.getById(groupId).sets(),
+                                ServicesConfiguration.sp.termStore.groups.getById(groupId).sets(),
                                 BaseTermsetService.initTermStoreDefaultLanguageTag(),
                             ]);
                             const ts = find(termsets, (t) =>
@@ -156,7 +156,7 @@ export class BaseTermsetService<
                             if (ts) {
                                 this._tsId = ts.id;
                                 this.customSortOrder = ts.customSortOrder?.join(":");
-                                resolve(sp.termStore.sets.getById(this._tsId));
+                                resolve(ServicesConfiguration.sp.termStore.sets.getById(this._tsId));
                             } else {
                                 reject(
                                     new Error(
@@ -180,7 +180,7 @@ export class BaseTermsetService<
             }
             return this._tsIdPromise;
         } else {
-            return sp.termStore.sets.getById(this._tsId);
+            return ServicesConfiguration.sp.termStore.sets.getById(this._tsId);
         }
     }
 

@@ -1,6 +1,6 @@
 {
     "compilerOptions": {
-        "target": "es5",
+        "target": "ES2019",
         "forceConsistentCasingInFileNames": true,
         "module": "esnext",
         "moduleResolution": "node",
@@ -16,13 +16,10 @@
           "./node_modules/@types",
           "./node_modules/@microsoft"
         ],
-        "types": [
-          "es6-promise"
-        ],
         "lib": [
-          "es5",
+          "ES2015",
           "dom",
-          "es2015.collection"
+          "ES2017.Object"
         ]
       },
       "include": [
