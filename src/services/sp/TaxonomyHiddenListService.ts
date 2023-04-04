@@ -13,6 +13,6 @@ const cacheDuration = 60;
 @dataService("TaxonomyHidden")
 export class TaxonomyHiddenListService extends BaseListItemService<TaxonomyHidden> {
     constructor() {
-        super(TaxonomyHidden, Constants.taxonomyHiddenList.relativeUrl, cacheDuration, false);
+        super(TaxonomyHidden, Constants.taxonomyHiddenList.relativeUrl, cacheDuration);
     }
 }
