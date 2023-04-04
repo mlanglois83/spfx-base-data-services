@@ -253,7 +253,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
         return result;
     }
 
-    protected async getExpiredIds(...ids: Array<number | string>): Promise<Array<number | string>> {
+    protected getExpiredIds(...ids: Array<number | string>): Array<number | string> {
         const expired = ids.filter((id) => {
             let result = true;
             const lastLoad = this.getIdLastLoad(id);

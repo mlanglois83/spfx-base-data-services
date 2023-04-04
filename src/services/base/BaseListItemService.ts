@@ -6,7 +6,6 @@ import "@pnp/sp/items/list";
 import "@pnp/sp/lists";
 import { ICamlQuery, IList } from "@pnp/sp/lists";
 import "@pnp/sp/lists/web";
-import { Semaphore } from "async-mutex";
 import { cloneDeep, find, findIndex } from "lodash";
 import { ServicesConfiguration } from "../../configuration/ServicesConfiguration";
 import { Constants, FieldType, LogicalOperator, QueryToken, TestOperator, TraceLevel } from "../../constants/index";
@@ -34,7 +33,6 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
     /***************************** Fields and properties **************************************/
     protected listRelativeUrl: string;
     protected taxoMultiFieldNames: { [fieldName: string]: string } = {};
-    protected checkLastModify = true;
 
     /* AttachmentService */
     protected attachmentsService: BaseDbService<SPFile>;
@@ -58,14 +56,11 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
      * @param tableName - name of table in local db
      * @param cacheDuration - cache duration in minutes
      */
-    constructor(type: (new (item?: any) => T), listRelativeUrl: string, cacheDuration?: number, checkLastModify?: boolean, baseUrl?: string) {
+    constructor(type: (new (item?: any) => T), listRelativeUrl: string, cacheDuration?: number, baseUrl?: string) {
         super(type, cacheDuration, baseUrl);
         this.listRelativeUrl =  this.baseRelativeUrl + listRelativeUrl;
         if (this.hasAttachments) {
             this.attachmentsService = new BaseDbService<SPFile>(SPFile, "ListAttachments");
-        }
-        if (checkLastModify !== undefined) {
-            this.checkLastModify = checkLastModify;
         }
     }
 
@@ -429,196 +424,6 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
             return (term.wssids && term.wssids.indexOf(wssid) > -1);
         });
     }
-
-
-
-    /******************************************* Cache Management *************************************************/
-
-
-    /*******************************  store list last modified date***********************/
-    private lastModifiedDate = "lastResultClassLifeTime";
-
-
-
-    /*******************************  store last check from list last modified date***********************/
-    private lastModifiedDateCheck = "lastResultClassLifeTimeCheck";
-
-    protected set lastModifiedListCheck(newValue: Date) {
-        const cacheKey = this.getCacheKey(this.lastModifiedDateCheck);
-        window.sessionStorage.setItem(cacheKey, JSON.stringify(newValue));
-    }
-
-    protected get lastModifiedListCheck(): Date {
-
-        const cacheKey = this.getCacheKey(this.lastModifiedDateCheck);
-
-        const lastDataLoadString = window.sessionStorage.getItem(cacheKey);
-        let lastDataLoad: Date = null;
-
-        if (lastDataLoadString) {
-            lastDataLoad = new Date(JSON.parse(window.sessionStorage.getItem(cacheKey)));
-        }
-
-        return lastDataLoad;
-    }
-
-    //perf issue with await
-    // protected async needRefreshCache(key = "all"): Promise<boolean> {
-    //     //get parent need refresh information
-    //     let result: boolean = super.needRefreshCache(key);
-    //     if (this.checkLastModify) {
-    //         //if not need refresh cache, test, last modified list modified
-    //         if (!result) {
-
-    //             //check online
-    //             const isconnected = ServicesConfiguration.configuration.lastConnectionCheckResult
-
-    //             if (isconnected) {
-
-    //                 //get last cache date
-    //                 const cachedDataDate = super.getCachedData(key);
-    //                 //if a date existe, check if renew necessary
-    //                 //else load data
-    //                 if (cachedDataDate) {
-
-    //                     const lastModifiedDate = await this.LastModfiedList();
-
-    //                     result = lastModifiedDate > cachedDataDate;
-    //                 }
-    //             }
-    //         }
-    //     }
-    //     return result;
-    // }
-
-
-    /**
-     * Cache has to be reloaded ?
-     *
-     * @readonly
-     * @protected
-     * @type {boolean}
-     * @memberof BaseListItemService
-     */
-    protected async LastModfiedList(): Promise<Date> {
-
-        //avoid fetchnig multiple same request as same time
-        let promise = this.getExistingPromise(this.lastModifiedDate);
-        if (promise) {
-            console.log(this.serviceName + " needRefreshCache : load allready called before, sharing promise");
-        }
-        else {
-
-            const semaphore = new Semaphore(1);
-
-            const semacq = await semaphore.acquire();
-
-            try {
-
-                promise = new Promise<Date>(async (resolve, reject) => {
-                    try {
-
-                        //get last modified date store in cache, if exists
-                        const cacheKey = this.getCacheKey(this.lastModifiedDate);
-
-                        const lastDataLoadString = window.sessionStorage.getItem(cacheKey);
-                        let lastModifiedSave: Date = null;
-
-                        if (lastDataLoadString) {
-                            lastModifiedSave = new Date(JSON.parse(window.sessionStorage.getItem(cacheKey)));
-                        }
-
-
-                        //to avoid send x request during 20 seconds
-                        //get date when the last modified lsite date was checked
-                        const temp = this.lastModifiedListCheck;
-                        if (temp) {
-                            //add 20 seconds, cache duration
-                            temp.setSeconds(this.lastModifiedListCheck.getSeconds() + 20);
-                        }
-
-                        //if not previous result or last check is more than 20 seconds.
-                        if (!lastModifiedSave || (!temp || (temp < new Date()))) {
-                            try {
-                                let tempList: any = undefined;
-                                const init: RequestInit = {
-                                    headers: {
-                                        'Accept': 'application/json;odata.metadata=minimal',
-                                        'Cache-Control': 'no-cache'
-                                    },
-                                    credentials: 'same-origin',
-                                    method: "GET"
-                                };
-                                const response = await fetch(`${ServicesConfiguration.baseUrl}/_api/web/getList('${this.listRelativeUrl}')`, init);
-                                tempList = await response.json();
-
-                                //store date when last modified date list is checked
-                                this.lastModifiedListCheck = new Date();
-
-                                lastModifiedSave = new Date(tempList.LastItemUserModifiedDate ? tempList.LastItemUserModifiedDate : tempList.d.LastItemUserModifiedDate);
-                                //store last modified date list
-                                window.sessionStorage.setItem(cacheKey, JSON.stringify(lastModifiedSave));
-
-                            } catch (error) {
-                                console.error(error);
-                            }
-                        }
-                        resolve(lastModifiedSave);
-                    } catch (error) {
-                        reject(error);
-                    }
-                });
-
-
-                this.storePromise(promise, this.lastModifiedDate);
-            } finally {
-                semacq[1](); // release
-            }
-
-        }
-
-
-
-        return promise;
-    }
-    /**
-     * Retrieve id of items to be reloaded
-     * @param ids - id if items to check
-     */
-    protected async getExpiredIds(...ids: Array<number>): Promise<Array<number>> {
-        let result: Array<number> = await super.getExpiredIds(...ids) as number[];
-        if (this.checkLastModify) {
-            if (result.length < ids.length) {
-
-                const isconnected = await UtilsService.CheckOnline();
-                if (isconnected) {
-
-                    try {
-
-                        const lastModifiedDate = await this.LastModfiedList();
-
-                        result = [];
-                        ids.forEach((id) => {
-                            const lastLoad = this.getIdLastLoad(id);
-                            if (!lastLoad || lastLoad < lastModifiedDate) {
-                                result.push(id);
-                            }
-                        });
-
-
-                    } catch (error) {
-                        console.error(error);
-                    }
-
-
-                }
-            }
-        }
-
-        return result;
-    }
-
-    /**********************************Service specific calls  *******************************/
 
 
     /***************** SP Calls associated to service standard operations ********************/
