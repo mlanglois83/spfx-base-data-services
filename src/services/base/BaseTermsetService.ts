@@ -1,16 +1,16 @@
-import { find } from "lodash";
-import { dateAdd, stringIsNullOrEmpty, PnPClientStorage } from "@pnp/core";
-import "../../pnpExtensions/TermsetExt";
+import { dateAdd, PnPClientStorage, stringIsNullOrEmpty } from "@pnp/core";
 import "@pnp/sp/sites";
 import { IOrderedTermInfo, ITermSet } from "@pnp/sp/taxonomy";
 import "@pnp/sp/webs";
+import { find } from "lodash";
 import { ServicesConfiguration } from "../../configuration";
 import { Constants, TraceLevel } from "../../constants/index";
 import { Decorators } from "../../decorators";
 import { TaxonomyHidden, TaxonomyTerm } from "../../models";
+import "../../pnpExtensions/TermsetExt";
 import { ServiceFactory } from "../ServiceFactory";
 import { UtilsService } from "../UtilsService";
-import { BaseDataService } from "./BaseDataService";
+import { BaseSPService } from "./BaseSPService";
 const trace = Decorators.trace;
 const standardTermSetCacheDuration = 10;
 
@@ -19,7 +19,7 @@ const standardTermSetCacheDuration = 10;
  */
 export class BaseTermsetService<
     T extends TaxonomyTerm
-    > extends BaseDataService<T> {
+    > extends BaseSPService<T> {
     protected utilsService: UtilsService;
     protected termsetnameorid: string;
     protected isGlobal: boolean;
@@ -36,40 +36,40 @@ export class BaseTermsetService<
     /**
      * Get site collection group
      */
-    protected static _siteCollectionGroupIdPromise: Promise<string> = undefined;
-    protected static _siteCollectionGroupId: string = undefined;
-    protected static async getSiteCollectionGroupId(): Promise<string> {
-        if (stringIsNullOrEmpty(BaseTermsetService._siteCollectionGroupId)) {
-            if (!BaseTermsetService._siteCollectionGroupIdPromise) {
-                BaseTermsetService._siteCollectionGroupIdPromise = new Promise<string>(
+    protected _siteCollectionGroupIdPromise: Promise<string> = undefined;
+    protected _siteCollectionGroupId: string = undefined;
+    protected async getSiteCollectionGroupId(): Promise<string> {
+        if (stringIsNullOrEmpty(this._siteCollectionGroupId)) {
+            if (!this._siteCollectionGroupIdPromise) {
+                this._siteCollectionGroupIdPromise = new Promise<string>(
                     async (resolve, reject) => {
                         try {
                             const [ts, properties] = await Promise.all([
-                                ServicesConfiguration.sp.termStore(),
-                                ServicesConfiguration.sp.site.rootWeb.allProperties(),
+                                this.sp.termStore(),
+                                this.sp.site.rootWeb.allProperties(),
                             ]);
-                            BaseTermsetService._siteCollectionGroupId =
+                            this._siteCollectionGroupId =
                                 properties["SiteCollectionGroupId" + ts.id] ||
                                 properties[
                                 "SiteCollectionGroupId" + ts.id.replace(/-/g, "_x002d_")
                                 ];
-                            resolve(BaseTermsetService._siteCollectionGroupId);
+                            resolve(this._siteCollectionGroupId);
                         } catch (error) {
                             reject(error);
                         }
                     }
                 );
-                BaseTermsetService._siteCollectionGroupIdPromise
+                this._siteCollectionGroupIdPromise
                     .then(() => {
-                        BaseTermsetService._siteCollectionGroupIdPromise = undefined;
+                        this._siteCollectionGroupIdPromise = undefined;
                     })
                     .catch(() => {
-                        BaseTermsetService._siteCollectionGroupIdPromise = undefined;
+                        this._siteCollectionGroupIdPromise = undefined;
                     });
             }
-            return BaseTermsetService._siteCollectionGroupIdPromise;
+            return this._siteCollectionGroupIdPromise;
         } else {
-            return BaseTermsetService._siteCollectionGroupId;
+            return this._siteCollectionGroupId;
         }
     }
 
@@ -122,7 +122,7 @@ export class BaseTermsetService<
                     try {
                         if (this.isGlobal) {
                             const [termsets, tsLngTag] = await Promise.all([
-                                ServicesConfiguration.sp.termStore.sets(),
+                                this.sp.termStore.sets(),
                                 BaseTermsetService.initTermStoreDefaultLanguageTag(),
                             ]);
                             const ts = find(termsets, (t) =>
@@ -135,15 +135,15 @@ export class BaseTermsetService<
                             if (ts) {
                                 this._tsId = ts.id;
                                 this.customSortOrder = ts.customSortOrder?.join(":");
-                                resolve(ServicesConfiguration.sp.termStore.sets.getById(this._tsId));
+                                resolve(this.sp.termStore.sets.getById(this._tsId));
                             } else {
                                 reject(new Error("Termset not found: " + this.termsetnameorid));
                             }
                         } else {
                             const groupId =
-                                await BaseTermsetService.getSiteCollectionGroupId();
+                                await this.getSiteCollectionGroupId();
                             const [termsets, tsLngTag] = await Promise.all([
-                                ServicesConfiguration.sp.termStore.groups.getById(groupId).sets(),
+                                this.sp.termStore.groups.getById(groupId).sets(),
                                 BaseTermsetService.initTermStoreDefaultLanguageTag(),
                             ]);
                             const ts = find(termsets, (t) =>
@@ -156,7 +156,7 @@ export class BaseTermsetService<
                             if (ts) {
                                 this._tsId = ts.id;
                                 this.customSortOrder = ts.customSortOrder?.join(":");
-                                resolve(ServicesConfiguration.sp.termStore.sets.getById(this._tsId));
+                                resolve(this.sp.termStore.sets.getById(this._tsId));
                             } else {
                                 reject(
                                     new Error(
@@ -180,7 +180,7 @@ export class BaseTermsetService<
             }
             return this._tsIdPromise;
         } else {
-            return ServicesConfiguration.sp.termStore.sets.getById(this._tsId);
+            return this.sp.termStore.sets.getById(this._tsId);
         }
     }
 
@@ -194,9 +194,10 @@ export class BaseTermsetService<
         type: new (item?: any) => T,
         termsetnameorid: string,
         isGlobal = true,
-        cacheDuration: number = standardTermSetCacheDuration
+        cacheDuration: number = standardTermSetCacheDuration,
+        baseUrl?: string
     ) {
-        super(type, cacheDuration);
+        super(type, cacheDuration, baseUrl);
         this.utilsService = new UtilsService();
         this.termsetnameorid = termsetnameorid;
         this.isGlobal = isGlobal;

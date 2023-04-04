@@ -1,4 +1,3 @@
-import { cloneDeep } from "lodash";
 import "@pnp/sp/files";
 import "@pnp/sp/folders";
 import { IFolder } from "@pnp/sp/folders";
@@ -6,28 +5,28 @@ import "@pnp/sp/items/list";
 import "@pnp/sp/lists";
 import { IList } from "@pnp/sp/lists";
 import "@pnp/sp/lists/web";
+import { cloneDeep } from "lodash";
 import * as mime from "mime-types";
-import { ServicesConfiguration } from "../../configuration/ServicesConfiguration";
 import { TraceLevel } from "../../constants";
 import { Decorators } from "../../decorators";
 import { ChunkedFileUploadProgressData } from "../../interfaces";
 import { SPFile } from "../../models/base/SPFile";
 import { UtilsService } from "../UtilsService";
-import { BaseDataService } from "./BaseDataService";
+import { BaseSPService } from "./BaseSPService";
 
 
 const trace = Decorators.trace;
 /**
  * Base service for sp files operations
  */
-export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
+export class BaseFileService<T extends SPFile> extends BaseSPService<T>{
     protected listRelativeUrl: string;
 
     /**
      * Associeted list (pnpjs)
      */
     protected get list(): IList {
-        return ServicesConfiguration.sp.web.getList(this.listRelativeUrl);
+        return this.sp.web.getList(this.listRelativeUrl);
     }
 
     /**
@@ -36,9 +35,9 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
      * @param context - current sp component context 
      * @param listRelativeUrl - list web relative url
      */
-    constructor(type: (new (item?: any) => T), listRelativeUrl: string) {
-        super(type);
-        this.listRelativeUrl = ServicesConfiguration.serverRelativeUrl + listRelativeUrl;
+    constructor(type: (new (item?: any) => T), listRelativeUrl: string, cacheDuration?: number, baseUrl?: string) {
+        super(type, cacheDuration, baseUrl);
+        this.listRelativeUrl = this.baseRelativeUrl + listRelativeUrl;
     }
     /**
      * Retrieve all items
@@ -55,7 +54,7 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
 
     @trace(TraceLevel.Queries)
     public async getItemById_Query(id: string): Promise<any> {
-        return ServicesConfiguration.sp.web.getFileByServerRelativePath(id)();
+        return this.sp.web.getFileByServerRelativePath(id)();
     }
 
     @trace(TraceLevel.Queries)
@@ -65,7 +64,7 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
         const copy = cloneDeep(ids);
         while(copy.length > 0) {
             const sub = copy.splice(0,100);
-            const [batchedSP, execute]= ServicesConfiguration.sp.batched();
+            const [batchedSP, execute]= this.sp.batched();
             sub.forEach((id) => {
                 batchedSP.web.getFileByServerRelativePath(id)().then(async (item)=> {
                     if(item) {                        
@@ -98,7 +97,7 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
         const folderUrl = this.listRelativeUrl + folderListRelativeUrl;
         const folderExists = await this.folderExists(folderListRelativeUrl);
         if (folderExists) {
-            const files = await ServicesConfiguration.sp.web.getFolderByServerRelativePath(folderUrl).files();
+            const files = await this.sp.web.getFolderByServerRelativePath(folderUrl).files();
             result = files.map(file => this.populateItem(file));
         }
 
@@ -112,7 +111,7 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
             folderUrl = this.listRelativeUrl + folderUrl;
         }
         try {
-            await ServicesConfiguration.sp.web.getFolderByServerRelativePath(folderUrl)();
+            await this.sp.web.getFolderByServerRelativePath(folderUrl)();
             result = true;
         } catch (error) {
             // no folder, returns false
@@ -123,10 +122,10 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
     @trace(TraceLevel.Internal)
     public async addOrUpdateItem_Internal(item: T): Promise<T> {
         const folderUrl = UtilsService.getParentFolderUrl(item.serverRelativeUrl);
-        const folder: IFolder = ServicesConfiguration.sp.web.getFolderByServerRelativePath(folderUrl);
+        const folder: IFolder = this.sp.web.getFolderByServerRelativePath(folderUrl);
         const exists = await this.folderExists(folderUrl);
         if (!exists) {
-            await ServicesConfiguration.sp.web.folders.addUsingPath(folderUrl);
+            await this.sp.web.folders.addUsingPath(folderUrl);
         }
         if (item.content.byteLength <= 10485760) {
             // small upload
@@ -170,9 +169,9 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
     @trace(TraceLevel.Internal)
     public async deleteItem_Internal(item: T): Promise<T> {        
         if(item.id) {
-            await ServicesConfiguration.sp.web.getFileByServerRelativePath(item.serverRelativeUrl).delete();
+            await this.sp.web.getFileByServerRelativePath(item.serverRelativeUrl).delete();
             const folderUrl = UtilsService.getParentFolderUrl(item.serverRelativeUrl);
-            const folder: IFolder = ServicesConfiguration.sp.web.getFolderByServerRelativePath(folderUrl);
+            const folder: IFolder = this.sp.web.getFolderByServerRelativePath(folderUrl);
             const files = await folder.files();
             if (!files || files.length === 0) {
                 await folder.delete();
@@ -188,7 +187,7 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
     @trace(TraceLevel.Internal)
     public async deleteItems_Internal(items: Array<T>): Promise<Array<T>> { 
         items.filter(i => !i.id).forEach(i => i.deleted = true);   
-        const [batchedSP, execute] = ServicesConfiguration.sp.batched();   
+        const [batchedSP, execute] = this.sp.batched();   
         const folders = [];
         items.filter(i => i.id).forEach(item => {
             batchedSP.web.getFileByServerRelativePath(item.serverRelativeUrl).delete().then(() => {
@@ -202,11 +201,11 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
             }
         });  
         await execute();
-        const [folderbatchedSP, folderExecute] = ServicesConfiguration.sp.batched();
+        const [folderbatchedSP, folderExecute] = this.sp.batched();
         folders.forEach(f => {
             folderbatchedSP.web.getFolderByServerRelativePath(f).files().then(async (files) => {
                 if (!files || files.length === 0) {
-                    await ServicesConfiguration.sp.web.getFolderByServerRelativePath(f).delete();
+                    await this.sp.web.getFolderByServerRelativePath(f).delete();
                 } 
             });
         });   
@@ -217,9 +216,9 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
     @trace(TraceLevel.Internal)
     public async recycleItem_Internal(item: T): Promise<T> {        
         if(item.id) {
-            await ServicesConfiguration.sp.web.getFileByServerRelativePath(item.serverRelativeUrl).recycle();
+            await this.sp.web.getFileByServerRelativePath(item.serverRelativeUrl).recycle();
             const folderUrl = UtilsService.getParentFolderUrl(item.serverRelativeUrl);
-            const folder: IFolder = ServicesConfiguration.sp.web.getFolderByServerRelativePath(folderUrl);
+            const folder: IFolder = this.sp.web.getFolderByServerRelativePath(folderUrl);
             const files = await folder.files();
             if (!files || files.length === 0) {
                 await folder.recycle();
@@ -235,7 +234,7 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
     @trace(TraceLevel.Internal)
     public async recycleItems_Internal(items: Array<T>): Promise<Array<T>> { 
         items.filter(i => !i.id).forEach(i => i.deleted = true);   
-        const [batchedSP, execute] = ServicesConfiguration.sp.batched();   
+        const [batchedSP, execute] = this.sp.batched();   
         const folders = [];
         items.filter(i => i.id).forEach(item => {
             batchedSP.web.getFileByServerRelativePath(item.serverRelativeUrl).recycle().then(() => {
@@ -249,11 +248,11 @@ export class BaseFileService<T extends SPFile> extends BaseDataService<T>{
             }
         });  
         await execute();
-        const [folderbatchedSP, folderExecute] = ServicesConfiguration.sp.batched();
+        const [folderbatchedSP, folderExecute] = this.sp.batched();
         folders.forEach(f => {
             folderbatchedSP.web.getFolderByServerRelativePath(f).files().then(async (files) => {
                 if (!files || files.length === 0) {
-                    await ServicesConfiguration.sp.web.getFolderByServerRelativePath(f).recycle();
+                    await this.sp.web.getFolderByServerRelativePath(f).recycle();
                 } 
             });
         });   

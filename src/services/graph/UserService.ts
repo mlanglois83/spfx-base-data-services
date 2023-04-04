@@ -15,8 +15,8 @@ export class UserService extends BaseUserService<User> {
      * Instanciates a user service
      * @param cacheDuration - cache duration in minutes (default : 10)
      */
-    constructor(cacheDuration: number = standardUserCacheDuration) {
-        super(User, cacheDuration);
+    constructor(cacheDuration: number = standardUserCacheDuration, baseUrl?: string) {
+        super(User, cacheDuration, false, baseUrl);
     }
     
 }

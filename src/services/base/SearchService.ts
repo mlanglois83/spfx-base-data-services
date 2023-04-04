@@ -1,21 +1,19 @@
-import { assign, cloneDeep, find } from "lodash";
 import {
-  SearchQueryBuilder,
+  ISearchResult, SearchQueryBuilder,
   SearchResults,
-  SortDirection,
-  ISearchResult
+  SortDirection
 } from "@pnp/sp/search";
-import { BaseDataService, ServiceFactory } from "..";
-import { BaseItem, SPItem, TaxonomyTerm } from "../../models";
+import { assign, cloneDeep, find } from "lodash";
+import { BaseSPService, ServiceFactory } from "..";
 import { FieldType, LogicalOperator, QueryToken, TestOperator } from "../../constants";
 import { IFieldDescriptor, ILogicalSequence, IPredicate, IQuery } from "../../interfaces";
-import { ServicesConfiguration } from "../../configuration";
+import { BaseItem, SPItem, TaxonomyTerm } from "../../models";
 
 /**
  *
  * Base service search
  */
-export class SearchService<T extends BaseItem> extends BaseDataService<T> {  
+export class SearchService<T extends BaseItem> extends BaseSPService<T> {  
   protected recycleItem_Internal(item: T): Promise<T> {
     throw new Error("Method not implemented." + item.toString());
   }
@@ -64,9 +62,10 @@ export class SearchService<T extends BaseItem> extends BaseDataService<T> {
 
   constructor(
     type: new (item?: any) => T,
-    cacheDuration?: number
+    cacheDuration?: number,
+    baseUrl?: string
   ) {
-    super(type, cacheDuration);
+    super(type, cacheDuration, baseUrl);
   }
 
   protected _itemfields: any = null;
@@ -211,7 +210,7 @@ export class SearchService<T extends BaseItem> extends BaseDataService<T> {
     searchQuery.TrimDuplicates = false;
 
     //Execute query
-    const searchItems: SearchResults = await ServicesConfiguration.sp.search(searchQuery);
+    const searchItems: SearchResults = await this.sp.search(searchQuery);
 
     //browse results
     const results = searchItems.PrimarySearchResults.map(r => {
@@ -262,7 +261,7 @@ export class SearchService<T extends BaseItem> extends BaseDataService<T> {
     const searchQuery = builder.toSearchQuery();
     searchQuery.TrimDuplicates = false;
     //Execute query
-    const searchItems: SearchResults = await ServicesConfiguration.sp.search(searchQuery);
+    const searchItems: SearchResults = await this.sp.search(searchQuery);
 
     //browse results
     const results = searchItems.PrimarySearchResults.map(r => {

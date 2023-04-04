@@ -353,4 +353,16 @@ export class UtilsService extends BaseService {
             return masked.toString(16);
         });
     }
+
+    public static getServerRelativeUrl(url: string): string {
+        return url?.replace(/^https?:\/\/[^/]+(\/.*)$/g, "$1");
+    }
+    
+    public static getAbsoluteUrl(url: string): string {
+        if(url && !url?.match(/^(https?:)?\/\//g)) {
+            url = url.replace(/^\/+/g, "");
+            url = location.protocol + "//" + location.host +"/" + url;
+        }
+        return url;
+    }
 }

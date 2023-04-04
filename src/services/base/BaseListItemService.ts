@@ -1,4 +1,3 @@
-import { cloneDeep, find, findIndex } from "lodash";
 import { isArray, stringIsNullOrEmpty } from "@pnp/core";
 import "@pnp/sp/content-types/list";
 import "@pnp/sp/fields/list";
@@ -8,6 +7,7 @@ import "@pnp/sp/lists";
 import { ICamlQuery, IList } from "@pnp/sp/lists";
 import "@pnp/sp/lists/web";
 import { Semaphore } from "async-mutex";
+import { cloneDeep, find, findIndex } from "lodash";
 import { ServicesConfiguration } from "../../configuration/ServicesConfiguration";
 import { Constants, FieldType, LogicalOperator, QueryToken, TestOperator, TraceLevel } from "../../constants/index";
 import { Decorators } from "../../decorators";
@@ -16,11 +16,11 @@ import { BaseItem, SPFile, SPItem, TaxonomyTerm, User } from "../../models";
 import { UserService } from "../graph/UserService";
 import { ServiceFactory } from "../ServiceFactory";
 import { UtilsService } from "../UtilsService";
-import { BaseDataService } from "./BaseDataService";
 import { BaseDbService } from "./BaseDbService";
 
-import "@pnp/sp/batching";
 import { SPFI } from "@pnp/sp";
+import "@pnp/sp/batching";
+import { BaseSPService } from "./BaseSPService";
 
 
 const trace = Decorators.trace;
@@ -29,7 +29,7 @@ const trace = Decorators.trace;
  * 
  * Base service for sp list items operations
  */
-export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
+export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
 
     /***************************** Fields and properties **************************************/
     protected listRelativeUrl: string;
@@ -44,7 +44,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
      * Associeted list (pnpjs)
      */
     protected get list(): IList {
-        return ServicesConfiguration.sp.web.getList(this.listRelativeUrl);
+        return this.sp.web.getList(this.listRelativeUrl);
     }
 
     protected batchedList(batch: SPFI): IList {
@@ -58,9 +58,9 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
      * @param tableName - name of table in local db
      * @param cacheDuration - cache duration in minutes
      */
-    constructor(type: (new (item?: any) => T), listRelativeUrl: string, cacheDuration?: number, checkLastModify?: boolean) {
-        super(type, cacheDuration);
-        this.listRelativeUrl = ServicesConfiguration.serverRelativeUrl + listRelativeUrl;
+    constructor(type: (new (item?: any) => T), listRelativeUrl: string, cacheDuration?: number, checkLastModify?: boolean, baseUrl?: string) {
+        super(type, cacheDuration, baseUrl);
+        this.listRelativeUrl =  this.baseRelativeUrl + listRelativeUrl;
         if (this.hasAttachments) {
             this.attachmentsService = new BaseDbService<SPFile>(SPFile, "ListAttachments");
         }
@@ -757,7 +757,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                 const batches = [];
                 while (itemsToAdd.length > 0) {
                     const sub = itemsToAdd.splice(0, 100);
-                    const [batchedSp, execute]  = ServicesConfiguration.sp.batched();
+                    const [batchedSp, execute]  = this.sp.batched();
                     for (const item of sub) {
                         const currentIdx = idx;
                         const itemId = item.id;
@@ -817,7 +817,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                 const batches = [];
                 while (versionedItems.length > 0) {
                     const sub = versionedItems.splice(0, 100);
-                    const [batchedSP, execute] = ServicesConfiguration.sp.batched();
+                    const [batchedSP, execute] = this.sp.batched();
                     for (const item of sub) {
                         const currentIdx = idx;
                         this.batchedList(batchedSP).items.getById(item.id).select(Constants.commonFields.version)().then(async (existing) => {
@@ -881,7 +881,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                 const batches = [];
                 while (updatedItems.length > 0) {
                     const sub = updatedItems.splice(0, 100);
-                    const [batchedSp, execute] = ServicesConfiguration.sp.batched();
+                    const [batchedSp, execute] = this.sp.batched();
                     for (const item of sub) {
                         const currentIdx = idx;
                         const converted = await this.convertItem(item);
@@ -932,7 +932,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
                 const batches = [];
                 while (resultItems.length > 0) {
                     const sub = resultItems.splice(0, 100);
-                    const [batchedSP, execute] = ServicesConfiguration.sp.batched();
+                    const [batchedSP, execute] = this.sp.batched();
                     for (const item of sub) {
                         const currentIdx = idx;
                         this.batchedList(batchedSP).items.getById(item.id).select(...selectFields)().then(async (version) => {
@@ -997,7 +997,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
      @trace(TraceLevel.Internal)
      protected async recycleItems_Internal(items: Array<T>): Promise<Array<T>> {
          if(ServicesConfiguration.configuration.spVersion !== "SP2013") {
-             const [batchedSP, execute] = ServicesConfiguration.sp.batched();
+             const [batchedSP, execute] = this.sp.batched();
              items.forEach(item => {
                  this.batchedList(batchedSP).items.getById(item.id).recycle().then(() => {
                      item.deleted = true;
@@ -1040,7 +1040,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
     @trace(TraceLevel.Internal)
     protected async deleteItems_Internal(items: Array<T>): Promise<Array<T>> {
         if(ServicesConfiguration.configuration.spVersion !== "SP2013") {
-            const [batchedSP, execute] = ServicesConfiguration.sp.batched();
+            const [batchedSP, execute] = this.sp.batched();
             items.forEach(item => {
                 this.batchedList(batchedSP).items.getById(item.id).delete().then(() => {
                     item.deleted = true;
@@ -1067,7 +1067,7 @@ export class BaseListItemService<T extends SPItem> extends BaseDataService<T>{
 
     @trace(TraceLevel.ServiceUtilities)
     private async getAttachmentContent(attachment: SPFile): Promise<void> {
-        const content = await ServicesConfiguration.sp.web.getFileByServerRelativePath(attachment.serverRelativeUrl).getBuffer();
+        const content = await this.sp.web.getFileByServerRelativePath(attachment.serverRelativeUrl).getBuffer();
         attachment.content = content;
     }
 
