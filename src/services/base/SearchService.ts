@@ -98,7 +98,7 @@ export class SearchService<T extends BaseItem> extends BaseSPService<T> {
         assign(result, this.itemType["Fields"][this.itemType["name"]]);
       }
 
-      Object.keys(result).map(propertyName => {
+      Object.keys(result).forEach(propertyName => {
         const fieldDescription = result[propertyName];
         if (fieldDescription.fieldName) {
           this._selectedProperties.push(fieldDescription.fieldName);
@@ -280,7 +280,7 @@ export class SearchService<T extends BaseItem> extends BaseSPService<T> {
     const item = new this.itemType();
 
     //for each properties decorated
-    Object.keys(this.ItemFields).map(propertyName => {
+    Object.keys(this.ItemFields).forEach(propertyName => {
       const fieldDescription = this.ItemFields[propertyName];
       //get value in search result to assign to object model
       this.setFieldValue(searchItem, item, propertyName, fieldDescription);
@@ -347,7 +347,6 @@ export class SearchService<T extends BaseItem> extends BaseSPService<T> {
         );
         break;
       case FieldType.Taxonomy:
-        //.split(";").filter(function(str) {return str.indexOf("GP0|#") === 0;}).map(function(str) {return str.replace("GP0|#", "")});
         let termId;
         if (searchItem[fieldDescriptor.fieldName] && searchItem[fieldDescriptor.fieldName].includes("GP0|#")) {
           termId = searchItem[fieldDescriptor.fieldName].split("\n").filter((str) => { return str.indexOf("GP0|#") === 0; }).map((str) => { return str.replace("GP0|#", ""); })[0];
@@ -360,7 +359,11 @@ export class SearchService<T extends BaseItem> extends BaseSPService<T> {
 
         if (termId) {
           const tterms = this.getServiceInitValuesByName(fieldDescriptor.modelName);
-          converted[propertyName] = this.getTaxonomyTermById(termId, tterms as Array<TaxonomyTerm>);
+          const retrievedTerm  = this.getTaxonomyTermById(termId, tterms as Array<TaxonomyTerm>);
+          converted[propertyName] = retrievedTerm ?? fieldDescriptor.defaultValue;
+        }
+        else {
+          converted[propertyName] = fieldDescriptor.defaultValue;
         }
         break;
       case FieldType.TaxonomyMulti:
@@ -376,15 +379,19 @@ export class SearchService<T extends BaseItem> extends BaseSPService<T> {
 
         if (terms) {
           converted[propertyName] = [];
-          terms.map(term => {
+          const tterms = this.getServiceInitValuesByName(fieldDescriptor.modelName);
+          terms.forEach(term => {
             const tempId: string = term ? term.split("|")[1] : null;
             if (tempId) {
-              const tterms = this.getServiceInitValuesByName(fieldDescriptor.modelName);
-              converted[propertyName].push(
-                this.getTaxonomyTermById(tempId, tterms as Array<TaxonomyTerm>)
-              );
+              const retrievedTerm = this.getTaxonomyTermById(tempId, tterms as Array<TaxonomyTerm>);
+              if(retrievedTerm) {                
+                converted[propertyName].push(retrievedTerm);
+              }
             }
           });
+        }
+        else {
+          converted[propertyName] = fieldDescriptor.defaultValue;
         }
         break;
       case FieldType.Json:
