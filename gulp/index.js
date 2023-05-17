@@ -63,7 +63,7 @@ const inject = function (imports, filePath) {
 
             }
         }
-        const str = importString + `\nconsole.groupCollapsed("spfx-base-data-services - register services");\n[\n${declarations.map(d => "\t" + d).join(",\n")}\n].forEach(function (value) { \n\tconsole.log((value as any).name + " added to ServiceFactory");\n});\nconsole.groupEnd();\n`;
+        const str = importString + `\nconsole.groupCollapsed("spfx-base-data-services - register services");\n[\n${declarations.map(d => "\t" + d).join(",\n")}\n].forEach(function (value) { \n\tconsole.log((value as new() => BaseService).name + " added to ServiceFactory");\n});\nconsole.groupEnd();\n`;
         const regex = new RegExp(begin + ".*" + end, 's');
         if (fileContents.match(regex)) {
             return fileContents.replace(new RegExp(begin + ".*" + end, 's'), begin + comment + "\n" + str + end);
@@ -101,6 +101,10 @@ function getInjectionTask(build, basePath) {
         }
         // construct injection
         const imports = {
+            BaseService: {
+                isFile: false,
+                ref: "spfx-base-data-services"
+            },
             TaxonomyHiddenListService: {
                 isFile: false,
                 ref: "spfx-base-data-services"
