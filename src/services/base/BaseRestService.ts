@@ -606,74 +606,61 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
     @trace(TraceLevel.Service)
     public async getByRestQuery(restQuery: IEndPointBinding, data?: any, linkedFields?: Array<string>): Promise<Array<T>> {
         const keyCached = super.hashCode(restQuery).toString() + super.hashCode(data).toString() + super.hashCode(linkedFields).toString();
-        let promise = this.getExistingPromise(keyCached);
-        if (promise) {
-            console.log(this.serviceName + " " + keyCached + " : load allready called before, sharing promise");
-        }
-        else {
-            promise = new Promise<Array<T>>(async (resolve, reject) => {
-                try {
-                    let result = new Array<T>();
-                    //has to refresh cache
-                    let reloadData = this.needRefreshCache(keyCached);
-                    //if refresh is needed, test offline/online
-                    if (reloadData && ServicesConfiguration.configuration.checkOnline) {
-                        reloadData = await UtilsService.CheckOnline();
+        return this.callAsyncWithPromiseManagement(async () => {
+            let result = new Array<T>();
+            //has to refresh cache
+            let reloadData = this.needRefreshCache(keyCached);
+            //if refresh is needed, test offline/online
+            if (reloadData && ServicesConfiguration.configuration.checkOnline) {
+                reloadData = await UtilsService.CheckOnline();
+            }
+
+            if (reloadData) {
+                const json = await this.executeRequest(restQuery.url, restQuery.method, data);
+                if (this.isPersistItemsDataAsync(linkedFields)) {
+                    result = await this.persistItemsDataAsync_internal(json, linkedFields);
+                }
+                else {
+                    result = this.persistItemsDataSync_internal(json);
+                }
+
+                //check if data exist for this query in database
+                let mapping = await this.restMappingDb.getItemById(keyCached);
+                if (mapping) {
+                    const tmp = await this.dbService.getItemsById(mapping.itemIds);
+                    //if data exists trash them 
+                    if (tmp && tmp.length > 0) {
+                        await this.dbService.deleteItems(tmp);
                     }
-
-                    if (reloadData) {
-                        const json = await this.executeRequest(restQuery.url, restQuery.method, data);
-                        if (this.isPersistItemsDataAsync(linkedFields)) {
-                            result = await this.persistItemsDataAsync_internal(json, linkedFields);
-                        }
-                        else {
-                            result = this.persistItemsDataSync_internal(json);
-                        }
-
-                        //check if data exist for this query in database
-                        let mapping = await this.restMappingDb.getItemById(keyCached);
-                        if (mapping) {
-                            const tmp = await this.dbService.getItemsById(mapping.itemIds);
-                            //if data exists trash them 
-                            if (tmp && tmp.length > 0) {
-                                await this.dbService.deleteItems(tmp);
-                            }
-                        }
-                        if (result && result.length > 0) {
-                            const convresult = result.map(res => this.convertItemToDbFormat(res));
-                            await this.dbService.addOrUpdateItems(convresult);
-                            mapping = new RestResultMapping();
-                            mapping.id = keyCached;
-                            mapping.itemIds = convresult.map(r => r.id);
-                            await this.restMappingDb.addOrUpdateItem(mapping);
-                            this.UpdateIdsLastLoad(...convresult.map(e => e.id));
-                        }
-                        else if (mapping) {
-                            await this.restMappingDb.deleteItem(mapping);
-                        }
-                        this.UpdateCacheData(keyCached);
+                }
+                if (result && result.length > 0) {
+                    const convresult = result.map(res => this.convertItemToDbFormat(res));
+                    await this.dbService.addOrUpdateItems(convresult);
+                    mapping = new RestResultMapping();
+                    mapping.id = keyCached;
+                    mapping.itemIds = convresult.map(r => r.id);
+                    await this.restMappingDb.addOrUpdateItem(mapping);
+                    this.UpdateIdsLastLoad(...convresult.map(e => e.id));
+                }
+                else if (mapping) {
+                    await this.restMappingDb.deleteItem(mapping);
+                }
+                this.UpdateCacheData(keyCached);
+            }
+            else {
+                const mapping = await this.restMappingDb.getItemById(keyCached);
+                if (mapping && mapping.itemIds && mapping.itemIds.length > 0) {
+                    const tmp = await this.dbService.getItemsById(mapping.itemIds);
+                    if (this.isMapItemsAsync(linkedFields)) {
+                        result = await this.mapItemsAsync(tmp, linkedFields);
                     }
                     else {
-                        const mapping = await this.restMappingDb.getItemById(keyCached);
-                        if (mapping && mapping.itemIds && mapping.itemIds.length > 0) {
-                            const tmp = await this.dbService.getItemsById(mapping.itemIds);
-                            if (this.isMapItemsAsync(linkedFields)) {
-                                result = await this.mapItemsAsync(tmp, linkedFields);
-                            }
-                            else {
-                                result = this.mapItemsSync(tmp);
-                            }
-                        }
+                        result = this.mapItemsSync(tmp);
                     }
-                    resolve(result);
                 }
-                catch (error) {
-                    reject(error);
-                }
-            });
-            this.storePromise(promise, keyCached);
-        }
-        return promise;
+            }
+            return result;
+        }, keyCached);
     }
 
 

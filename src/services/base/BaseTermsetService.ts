@@ -33,155 +33,119 @@ export class BaseTermsetService<
         return localStorage.getItem(UtilsService.formatText(Constants.cacheKeys.termsetCustomOrder, ServicesConfiguration.serverRelativeUrl, this.serviceName));
     }
 
+    protected set tsId(value: string) {
+        localStorage.setItem(UtilsService.formatText(Constants.cacheKeys.termsetId, ServicesConfiguration.serverRelativeUrl, this.serviceName), value ? value : "");
+    }
+    protected get tsId(): string {
+        return localStorage.getItem(UtilsService.formatText(Constants.cacheKeys.termsetId, ServicesConfiguration.serverRelativeUrl, this.serviceName));
+    }
+
+    protected set siteCollectionGroupId(value: string) {
+        localStorage.setItem(UtilsService.formatText(Constants.cacheKeys.termsetSiteCollectionGroupId, ServicesConfiguration.serverRelativeUrl, this.serviceName), value ? value : "");
+    }
+    protected get siteCollectionGroupId(): string {
+        return localStorage.getItem(UtilsService.formatText(Constants.cacheKeys.termsetSiteCollectionGroupId, ServicesConfiguration.serverRelativeUrl, this.serviceName));
+    }
+
+    protected static set termStoreDefaultLanguageTag(value: string) {
+        localStorage.setItem(UtilsService.formatText(Constants.cacheKeys.termStoreDefaultLanguageTag, ServicesConfiguration.serverRelativeUrl), value ? value : "");
+    }
+    protected static get termStoreDefaultLanguageTag(): string {
+        return localStorage.getItem(UtilsService.formatText(Constants.cacheKeys.termStoreDefaultLanguageTag, ServicesConfiguration.serverRelativeUrl));
+    }
+
     /**
      * Get site collection group
      */
-    protected _siteCollectionGroupIdPromise: Promise<string> = undefined;
-    protected _siteCollectionGroupId: string = undefined;
     protected async getSiteCollectionGroupId(): Promise<string> {
-        if (stringIsNullOrEmpty(this._siteCollectionGroupId)) {
-            if (!this._siteCollectionGroupIdPromise) {
-                this._siteCollectionGroupIdPromise = new Promise<string>(
-                    async (resolve, reject) => {
-                        try {
-                            const [ts, properties] = await Promise.all([
-                                this.sp.termStore(),
-                                this.sp.site.rootWeb.allProperties(),
-                            ]);
-                            this._siteCollectionGroupId =
-                                properties["SiteCollectionGroupId" + ts.id] ||
-                                properties[
-                                "SiteCollectionGroupId" + ts.id.replace(/-/g, "_x002d_")
-                                ];
-                            resolve(this._siteCollectionGroupId);
-                        } catch (error) {
-                            reject(error);
-                        }
-                    }
-                );
-                this._siteCollectionGroupIdPromise
-                    .then(() => {
-                        this._siteCollectionGroupIdPromise = undefined;
-                    })
-                    .catch(() => {
-                        this._siteCollectionGroupIdPromise = undefined;
-                    });
+        return this.callAsyncWithPromiseManagement(async () => {
+            if (stringIsNullOrEmpty(this.siteCollectionGroupId)) {
+                const [ts, properties] = await Promise.all([
+                    this.sp.termStore(),
+                    this.sp.site.rootWeb.allProperties(),
+                ]);
+                this.siteCollectionGroupId =
+                    properties["SiteCollectionGroupId" + ts.id] ||
+                    properties[
+                    "SiteCollectionGroupId" + ts.id.replace(/-/g, "_x002d_")
+                    ];                        
             }
-            return this._siteCollectionGroupIdPromise;
-        } else {
-            return this._siteCollectionGroupId;
-        }
+            return this.siteCollectionGroupId;            
+        }, "SiteColGroupId");        
     }
 
-    protected static _termStoreLanguagePromise: Promise<string> = undefined;
-    protected static _termStoreDefaultLanguageTag: string = undefined;
     protected static async initTermStoreDefaultLanguageTag(): Promise<string> {
-        if (stringIsNullOrEmpty(BaseTermsetService._termStoreDefaultLanguageTag)) {
-            if (!BaseTermsetService._termStoreLanguagePromise) {
-                BaseTermsetService._termStoreLanguagePromise = new Promise<string>(
-                    async (resolve, reject) => {
-                        try {
-                            const ts = await ServicesConfiguration.sp.termStore();
-                            BaseTermsetService._termStoreDefaultLanguageTag =
-                                ts.defaultLanguageTag;
-                            resolve(ts.defaultLanguageTag);
-                        } catch (error) {
-                            reject(error);
-                        }
-                    }
-                );
-                BaseTermsetService._termStoreLanguagePromise
-                    .then(() => {
-                        BaseTermsetService._termStoreLanguagePromise = undefined;
-                    })
-                    .catch(() => {
-                        BaseTermsetService._termStoreLanguagePromise = undefined;
-                    });
+        return UtilsService.callAsyncWithPromiseManagement("BaseTermSetService-TermStore", async () => {
+            if (stringIsNullOrEmpty(BaseTermsetService.termStoreDefaultLanguageTag)) {                
+                const ts = await ServicesConfiguration.sp.termStore();
+                BaseTermsetService.termStoreDefaultLanguageTag =
+                    ts.defaultLanguageTag;
             }
-            return BaseTermsetService._termStoreLanguagePromise;
-        }
-        return BaseTermsetService._termStoreDefaultLanguageTag;
+            return BaseTermsetService.termStoreDefaultLanguageTag;
+        });        
     }
 
     /**
      * Associated termset (pnpjs)
      */
-    protected _tsIdPromise = undefined;
-    protected _tsId = undefined;
     @trace(TraceLevel.ServiceUtilities)
     protected async GetTermset(): Promise<ITermSet> {
-        if (
-            stringIsNullOrEmpty(this._tsId) &&
-            this.termsetnameorid.match(/[A-z0-9]{8}-([A-z0-9]{4}-){3}[A-z0-9]{12}/)
-        ) {
-            this._tsId = this.termsetnameorid;
-        }
-        if (stringIsNullOrEmpty(this._tsId)) {
-            if (!this._tsIdPromise) {
-                this._tsIdPromise = new Promise<ITermSet>(async (resolve, reject) => {
-                    try {
-                        if (this.isGlobal) {
-                            const [termsets, tsLngTag] = await Promise.all([
-                                this.sp.termStore.sets(),
-                                BaseTermsetService.initTermStoreDefaultLanguageTag(),
-                            ]);
-                            const ts = find(termsets, (t) =>
-                                t.localizedNames.some(
-                                    (ln) =>
-                                        ln.languageTag === tsLngTag &&
-                                        ln.name === this.termsetnameorid
-                                )
-                            );
-                            if (ts) {
-                                this._tsId = ts.id;
-                                this.customSortOrder = ts.customSortOrder?.join(":");
-                                resolve(this.sp.termStore.sets.getById(this._tsId));
-                            } else {
-                                reject(new Error("Termset not found: " + this.termsetnameorid));
-                            }
-                        } else {
-                            const groupId =
-                                await this.getSiteCollectionGroupId();
-                            const [termsets, tsLngTag] = await Promise.all([
-                                this.sp.termStore.groups.getById(groupId).sets(),
-                                BaseTermsetService.initTermStoreDefaultLanguageTag(),
-                            ]);
-                            const ts = find(termsets, (t) =>
-                                t.localizedNames.some(
-                                    (ln) =>
-                                        ln.languageTag === tsLngTag &&
-                                        ln.name === this.termsetnameorid
-                                )
-                            );
-                            if (ts) {
-                                this._tsId = ts.id;
-                                this.customSortOrder = ts.customSortOrder?.join(":");
-                                resolve(this.sp.termStore.sets.getById(this._tsId));
-                            } else {
-                                reject(
-                                    new Error(
-                                        "Termset not found in site collection group: " +
-                                        this.termsetnameorid
-                                    )
-                                );
-                            }
-                        }
-                    } catch (error) {
-                        reject(error);
-                    }
-                });
-                this._tsIdPromise
-                    .then(() => {
-                        this._tsIdPromise = undefined;
-                    })
-                    .catch(() => {
-                        this._tsIdPromise = undefined;
-                    });
+        return this.callAsyncWithPromiseManagement(async () => {
+            if (
+                stringIsNullOrEmpty(this.tsId) &&
+                this.termsetnameorid.match(/[A-z0-9]{8}-([A-z0-9]{4}-){3}[A-z0-9]{12}/)
+            ) {
+                this.tsId = this.termsetnameorid;
             }
-            return this._tsIdPromise;
-        } else {
-            return this.sp.termStore.sets.getById(this._tsId);
-        }
+            if (stringIsNullOrEmpty(this.tsId)) {
+                if (this.isGlobal) {
+                    const [termsets, tsLngTag] = await Promise.all([
+                        this.sp.termStore.sets(),
+                        BaseTermsetService.initTermStoreDefaultLanguageTag(),
+                    ]);
+                    const ts = find(termsets, (t) =>
+                        t.localizedNames.some(
+                            (ln) =>
+                                ln.languageTag === tsLngTag &&
+                                ln.name === this.termsetnameorid
+                        )
+                    );
+                    if (ts) {
+                        this.tsId = ts.id;
+                        this.customSortOrder = ts.customSortOrder?.join(":");
+                        return this.sp.termStore.sets.getById(this.tsId);
+                    } else {
+                        throw new Error("Termset not found: " + this.termsetnameorid);
+                    }
+                } else {
+                    const groupId =
+                        await this.getSiteCollectionGroupId();
+                    const [termsets, tsLngTag] = await Promise.all([
+                        this.sp.termStore.groups.getById(groupId).sets(),
+                        BaseTermsetService.initTermStoreDefaultLanguageTag(),
+                    ]);
+                    const ts = find(termsets, (t) =>
+                        t.localizedNames.some(
+                            (ln) =>
+                                ln.languageTag === tsLngTag &&
+                                ln.name === this.termsetnameorid
+                        )
+                    );
+                    if (ts) {
+                        this.tsId = ts.id;
+                        this.customSortOrder = ts.customSortOrder?.join(":");
+                        return this.sp.termStore.sets.getById(this.tsId);
+                    } else {
+                        throw new Error(
+                            "Termset not found in site collection group: " +
+                            this.termsetnameorid
+                        );
+                    }
+                }
+            } else {
+                return this.sp.termStore.sets.getById(this.tsId);
+            }
+        }, "getTermSet");            
     }
 
     /**
@@ -235,7 +199,7 @@ export class BaseTermsetService<
         result.isDeprecated = term.isDeprecated;
         // custom sort order
         if(term.customSortOrder && term.customSortOrder.length > 0) {
-            const currentSortOrder = find(term.customSortOrder, cso => cso.setId === this._tsId);
+            const currentSortOrder = find(term.customSortOrder, cso => cso.setId === this.tsId);
             if(currentSortOrder) {
                 result.customSortOrder = currentSortOrder.order.join(":");
             }
@@ -326,7 +290,7 @@ export class BaseTermsetService<
                 return webLabel.label;
             } else {
                 // default termstore language
-                const taxonomy = BaseTermsetService._termStoreDefaultLanguageTag;
+                const taxonomy = BaseTermsetService.termStoreDefaultLanguageTag;
                 const taxonomyLabel = find(
                     labelCollection,
                     (label) => label.languageTag === taxonomy
@@ -341,17 +305,19 @@ export class BaseTermsetService<
 
     @trace(TraceLevel.Service)
     public async getWssIds(termId: string): Promise<Array<number>> {
-        if (!this.initialized) {
-            await this.Init();
-        }
-        const taxonomyHiddenItems = this.getServiceInitValues(TaxonomyHidden);
-        return taxonomyHiddenItems
-            .filter((taxItem) => {
-                return taxItem.termId === termId;
-            })
-            .map((filteredItem) => {
-                return filteredItem.id;
-            });
+        return this.callAsyncWithPromiseManagement(async () => {
+            if (!this.initialized) {
+                await this.Init();
+            }
+            const taxonomyHiddenItems = this.getServiceInitValues(TaxonomyHidden);
+            return taxonomyHiddenItems
+                .filter((taxItem) => {
+                    return taxItem.termId === termId;
+                })
+                .map((filteredItem) => {
+                    return filteredItem.id;
+                });
+        }, "wssIds");
     }
     @trace(TraceLevel.Queries)
     protected async getAll_Query(): Promise<Array<IOrderedTermInfo>> {

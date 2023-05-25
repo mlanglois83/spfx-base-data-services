@@ -41,6 +41,18 @@ export const Constants = {
          */
         termsetCustomOrder: "spfxdataservice-ts-custom-order-{0}-{1}",
         /**
+         * Termsset site collection group id, {0} --> site relative url, {1} --> Termset name or id
+         */
+        termsetSiteCollectionGroupId: "spfxdataservice-ts-sitecollection-group-id-{0}-{1}",
+        /**
+         * Termsstore language, {0} --> site relative url
+         */
+        termStoreDefaultLanguageTag: "spfxdataservice-termstore-default-language-{0}",
+        /**
+         * Termsset id, {0} --> site relative url, {1} --> Termset name or id
+         */
+        termsetId: "spfxdataservice-ts-id-{0}-{1}",
+        /**
          * Cache key for data service
          * {0} --> web server relative url
          * {1} --> service name
@@ -65,5 +77,6 @@ export const Constants = {
         "OfflineTransactionFiles",
         "ListAttachments",
         "RestMapping"
-    ]
+    ],
+    promiseVarName: "spfxBaseDataServicesPromises"
 };

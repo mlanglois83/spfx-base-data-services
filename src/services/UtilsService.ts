@@ -4,6 +4,7 @@ import { cloneDeep, find } from "lodash";
 //import { Batch } from "@pnp/odata";
 import { TaxonomyTerm } from "../models/base/TaxonomyTerm";
 import { stringIsNullOrEmpty } from "@pnp/core";
+import { Constants } from "../constants";
 /**
  * Utility class
  */
@@ -365,4 +366,52 @@ export class UtilsService extends BaseService {
         }
         return url;
     }
+
+    public static callAsyncWithPromiseManagement<T>(
+        key: string,
+        promiseGenerator: () => Promise<T>
+      ): Promise<T> {
+        let promise = UtilsService.getExistingPromise<T>(key);
+        if (promise) {
+            console.log(key + ' : load allready called before, sharing promise');
+        } else {
+            promise = promiseGenerator();
+            UtilsService.storePromise(promise, key);
+        }
+        return promise;
+    }
+
+    /* eslint-disable */
+  /**************************************************************** Promise Concurency ******************************************************************************/
+  /**
+   * Stored promises to avoid multiple calls
+   */
+  protected static getExistingPromise<T>(key: string): Promise<T> {
+    if (window[Constants.promiseVarName] && window[Constants.promiseVarName][key]) {
+      return window[Constants.promiseVarName][key];
+    } else return null;
+  }
+
+  protected static storePromise<T>(promise: Promise<T>, key: string): void {
+    if (!window[Constants.promiseVarName]) {
+      window[Constants.promiseVarName] = {};
+    }
+    window[Constants.promiseVarName][key] = promise;
+    promise
+      .then(() => {
+        UtilsService.removePromise(key);
+      })
+      .catch(() => {
+        UtilsService.removePromise(key);
+      });
+  }
+
+  protected static removePromise(key: string): void {
+    if (window[Constants.promiseVarName] && window[Constants.promiseVarName][key]) {
+      delete window[Constants.promiseVarName][key];
+    }
+  }
+  /*****************************************************************************************************************************************************************/
+  /* eslint-enable */
+
 }

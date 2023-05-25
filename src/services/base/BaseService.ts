@@ -1,6 +1,7 @@
 import { ServicesConfiguration } from "../../configuration/ServicesConfiguration";
 import { TraceLevel } from "../../constants";
 import { LoggingService } from "../LoggingService";
+import { UtilsService } from "../UtilsService";
 
 
 export abstract class BaseService {   
@@ -40,33 +41,14 @@ export abstract class BaseService {
 
     /**************************************************************** Promise Concurency ******************************************************************************/
 
-    /**
-     * Stored promises to avoid multiple calls
-     */
-     protected static promises = {};
-
-    protected getExistingPromise(key = "all"): Promise<any> {
-        const pkey = this.serviceName + "-" + key;
-        if (BaseService.promises[pkey]) {
-            return BaseService.promises[pkey];
-        }
-        else return null;
+    protected async callAsyncWithPromiseManagement<T>(
+        promiseGenerator: () => Promise<T>,
+        key = "all"
+      ): Promise<T> {
+        const pkey = this.serviceName + "-" + key
+        return UtilsService.callAsyncWithPromiseManagement(pkey, promiseGenerator);
     }
-
-    protected storePromise(promise: Promise<any>, key = "all"): void {
-        const pkey = this.serviceName + "-" + key;
-        BaseService.promises[pkey] = promise;
-        promise.then(() => {
-            this.removePromise(key);
-        }).catch(() => {
-            this.removePromise(key);
-        });
-    }
-
-    protected removePromise(key = "all"): void {
-        const pkey = this.serviceName + "-" + key;
-        delete BaseService.promises[pkey];
-    }
+    
     /*****************************************************************************************************************************************************************/
 
 }

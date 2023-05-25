@@ -135,26 +135,16 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     }
 
     public async Init(): Promise<void> {
+        
         if (!this.initialized) {
-            let initPromise = this.getExistingPromise("init");
-            if (!initPromise) {
-                initPromise = new Promise<void>(async (resolve, reject) => {
-                    this.initValues = {};
-                    try {
-                        if (this.init_internal) {
-                            await this.init_internal();
-                        }
-                        await this.initLinkedFields();
-                        this.initialized = true;
-                        resolve();
-                    }
-                    catch (error) {
-                        reject(error);
-                    }
-                });
-            }
-            this.storePromise(initPromise, "init");
-            return initPromise;
+            return this.callAsyncWithPromiseManagement(async (): Promise<void> => {
+                this.initValues = {};
+                if (this.init_internal) {
+                    await this.init_internal();
+                }
+                await this.initLinkedFields();
+                this.initialized = true;
+            }, "init");            
         }
     }
 
@@ -442,53 +432,37 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     @trace(TraceLevel.Service)
     public async getAll(linkedFields?: Array<string>): Promise<Array<T>> {
 
-        let promise = this.getExistingPromise();
-        if (promise) {
-            if (this.debug)
-                console.log(this.serviceName + " getAll : load allready called before, sharing promise");
-        }
-        else {
-            promise = new Promise<Array<T>>(async (resolve, reject) => {
-                try {
-                    let result: Array<T>;
+        return this.callAsyncWithPromiseManagement(async () => {
+            let result: Array<T>;
 
-                    //has to refresh cache
+            //has to refresh cache
+            let reloadData = this.needRefreshCache();
 
-                    let reloadData = this.needRefreshCache();
-
-                    //if refresh is needed, test offline/online
-                    if (reloadData && ServicesConfiguration.configuration.checkOnline) {
-                        reloadData = await UtilsService.CheckOnline();
-                    }
+            //if refresh is needed, test offline/online
+            if (reloadData && ServicesConfiguration.configuration.checkOnline) {
+                reloadData = await UtilsService.CheckOnline();
+            }
 
 
-                    if (reloadData) {
-                        result = await this.getAll_Internal(linkedFields);
-                        const convresult = result.map(res => this.convertItemToDbFormat(res));
-                        await this.dbService.replaceAll(convresult);
-                        this.UpdateIdsLastLoad(...convresult.map(e => e.id));
-                        this.UpdateCacheData();
+            if (reloadData) {
+                result = await this.getAll_Internal(linkedFields);
+                const convresult = result.map(res => this.convertItemToDbFormat(res));
+                await this.dbService.replaceAll(convresult);
+                this.UpdateIdsLastLoad(...convresult.map(e => e.id));
+                this.UpdateCacheData();
 
-                    }
-                    else {
-                        const tmp = await this.dbService.getAll();
-                        if (this.isMapItemsAsync(linkedFields)) {
-                            result = await this.mapItemsAsync(tmp, linkedFields);
-                        }
-                        else {
-                            result = this.mapItemsSync(tmp);
-                        }
-                    }
-
-                    resolve(result);
+            }
+            else {
+                const tmp = await this.dbService.getAll();
+                if (this.isMapItemsAsync(linkedFields)) {
+                    result = await this.mapItemsAsync(tmp, linkedFields);
                 }
-                catch (error) {
-                    reject(error);
+                else {
+                    result = this.mapItemsSync(tmp);
                 }
-            });
-            this.storePromise(promise);
-        }
-        return promise;
+            }
+            return result;
+        });            
 
     }
 
@@ -528,62 +502,49 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     @trace(TraceLevel.Service)
     public async get(query: IQuery<T>, linkedFields?: Array<string>): Promise<Array<T>> {
         const keyCached = super.hashCode(query).toString() + super.hashCode(linkedFields).toString();
-        let promise = this.getExistingPromise(keyCached);
-        if (promise) {
-            if (this.debug)
-                console.log(this.serviceName + " " + keyCached + " : load allready called before, sharing promise");
-        }
-        else {
-            promise = new Promise<Array<T>>(async (resolve, reject) => {
-                try {
-                    let result: Array<T>;
-                    //has to refresh cache
-                    let reloadData = this.needRefreshCache(keyCached);
-                    //if refresh is needed, test offline/online
-                    if (reloadData && ServicesConfiguration.configuration.checkOnline) {
-                        reloadData = await UtilsService.CheckOnline();
-                    }
+        return this.callAsyncWithPromiseManagement(async () => {
+            let result: Array<T>;
+            //has to refresh cache
+            let reloadData = this.needRefreshCache(keyCached);
+            //if refresh is needed, test offline/online
+            if (reloadData && ServicesConfiguration.configuration.checkOnline) {
+                reloadData = await UtilsService.CheckOnline();
+            }
 
-                    if (reloadData) {
+            if (reloadData) {
 
-                        result = await this.get_Internal(query, linkedFields);
-                        //check if data exist for this query in database
-                        let tmp = await this.dbService.get(query);
+                result = await this.get_Internal(query, linkedFields);
+                //check if data exist for this query in database
+                let tmp = await this.dbService.get(query);
 
-                        tmp = this.filterItems(query, tmp);
+                tmp = this.filterItems(query, tmp);
 
-                        //if data exists trash them 
-                        if (tmp && tmp.length > 0) {
-                            await this.dbService.deleteItems(tmp);
-                        }
-
-                        const convresult = result.map(res => this.convertItemToDbFormat(res));
-                        await this.dbService.addOrUpdateItems(convresult);
-                        this.UpdateIdsLastLoad(...convresult.map(e => e.id));
-                        this.UpdateCacheData(keyCached);
-
-                    }
-                    else {
-
-                        const tmp = await this.dbService.get(query);
-                        if (this.isMapItemsAsync(linkedFields)) {
-                            result = await this.mapItemsAsync(tmp, linkedFields);
-                        }
-                        else {
-                            result = this.mapItemsSync(tmp);
-                        }
-                        // filter
-                        result = this.filterItems(query, result);
-                    }
-                    resolve(result);
+                //if data exists trash them 
+                if (tmp && tmp.length > 0) {
+                    await this.dbService.deleteItems(tmp);
                 }
-                catch (error) {
-                    reject(error);
+
+                const convresult = result.map(res => this.convertItemToDbFormat(res));
+                await this.dbService.addOrUpdateItems(convresult);
+                this.UpdateIdsLastLoad(...convresult.map(e => e.id));
+                this.UpdateCacheData(keyCached);
+
+            }
+            else {
+
+                const tmp = await this.dbService.get(query);
+                if (this.isMapItemsAsync(linkedFields)) {
+                    result = await this.mapItemsAsync(tmp, linkedFields);
                 }
-            });
-            this.storePromise(promise, keyCached);
-        }
-        return promise;
+                else {
+                    result = this.mapItemsSync(tmp);
+                }
+                // filter
+                result = this.filterItems(query, result);
+            }
+            return result;
+        }, keyCached);
+        
     }
 
     protected abstract getItemById_Query(id: number | string, linkedFields?: Array<string>): Promise<any>;
@@ -612,50 +573,37 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     @trace(TraceLevel.Service)
     public async getItemById(id: number | string, linkedFields?: Array<string>): Promise<T> {
         const promiseKey = "getById_" + id.toString();
-        let promise = this.getExistingPromise(promiseKey);
-        if (promise) {
-            if (this.debug)
-                console.log(this.serviceName + " " + promiseKey + " : load allready called before, sharing promise");
-        }
-        else {
-            promise = new Promise<T>(async (resolve, reject) => {
-                try {
-                    let result: T;
-                    const deprecatedIds = await this.getExpiredIds(id);
-                    let reloadData = deprecatedIds.length > 0;
-                    //if refresh is needed, test offline/online
-                    if (reloadData && ServicesConfiguration.configuration.checkOnline) {
-                        reloadData = await UtilsService.CheckOnline();
-                    }
+        return this.callAsyncWithPromiseManagement(async () => {
+            let result: T;
+            const deprecatedIds = await this.getExpiredIds(id);
+            let reloadData = deprecatedIds.length > 0;
+            //if refresh is needed, test offline/online
+            if (reloadData && ServicesConfiguration.configuration.checkOnline) {
+                reloadData = await UtilsService.CheckOnline();
+            }
 
-                    if (reloadData) {
-                        result = await this.getItemById_Internal(id, linkedFields);
-                        const converted = this.convertItemToDbFormat(result);
-                        await this.dbService.addOrUpdateItem(converted);
-                        this.UpdateIdsLastLoad(id);
+            if (reloadData) {
+                result = await this.getItemById_Internal(id, linkedFields);
+                const converted = this.convertItemToDbFormat(result);
+                await this.dbService.addOrUpdateItem(converted);
+                this.UpdateIdsLastLoad(id);
+            }
+            else {
+                const temp = await this.dbService.getItemById(id);
+                if (temp) {
+                    let res: Array<T>;
+                    if (this.isMapItemsAsync(linkedFields)) {
+                        res = await this.mapItemsAsync([temp], linkedFields);
                     }
                     else {
-                        const temp = await this.dbService.getItemById(id);
-                        if (temp) {
-                            let res: Array<T>;
-                            if (this.isMapItemsAsync(linkedFields)) {
-                                res = await this.mapItemsAsync([temp], linkedFields);
-                            }
-                            else {
-                                res = this.mapItemsSync([temp]);
-                            }
-                            result = res.shift();
-                        }
+                        res = this.mapItemsSync([temp]);
                     }
-                    resolve(result);
+                    result = res.shift();
                 }
-                catch (error) {
-                    reject(error);
-                }
-            });
-            this.storePromise(promise, promiseKey);
-        }
-        return promise;
+            }
+            return result;
+        }, promiseKey);
+        
     }
 
 
@@ -699,60 +647,46 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     @trace(TraceLevel.Service)
     public async getItemsById(ids: Array<number | string>, linkedFields?: Array<string>): Promise<Array<T>> {
         const promiseKey = "getByIds_" + ids.join();
-        let promise = this.getExistingPromise(promiseKey);
-        if (promise) {
-            if (this.debug)
-                console.log(this.serviceName + " " + promiseKey + " : load allready called before, sharing promise");
-        }
-        else {
-            promise = new Promise<Array<T>>(async (resolve, reject) => {
-                if (ids.length > 0) {
-                    try {
-                        let results: Array<T>;
-                        const deprecatedIds = await this.getExpiredIds(...ids);
-                        let reloadData = deprecatedIds.length > 0;
-                        //if refresh is needed, test offline/online
-                        if (reloadData && ServicesConfiguration.configuration.checkOnline) {
-                            reloadData = await UtilsService.CheckOnline();
-                        }
+        return this.callAsyncWithPromiseManagement(async () => {
+            if (ids.length > 0) {
+                let results: Array<T>;
+                const deprecatedIds = await this.getExpiredIds(...ids);
+                let reloadData = deprecatedIds.length > 0;
+                //if refresh is needed, test offline/online
+                if (reloadData && ServicesConfiguration.configuration.checkOnline) {
+                    reloadData = await UtilsService.CheckOnline();
+                }
 
-                        if (reloadData) {
-                            const expired = await this.getItemsById_Internal(deprecatedIds, linkedFields);
-                            const tmpcached = await this.dbService.getItemsById(ids.filter((i) => { return deprecatedIds.indexOf(i) === -1; }));
-                            let cached: Array<T>;
-                            if (this.isMapItemsAsync(linkedFields)) {
-                                cached = await this.mapItemsAsync(tmpcached, linkedFields);
-                            }
-                            else {
-                                cached = this.mapItemsSync(tmpcached);
-                            }
-                            results = expired.concat(cached);
-                            const convresults = results.map(res => this.convertItemToDbFormat(res));
-                            await this.dbService.addOrUpdateItems(convresults);
-                            this.UpdateIdsLastLoad(...ids);
-                        }
-                        else {
-                            const tmp = await this.dbService.getItemsById(ids);
-                            if (this.isMapItemsAsync(linkedFields)) {
-                                results = await this.mapItemsAsync(tmp, linkedFields);
-                            }
-                            else {
-                                results = this.mapItemsSync(tmp);
-                            }
-                        }
-                        resolve(results);
+                if (reloadData) {
+                    const expired = await this.getItemsById_Internal(deprecatedIds, linkedFields);
+                    const tmpcached = await this.dbService.getItemsById(ids.filter((i) => { return deprecatedIds.indexOf(i) === -1; }));
+                    let cached: Array<T>;
+                    if (this.isMapItemsAsync(linkedFields)) {
+                        cached = await this.mapItemsAsync(tmpcached, linkedFields);
                     }
-                    catch (error) {
-                        reject(error);
+                    else {
+                        cached = this.mapItemsSync(tmpcached);
                     }
+                    results = expired.concat(cached);
+                    const convresults = results.map(res => this.convertItemToDbFormat(res));
+                    await this.dbService.addOrUpdateItems(convresults);
+                    this.UpdateIdsLastLoad(...ids);
                 }
                 else {
-                    resolve([]);
+                    const tmp = await this.dbService.getItemsById(ids);
+                    if (this.isMapItemsAsync(linkedFields)) {
+                        results = await this.mapItemsAsync(tmp, linkedFields);
+                    }
+                    else {
+                        results = this.mapItemsSync(tmp);
+                    }
                 }
-            });
-            this.storePromise(promise, promiseKey);
-        }
-        return promise;
+                return results;
+            }
+            else {
+                return [];
+            }
+        }, promiseKey);        
     }
 
     protected abstract addOrUpdateItem_Internal(item: T): Promise<T>;
