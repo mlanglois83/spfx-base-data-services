@@ -4,7 +4,7 @@ import { cloneDeep, find } from "lodash";
 //import { Batch } from "@pnp/odata";
 import { TaxonomyTerm } from "../models/base/TaxonomyTerm";
 import { stringIsNullOrEmpty } from "@pnp/core";
-import { Constants } from "../constants";
+import { Constants, TraceLevel } from "../constants";
 /**
  * Utility class
  */
@@ -373,7 +373,9 @@ export class UtilsService extends BaseService {
       ): Promise<T> {
         let promise = UtilsService.getExistingPromise<T>(key);
         if (promise) {
-            console.log(key + ' : load allready called before, sharing promise');
+            if(ServicesConfiguration.configuration.traceLevel !== TraceLevel.None) {
+                console.log(key + ' : load allready called before, sharing promise');
+            }
         } else {
             promise = promiseGenerator();
             UtilsService.storePromise(promise, key);
