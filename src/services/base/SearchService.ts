@@ -445,7 +445,7 @@ export class SearchService<T extends BaseItem> extends BaseSPService<T> {
 
     let valueTransformForRequest = "";
 
-    if (predicate.operator != TestOperator.FreeRequest) {
+    if (predicate.operator !== TestOperator.FreeRequest && predicate.operator !== TestOperator.IsNotNull && predicate.operator !== TestOperator.IsNull) {
       valueTransformForRequest = this.getValue(predicate);
     }
 
@@ -487,7 +487,7 @@ export class SearchService<T extends BaseItem> extends BaseSPService<T> {
         break;
       default:
         throw new Error(
-          "Operator " + predicate.operator + " not yet implement."
+          "Operator " + predicate.operator + " not yet implemented."
         );
     }
     return result;
@@ -501,8 +501,7 @@ export class SearchService<T extends BaseItem> extends BaseSPService<T> {
 
 
     const { propertyName, value } = predicate;
-    //console.log(predicate.propertyName + " - " + field.fieldType);
-    if (field) {
+    if (field && value) {
       switch (field.fieldType) {
         case FieldType.Date:
           if (value === QueryToken.Now || value === QueryToken.Today) {
