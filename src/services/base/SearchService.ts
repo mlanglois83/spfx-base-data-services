@@ -501,7 +501,7 @@ export class SearchService<T extends BaseItem> extends BaseSPService<T> {
 
 
     const { propertyName, value } = predicate;
-    if (field && value) {
+    if (field) {
       switch (field.fieldType) {
         case FieldType.Date:
           if (value === QueryToken.Now || value === QueryToken.Today) {
