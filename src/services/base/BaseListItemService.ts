@@ -118,9 +118,11 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
         const defaultValue = cloneDeep(fieldDescriptor.defaultValue);
         switch (fieldDescriptor.fieldType) {
             case FieldType.Simple:
+            case FieldType.Boolean:
                 if (fieldDescriptor.fieldName === Constants.commonFields.version) {
                     destItem[propertyName] = spitem[fieldDescriptor.fieldName] ? parseFloat(spitem[fieldDescriptor.fieldName]) : defaultValue;
                 }
+                // TODO: generalize
                 else if(fieldDescriptor.fieldName.indexOf("/") !== -1) {
                     const splitteed = fieldDescriptor.fieldName.split("/");
                     let current = spitem;
@@ -1336,6 +1338,7 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
             let value = "";
             switch (field.fieldType) {
                 case FieldType.Simple:
+                case FieldType.Boolean:
                     if (typeof (fieldValue) === "number") {
                         type = "Number";
                         value = fieldValue.toString();

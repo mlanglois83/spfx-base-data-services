@@ -306,6 +306,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
         fieldDescriptor.fieldType = fieldDescriptor.fieldType || FieldType.Simple;
         switch (fieldDescriptor.fieldType) {
             case FieldType.Simple:
+            case FieldType.Boolean:
                 destItem[propertyName] = data[fieldDescriptor.fieldName] !== null && data[fieldDescriptor.fieldName] !== undefined ? data[fieldDescriptor.fieldName] : defaultValue;
                 break;
             case FieldType.Url:
@@ -379,9 +380,10 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
             switch (fieldDescriptor.fieldType) {
                 case FieldType.Simple:
                 case FieldType.Date:
+                case FieldType.Boolean:
                     destItem[fieldDescriptor.fieldName] = itemValue;
                     break;
-                case FieldType.Url: // TODO
+                case FieldType.Url:
                     destItem[fieldDescriptor.fieldName] = itemValue ? {Url: itemValue.url, Description: itemValue.description}: itemValue;
                     break;
                 case FieldType.Json:

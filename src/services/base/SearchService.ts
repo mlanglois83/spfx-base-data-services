@@ -320,6 +320,11 @@ export class SearchService<T extends BaseItem> extends BaseSPService<T> {
           ? searchItem[fieldDescriptor.fieldName]
           : fieldDescriptor.defaultValue;
         break;
+      case FieldType.Boolean:
+        converted[propertyName] = searchItem[fieldDescriptor.fieldName]
+          ? searchItem[fieldDescriptor.fieldName] === "true"
+          : fieldDescriptor.defaultValue;
+        break;
       case FieldType.Date:
         converted[propertyName] = searchItem[fieldDescriptor.fieldName]
           ? new Date(searchItem[fieldDescriptor.fieldName])

@@ -8,6 +8,11 @@ export enum FieldType {
      */
     Simple,
     /**
+     * boolean for search
+     * Model field type must be boolean
+     */
+    Boolean,
+    /**
      * UrlField
      * Model field type must be IUrl
      */
