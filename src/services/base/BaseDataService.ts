@@ -404,15 +404,10 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     @trace(TraceLevel.Internal)
     protected async getAll_Internal(linkedFields?: Array<string>): Promise<Array<T>> {
         let results: Array<T> = [];
-
-
+        await this.Init();
         const items = await this.getAll_Query(linkedFields);
 
-
         if (items && items.length > 0) {
-            if (!this.initialized) {
-                await this.Init();
-            }
             let preloaded = undefined;
             if (this.needsPersistInner(linkedFields)) {
                 preloaded = await this.persistInner(items, linkedFields);
@@ -481,13 +476,11 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     protected async get_Internal(query: IQuery<T>, linkedFields?: Array<string>): Promise<Array<T>> {
         let results = new Array<T>();
 
+        await this.Init();
 
         const items = await this.get_Query(query, linkedFields);
 
         if (items && items.length > 0) {
-            if (!this.initialized) {
-                await this.Init();
-            }
             let preloaded = undefined;
             if (this.needsPersistInner(linkedFields)) {
                 preloaded = await this.persistInner(items, linkedFields);
@@ -554,11 +547,9 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     @trace(TraceLevel.Internal)
     protected async getItemById_Internal(id: number | string, linkedFields?: Array<string>): Promise<T> {
         let result = null;
+        await this.Init();
         const temp = await this.getItemById_Query(id, linkedFields);
         if (temp) {
-            if (!this.initialized) {
-                await this.Init();
-            }
             let preloaded = undefined;
             if (this.needsPersistInner(linkedFields)) {
                 preloaded = await this.persistInner([temp], linkedFields);
@@ -619,11 +610,9 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     protected async getItemsById_Internal(ids: Array<number | string>, linkedFields?: Array<string>): Promise<Array<T>> {
 
         let results = new Array<T>();
+        await this.Init();
         const items = await this.getItemsById_Query(ids, linkedFields);
         if (items && items.length > 0) {
-            if (!this.initialized) {
-                await this.Init();
-            }
             let preloaded = undefined;
             if (this.needsPersistInner(linkedFields)) {
                 preloaded = await this.persistInner(items, linkedFields);
@@ -967,10 +956,8 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     @trace(TraceLevel.Internal)
     protected async persistItemsDataAsync_internal(data: any[], linkedFields?: Array<string>, preloaded?: { [modelName: string]: BaseItem[] }): Promise<T[]> {
         let result = null;
+        await this.Init();
         if (data) {
-            if (!this.initialized) {
-                await this.Init();
-            }
             if (!preloaded && this.needsPersistInner(linkedFields)) {
                 preloaded = await this.persistInner(data, linkedFields);
             }
@@ -1137,9 +1124,9 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
 
     @trace(TraceLevel.ServiceUtilities)
     protected async populateLookups(items: Array<T>, loadLookups?: Array<string>, innerItems?: { [modelName: string]: BaseItem[] }): Promise<void> {
-        if (!this.initialized) {
-            await this.Init();
-        }
+        
+        await this.Init();
+        
         // get lookup fields
         const lookupFields = this.linkedLookupFields(loadLookups);
 
@@ -1395,10 +1382,8 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     @trace(TraceLevel.ServiceUtilities)
     public async mapItemsAsync(items: Array<T>, linkedFields?: Array<string>): Promise<Array<T>> {
         let results: Array<T> = [];
+        await this.Init();
         if (items && items.length > 0) {
-            if (!this.initialized) {
-                await this.Init();
-            }
             results = this.mapItems_internal(items);
         }
         if (this.hasLookup(linkedFields)) {

@@ -306,9 +306,7 @@ export class BaseTermsetService<
     @trace(TraceLevel.Service)
     public async getWssIds(termId: string): Promise<Array<number>> {
         return this.callAsyncWithPromiseManagement(async () => {
-            if (!this.initialized) {
-                await this.Init();
-            }
+            await this.Init();
             const taxonomyHiddenItems = this.getServiceInitValues(TaxonomyHidden);
             return taxonomyHiddenItems
                 .filter((taxItem) => {
@@ -335,11 +333,9 @@ export class BaseTermsetService<
     @trace(TraceLevel.Internal)
     protected async getAll_Internal(): Promise<Array<T>> {
         let results: Array<T> = [];
+        await this.Init();
         const items = await this.getAll_Query();
         if (items && items.length > 0) {
-            if (!this.initialized) {
-                await this.Init();
-            }
             results = this.populateTerms(items);
         }
         return results;
@@ -406,11 +402,9 @@ export class BaseTermsetService<
     @trace(TraceLevel.Internal)
     protected async getItemById_Internal(id: string): Promise<T> {
         let result = null;
+        await this.Init();
         const allTerms = await this.getAll_Query();
         if (allTerms && allTerms.length > 0) {
-            if (!this.initialized) {
-                await this.Init();
-            }
             const items = this.populateTerms(allTerms);
             //find and populate item
             result = find(items, (t) => t.id == id);
@@ -426,11 +420,9 @@ export class BaseTermsetService<
         ids: Array<number | string>
     ): Promise<Array<T>> {
         const results = new Array<T>();
+        await this.Init();
         const allTerms = await this.getAll_Query();
         if (allTerms && allTerms.length > 0) {
-            if (!this.initialized) {
-                await this.Init();
-            }
             const items = this.populateTerms(allTerms);
             for (const id of ids) {
                 const temp = find(items, (t) => t.id == id);
