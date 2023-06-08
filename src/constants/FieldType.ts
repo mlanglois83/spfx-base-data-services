@@ -13,6 +13,11 @@ export enum FieldType {
      */
     Boolean,
     /**
+    * number for search
+    * Model field type must be number
+    */
+    Number,
+    /**
      * UrlField
      * Model field type must be IUrl
      */

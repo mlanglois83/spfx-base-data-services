@@ -119,6 +119,7 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
         switch (fieldDescriptor.fieldType) {
             case FieldType.Simple:
             case FieldType.Boolean:
+            case FieldType.Number:
                 if (fieldDescriptor.fieldName === Constants.commonFields.version) {
                     destItem[propertyName] = spitem[fieldDescriptor.fieldName] ? parseFloat(spitem[fieldDescriptor.fieldName]) : defaultValue;
                 }
@@ -1339,6 +1340,7 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
             switch (field.fieldType) {
                 case FieldType.Simple:
                 case FieldType.Boolean:
+                case FieldType.Number:
                     if (typeof (fieldValue) === "number") {
                         type = "Number";
                         value = fieldValue.toString();
