@@ -65,9 +65,9 @@
     "node": ">=0.10.0"
   },
   "dependencies": {
-    "@pnp/core": "^3.0.0",
-    "@pnp/graph": "^3.0.0",
-    "@pnp/sp": "^3.0.0",
+    "@pnp/core": "3.13.0",
+    "@pnp/graph": "3.13.0",
+    "@pnp/sp": "3.13.0",
     "@types/es6-promise": "0.0.33",
     "@types/lodash": "^4.14.117",
     "async-mutex": "^0.2.2",
