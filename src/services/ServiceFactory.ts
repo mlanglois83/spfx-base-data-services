@@ -16,7 +16,7 @@ export class ServiceFactory {
         __serviceInitializing: {[modelName: string]: boolean}, 
         __itemFields: {[modelName: string]: {[propertyName: string]: IFieldDescriptor}}
     } {
-        if(!window.hasOwnProperty[ServiceFactory.servicesVarName]) {
+        if(!window[ServiceFactory.servicesVarName]) {
             window[ServiceFactory.servicesVarName] = {
                 __services: {},
                 __serviceInitializing: {},
