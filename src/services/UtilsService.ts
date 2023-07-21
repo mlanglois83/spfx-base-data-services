@@ -388,17 +388,20 @@ export class UtilsService extends BaseService {
   /**
    * Stored promises to avoid multiple calls
    */
+  protected static get promiseVarName(): string {
+    return Constants.windowVars.promiseVarName + (ServicesConfiguration.configuration.serviceKey ? "-" + ServicesConfiguration.configuration.serviceKey : "");
+  }
   protected static getExistingPromise<T>(key: string): Promise<T> {
-    if (window[Constants.promiseVarName] && window[Constants.promiseVarName][key]) {
-      return window[Constants.promiseVarName][key];
+    if (window[UtilsService.promiseVarName] && window[UtilsService.promiseVarName][key]) {
+      return window[UtilsService.promiseVarName][key];
     } else return null;
   }
 
   protected static storePromise<T>(promise: Promise<T>, key: string): void {
-    if (!window[Constants.promiseVarName]) {
-      window[Constants.promiseVarName] = {};
+    if (!window[UtilsService.promiseVarName]) {
+      window[UtilsService.promiseVarName] = {};
     }
-    window[Constants.promiseVarName][key] = promise;
+    window[UtilsService.promiseVarName][key] = promise;
     promise
       .then(() => {
         UtilsService.removePromise(key);
@@ -409,8 +412,8 @@ export class UtilsService extends BaseService {
   }
 
   protected static removePromise(key: string): void {
-    if (window[Constants.promiseVarName] && window[Constants.promiseVarName][key]) {
-      delete window[Constants.promiseVarName][key];
+    if (window[UtilsService.promiseVarName] && window[UtilsService.promiseVarName][key]) {
+      delete window[UtilsService.promiseVarName][key];
     }
   }
   /*****************************************************************************************************************************************************************/
