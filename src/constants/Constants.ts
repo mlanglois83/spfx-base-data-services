@@ -80,6 +80,6 @@ export const Constants = {
     ],
     windowVars: {
         promiseVarName: "spfxBaseDataServicesPromises",
-        servicesVarName: "spfxBaseDataServicesPromises"
+        servicesVarName: "spfxBaseDataServicesServices"
     }    
 };
