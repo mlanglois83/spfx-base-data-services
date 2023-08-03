@@ -784,19 +784,34 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
         };
     }
 
-    private async initRequest(method: string, data?: any): Promise<RequestInit> {
-        const aadTokenProvider = await ServicesConfiguration.context.aadTokenProviderFactory.getTokenProvider();
-        const token = await aadTokenProvider.getToken(ServicesConfiguration.configuration.aadAppId);
-        if (stringIsNullOrEmpty(token)) {
-            throw Error("Error while getting authentication token");
+    public async manageAuthentication(req: RequestInit): Promise<RequestInit> {
+        try {
+            const aadTokenProvider = await ServicesConfiguration.context.aadTokenProviderFactory.getTokenProvider();
+            const token = await aadTokenProvider.getToken(ServicesConfiguration.configuration.aadAppId);
+            if (stringIsNullOrEmpty(token)) {
+                throw Error("Error while getting authentication token");
+            }
+            req.headers = new Headers(req.headers)
+            req.headers.set('authorization', `Bearer ${token}`)
+        } catch (error) {
+
         }
+
+        return req;
+    }
+
+
+
+
+    private async initRequest(method: string, data?: any): Promise<RequestInit> {
+
         const headers = {
             'Accept': 'application/json',
             'Content-Type': 'application/json',
             'Access-Control-Allow-Origin': this.serviceUrl,
             'Access-Control-Allow-Headers': "*",
-            'authorization': `Bearer ${token}`
         };
+
         if (data != null) {
             const postData: string = JSON.stringify(data);
             return {
@@ -808,13 +823,16 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
                 referrerPolicy: "no-referrer-when-downgrade"
             };
         }
-        return {
+
+        let req = await this.manageAuthentication({
             method: method,
             mode: 'cors',
             headers: headers,
             referrer: ServicesConfiguration.baseUrl,
             referrerPolicy: "no-referrer-when-downgrade"
-        };
+        });
+
+        return req;
     }
 
     protected async executeRequest(url: string, method: string, data?: any): Promise<any> {
