@@ -42,11 +42,11 @@ const stream = function (injectMethod) {
 
 const baseItems = ["BaseFile", "BaseItem", "RestFile", "RestItem", "SPFile", "SPItem", "TaxonomyTerm", "TaxonomyHidden", "User", "Entity"];
 
-const inject = function (imports, filePath) {
-    const begin = "//inject:imports", end = "//endinject";
-    const comment = "\n/************************* Automatic services declaration injection for base-data-services *************************/"
+const inject = function (imports, filePath) {    
     return stream(function (fileContents) {
-
+        const newLineChar = fileContents.indexOf("\r\n") !== -1 ? "\r\n" : "\n";
+        const begin = "//inject:imports", end = "//endinject";
+        const comment = `${newLineChar}/************************* Automatic services declaration injection for base-data-services *************************/`
         let importString = "";
         const declarations = [];
         for (const className in imports) {
@@ -55,28 +55,32 @@ const inject = function (imports, filePath) {
                 declarations.push(className);
                 if (classRef.isFile) {
                     const dirPath = path.dirname(filePath);
-                    importString += `import { ${className} } from "${path.relative(dirPath, classRef.ref).replace(/\\/g, "/")}";\n`
+                    let relativePath =  path.relative(dirPath, classRef.ref).replace(/\\/g, "/");
+                    if(!relativePath.match(/^\.(\.)?\/.*$/g)){
+                        relativePath = "./" + relativePath;
+                    }
+                    importString += `import { ${className} } from '${relativePath}';${newLineChar}`
                 }
                 else {
-                    importString += `import { ${className} } from "${classRef.ref}";\n`
+                    importString += `import { ${className} } from '${classRef.ref}';${newLineChar}`
                 }
 
             }
         }
-        const str = importString + `\nconsole.groupCollapsed("spfx-base-data-services - register services");\n[\n${declarations.map(d => "\t" + d).join(",\n")}\n].forEach(function (value) { \n\tconsole.log((value as any).name + " added to ServiceFactory");\n});\nconsole.groupEnd();\n`;
+        const str = importString + `${newLineChar}console.groupCollapsed('spfx-base-data-services - register services');${newLineChar}[${newLineChar}${declarations.map(d => "\t" + d).join(`,${newLineChar}`)}${newLineChar}].forEach(function (value) { ${newLineChar}\tconsole.log((value as new() => BaseService).name + ' added to ServiceFactory');${newLineChar}});${newLineChar}console.groupEnd();${newLineChar}`;
         const regex = new RegExp(begin + ".*" + end, 's');
         if (fileContents.match(regex)) {
-            return fileContents.replace(new RegExp(begin + ".*" + end, 's'), begin + comment + "\n" + str + end);
+            return fileContents.replace(new RegExp(begin + ".*" + end, 's'), begin + comment + newLineChar + str + end);
         }
         else {
             const match = fileContents.match(/\s*import.*from.*;/g);
             if (match) {
                 const matchstr = match.pop();
                 const idx = fileContents.lastIndexOf(matchstr);
-                return fileContents.slice(0, idx + matchstr.length) + "\n" + begin + comment + "\n" + str + end + "\n" + fileContents.slice(idx + matchstr.length);
+                return fileContents.slice(0, idx + matchstr.length) + newLineChar + begin + comment + newLineChar + str + end + newLineChar + fileContents.slice(idx + matchstr.length);
             }
             else {
-                return begin + comment + "\n" + str + end + "\n" + fileContents;
+                return begin + comment + newLineChar + str + end + newLineChar + fileContents;
             }
         }
     });
@@ -101,6 +105,10 @@ function getInjectionTask(build, basePath) {
         }
         // construct injection
         const imports = {
+            BaseService: {
+                isFile: false,
+                ref: "spfx-base-data-services"
+            },
             TaxonomyHiddenListService: {
                 isFile: false,
                 ref: "spfx-base-data-services"
