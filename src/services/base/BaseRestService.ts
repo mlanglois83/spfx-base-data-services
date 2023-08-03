@@ -824,7 +824,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
             };
         }
 
-        let req = await this.manageAuthentication({
+        const req = await this.manageAuthentication({
             method: method,
             mode: 'cors',
             headers: headers,
