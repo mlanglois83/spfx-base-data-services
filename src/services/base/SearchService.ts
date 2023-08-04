@@ -13,7 +13,7 @@ import { BaseItem, SPItem, TaxonomyTerm } from "../../models";
  *
  * Base service search
  */
-export class SearchService<T extends BaseItem> extends BaseSPService<T> {  
+export class SearchService<TKey extends string | number, T extends BaseItem<TKey>> extends BaseSPService<T> {  
   protected recycleItem_Internal(item: T): Promise<T> {
     throw new Error("Method not implemented." + item.toString());
   }

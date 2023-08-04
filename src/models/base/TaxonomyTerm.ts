@@ -4,7 +4,7 @@ import { BaseItem } from "../base/BaseItem";
 /**
  * Base object for sharepoint taxonomy term abstraction objects
  */
-export class TaxonomyTerm extends BaseItem {
+export class TaxonomyTerm extends BaseItem<string> {
     /**
      * WssIds assiciated with term
      */
@@ -12,7 +12,7 @@ export class TaxonomyTerm extends BaseItem {
     /**
      * Term id (Guid)
      */
-    public id = '00000000-0000-0000-0000-000000000000';
+    public id;
     /**
      * Term label
      */

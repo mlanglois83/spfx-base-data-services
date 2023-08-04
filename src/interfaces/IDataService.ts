@@ -3,7 +3,7 @@ import { IBaseItem, IQuery } from ".";
 /**
  * Contract interface for all dataservices
  */
-export interface IDataService<T extends IBaseItem> {
+export interface IDataService<T extends IBaseItem<string | number>> {
     /**
      * Retrieve all available items
      */

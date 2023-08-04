@@ -407,7 +407,7 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
     private async convertSingleUserFieldValue(value: User): Promise<User | number> {
         let result: User | number = null;
         if (value) {
-            if (value.id <= 0) {
+            if (value.isLocal) {
                 const userService: UserService = ServiceFactory.getService(User).cast<UserService>();
                 value = await userService.linkToSpUser(value);
 
@@ -502,13 +502,13 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
         const result = cloneDeep(item);
         await this.initFields();
         const selectFields = this.getOdataCommonFieldNames();
-        if (item.id < 0) {
+        if (item.isLocal) {
             const converted = await this.convertItem(item);
             const addResult = await this.list.items.select(...selectFields).add(converted);
             await this.populateCommonFields(result, addResult.data);
             await this.updateWssIds(result, addResult.data);
             await this.updateAttachments(result, addResult);
-            if (item.id < -1) {
+            if (item.isCreatedOffline) {
                 await this.updateLinksInDb(Number(item.id), Number(result.id));
             }
         }
@@ -546,14 +546,12 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
     protected async addOrUpdateItems_Internal(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void, onItemRefreshed?: (index: number, length: number) => void): Promise<Array<T>> {
         const result: Array<T> = cloneDeep(items);
     
-        const itemsToAdd = result.filter((item) => {
-            return item.id < 0;
-        });
+        const itemsToAdd = result.filter((item) =>  item.isLocal);
         const versionedItems = result.filter((item) => {
-            return item.version !== undefined && item.version !== null && item.id > 0;
+            return item.version !== undefined && item.version !== null && !item.isLocal;
         });
         const updatedItems = result.filter((item) => {
-            return (item.version === undefined || item.version === null) && item.id > 0;
+            return (item.version === undefined || item.version === null) && !item.isLocal;
         });
 
         await this.initFields();
@@ -1020,8 +1018,8 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
         return fieldNames;
     }
 
-    protected async populateCommonFields(item, restItem): Promise<void> {
-        if (item.id < 0) {
+    protected async populateCommonFields(item: T, restItem): Promise<void> {
+        if (item.isLocal) {
             // update id
             item.id = restItem.Id;
         }
@@ -1134,7 +1132,7 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
                             await service.__updateCache(term);
                             // update initValues
                             if (this.initialized) {
-                                const idx = findIndex(this.initValues[fieldDescription.modelName], (t: BaseItem) => { return t.id === id; });
+                                const idx = findIndex(this.initValues[fieldDescription.modelName], (t: BaseItem<string | number>) => { return t.id === id; });
                                 if (idx !== -1) {
                                     this.initValues[fieldDescription.modelName][idx] = term;
                                 }
@@ -1171,7 +1169,7 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
                         // update initValues
                         if (this.initialized) {
                             updated.forEach((u) => {
-                                const idx = findIndex(this.initValues[fieldDescription.modelName], (t: BaseItem) => { return t.id === u.id; });
+                                const idx = findIndex(this.initValues[fieldDescription.modelName], (t: BaseItem<string | number>) => { return t.id === u.id; });
                                 if (idx !== -1) {
                                     this.initValues[fieldDescription.modelName][idx] = u;
                                 }

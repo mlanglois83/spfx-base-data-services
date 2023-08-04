@@ -1,13 +1,13 @@
 import { assign, findIndex } from "lodash";
 import { stringIsNullOrEmpty } from "@pnp/core";
-import { FieldType } from "../../constants";
+import { Constants, FieldType } from "../../constants";
 import { IBaseItem, IFieldDescriptor } from "../../interfaces";
 import { ServiceFactory } from "../../services/ServiceFactory";
 
 /**
  * Base object for sharepoint item abstraction objects
  */
-export abstract class BaseItem implements IBaseItem {
+export abstract class BaseItem<T extends string | number> implements IBaseItem<T> {
 
     /**
      * internal field for linked items not stored in db
@@ -52,10 +52,25 @@ export abstract class BaseItem implements IBaseItem {
             delete this.__internalLinks;
         }
     }
+    public get isLocal(): boolean {
+        return this.id === this.defaultKey || this.isCreatedOffline; 
+    }
+    public get isCreatedOffline(): boolean {
+        return (
+            this.id !== this.defaultKey
+            &&
+            (
+                (typeof(this.id) === "string" && this.id.indexOf(Constants.models.offlineCreatedPrefix) === 0)
+                ||
+                (typeof(this.id) === "number" && this.id < 0)
+            )
+        );
+    }
+    public get defaultKey(): T { return undefined}
     /**
      * Item id
      */
-    public id: number | string;
+    public id: T;
     /**
      * Item title
      */
@@ -94,6 +109,11 @@ export abstract class BaseItem implements IBaseItem {
         return ServiceFactory.getModelFields(this.constructor["name"]);        
     }
     
+    
+    constructor() {
+        this.id = this.defaultKey;
+    }
+
     public fromObject(object: any): void {
         assign(this, object);
         // fields

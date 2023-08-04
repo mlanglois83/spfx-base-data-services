@@ -1,11 +1,13 @@
 /**
  * Interface to describe minimal items manipulated by all data services
  */
-export interface IBaseItem {
+export interface IBaseItem<T extends string | number> {
+    defaultKey: T;
+    isCreatedOffline?: boolean;
      /**
      * Item identifier
      */
-    id: number | string;
+    id: T;
     /**
      * Item unique identifier
      */

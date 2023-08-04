@@ -5,7 +5,8 @@ import { IBaseItem } from "../interfaces";
 /**
  * Offline transaction abstraction class
  */
-export class OfflineTransaction implements IBaseItem {
+export class OfflineTransaction implements IBaseItem<number> {
+    public get defaultKey(): number { return undefined; }
     /**
      * Id of the transaction (auto increment from idb)
      */

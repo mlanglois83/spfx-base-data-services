@@ -3,6 +3,6 @@ import { TransactionType } from "../constants";
 
 export interface IItemSynchronized {
     oldId?: string|number;
-    item: IBaseItem;
+    item: IBaseItem<string | number>;
     operation: TransactionType;
 }

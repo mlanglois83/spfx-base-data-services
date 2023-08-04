@@ -4,11 +4,11 @@ import { BaseFile, OfflineTransaction } from "../../models/index";
 import { BaseDbService } from "../base/BaseDbService";
 
 export class TransactionService extends BaseDbService<OfflineTransaction> {
-    private transactionFileService: BaseDbService<BaseFile>;
+    private transactionFileService: BaseDbService<BaseFile<string | number>>;
 
     constructor() {
         super( OfflineTransaction, "OfflineTransaction");
-        this.transactionFileService = new BaseDbService<BaseFile>(BaseFile, "OfflineTransactionFiles");
+        this.transactionFileService = new BaseDbService<BaseFile<string | number>>(BaseFile, "OfflineTransactionFiles");
     }
 
 
@@ -26,7 +26,7 @@ export class TransactionService extends BaseDbService<OfflineTransaction> {
                 await this.deleteItem(existing);
             }
             //create a file stored in a separate table
-            const file: BaseFile = assign(new BaseFile(), item.itemData);
+            const file: BaseFile<string | number> = assign(new BaseFile(), item.itemData);
             const baseUrl = file.id;
             item.itemData = new Date().getTime() + "_" + file.id;
             file.id = item.itemData;
@@ -45,7 +45,7 @@ export class TransactionService extends BaseDbService<OfflineTransaction> {
     public async deleteItem(item: OfflineTransaction): Promise<OfflineTransaction> {
         if (this.isFile(item.itemType)) {
             const transaction = await super.getItemById(item.id);
-            const file: BaseFile = new BaseFile();
+            const file: BaseFile<string | number> = new BaseFile();
             file.id = transaction.itemData;
             await this.transactionFileService.deleteItem(file);
         }
@@ -57,7 +57,7 @@ export class TransactionService extends BaseDbService<OfflineTransaction> {
         await Promise.all(items.filter(item => this.isFile(item.itemType)).map(async(item) => {
             if(this.isFile(item.itemType)) {
                 const transaction = await super.getItemById(item.id);
-                const file: BaseFile = new BaseFile();
+                const file: BaseFile<string | number> = new BaseFile();
                 file.id = transaction.itemData;
                 files.push(file);
             }

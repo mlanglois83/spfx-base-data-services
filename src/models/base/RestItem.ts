@@ -8,12 +8,8 @@ const field = Decorators.field;
 /**
  * Base object for rest item abstraction objects
  */
-export abstract class RestItem extends BaseItem {
-    /**
-     * Item id
-     */
-    @field({ defaultValue: -1 })
-    public id = -1;
+ export abstract class RestItem<T extends string | number> extends BaseItem<T> { 
+     
     /**
      * Version number
      */
@@ -34,5 +30,4 @@ export abstract class RestItem extends BaseItem {
         return masked.toString(16);
     })})
     public uniqueId: string = UtilsService.generateGuid();  
-
 }
