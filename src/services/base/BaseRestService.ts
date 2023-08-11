@@ -782,55 +782,52 @@ export class BaseRestService<T extends RestItem<string | number> | RestFile<stri
         };
     }
 
-    public async manageAuthentication(req: RequestInit): Promise<RequestInit> {
+    public async getToken(): Promise<string> {
+        const aadTokenProvider = await ServicesConfiguration.context.aadTokenProviderFactory.getTokenProvider();
+        const token = await aadTokenProvider.getToken(ServicesConfiguration.configuration.aadAppId);
+        if (stringIsNullOrEmpty(token)) {
+            throw Error("Error while getting authentication token");
+        }
+        return `Bearer ${token}`;
+    }
+
+
+    private async initRequest(method: string, data?: any): Promise<RequestInit> {
         try {
             const aadTokenProvider = await ServicesConfiguration.context.aadTokenProviderFactory.getTokenProvider();
             const token = await aadTokenProvider.getToken(ServicesConfiguration.configuration.aadAppId);
             if (stringIsNullOrEmpty(token)) {
                 throw Error("Error while getting authentication token");
             }
-            req.headers = new Headers(req.headers)
-            req.headers.set('authorization', `Bearer ${token}`)
         } catch (error) {
 
         }
-
-        return req;
-    }
-
-
-
-
-    private async initRequest(method: string, data?: any): Promise<RequestInit> {
 
         const headers = {
             'Accept': 'application/json',
             'Content-Type': 'application/json',
             'Access-Control-Allow-Origin': this.serviceUrl,
             'Access-Control-Allow-Headers': "*",
+            'authorization': await this.getToken()
         };
-
         if (data != null) {
             const postData: string = JSON.stringify(data);
-            return await this.manageAuthentication({
+            return {
                 method: method,
                 body: postData,
                 mode: 'cors',
                 headers: headers,
                 referrer: ServicesConfiguration.baseUrl,
                 referrerPolicy: "no-referrer-when-downgrade"
-            });
+            };
         }
-
-        const req = await this.manageAuthentication({
+        return {
             method: method,
             mode: 'cors',
             headers: headers,
             referrer: ServicesConfiguration.baseUrl,
             referrerPolicy: "no-referrer-when-downgrade"
-        });
-
-        return req;
+        };
     }
 
     protected async executeRequest(url: string, method: string, data?: any): Promise<any> {
