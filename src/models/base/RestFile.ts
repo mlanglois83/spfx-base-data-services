@@ -5,12 +5,7 @@ import { stringIsNullOrEmpty } from "@pnp/core";
 import { UtilsService } from "../../services";
 
 const field = Decorators.field;
-export abstract class RestFile extends BaseFile {
-    /**
-     * File id
-     */
-    @field({ defaultValue: -1 })
-    public id = -1;
+export abstract class RestFile<T extends string | number> extends BaseFile<T> {
     /**
      * File name
      */

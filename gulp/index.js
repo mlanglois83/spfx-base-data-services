@@ -55,7 +55,11 @@ const inject = function (imports, filePath) {
                 declarations.push(className);
                 if (classRef.isFile) {
                     const dirPath = path.dirname(filePath);
-                    importString += `import { ${className} } from '${path.relative(dirPath, classRef.ref).replace(/\\/g, "/")}';${newLineChar}`
+                    let relativePath =  path.relative(dirPath, classRef.ref).replace(/\\/g, "/");
+                    if(!relativePath.match(/^\.(\.)?\/.*$/g)){
+                        relativePath = "./" + relativePath;
+                    }
+                    importString += `import { ${className} } from '${relativePath}';${newLineChar}`
                 }
                 else {
                     importString += `import { ${className} } from '${classRef.ref}';${newLineChar}`

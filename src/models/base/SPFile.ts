@@ -2,7 +2,9 @@ import { BaseFile } from "./BaseFile";
 /**
  * Data model for a SharePoint File
  */
-export class SPFile extends BaseFile {
+export class SPFile extends BaseFile<string> {
+
+    public get defaultKey(): string { return undefined}
     /**
      * File Id (server relative url)
      */

@@ -4,7 +4,8 @@ import { BaseItem } from "./BaseItem";
 /**
  * Data model for a SharePoint File
  */
-export class BaseFile extends BaseItem implements IBaseFile {
+export class BaseFile<T extends string | number> extends BaseItem<T> implements IBaseFile<T> {
+    
     public mimeType: string;  
     private  _content: ArrayBuffer;
     public get content(): ArrayBuffer {

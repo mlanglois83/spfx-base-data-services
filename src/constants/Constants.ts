@@ -78,5 +78,11 @@ export const Constants = {
         "ListAttachments",
         "RestMapping"
     ],
-    promiseVarName: "spfxBaseDataServicesPromises"
+    windowVars: {
+        promiseVarName: "spfxBaseDataServicesPromises",
+        servicesVarName: "spfxBaseDataServicesServices"
+    },
+    models: {
+        offlineCreatedPrefix : "==OFFLINE=="
+    }
 };

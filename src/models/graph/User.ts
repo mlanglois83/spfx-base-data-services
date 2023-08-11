@@ -5,11 +5,11 @@ const dataModel = Decorators.dataModel;
  * Abstraction class for O365 user associated with a SP User
  */
 @dataModel()
-export class User extends BaseItem {
+export class User extends BaseItem<number> {
     /**
      * id of the user
      */
-    public id = -1;
+    public id: number;
     /**
      * Graph id of the user
      */

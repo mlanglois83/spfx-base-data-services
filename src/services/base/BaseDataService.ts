@@ -15,7 +15,7 @@ const trace = Decorators.trace;
 /**
  * Base class for data service allowing automatic management of online/offline mode with links to db and sp 
  */
-export abstract class BaseDataService<T extends BaseItem> extends BaseService implements IDataService<T> {
+export abstract class BaseDataService<T extends BaseItem<string | number>> extends BaseService implements IDataService<T> {
     private itemModelType: (new (item?: any) => T);
 
     protected transactionService: TransactionService;
@@ -48,17 +48,17 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     }
 
     /***************************** External sources init and access **************************************/
-    protected initValues: { [modelName: string]: BaseItem[] } = {};
+    protected initValues: { [modelName: string]: BaseItem<string | number>[] } = {};
     protected cachedLookups: { [modelName: string]: Array<string | number> } = {};
 
-    protected getServiceCachedLookupIds<Tvalue extends BaseItem>(model: new (data?: any) => Tvalue): Array<number | string> {
+    protected getServiceCachedLookupIds<Tvalue extends BaseItem<string | number>>(model: new (data?: any) => Tvalue): Array<number | string> {
         return this.getServiceCachedLookupIdsByName(model["name"]);
     }
 
     protected getServiceCachedLookupIdsByName(modelName: string): Array<string | number> {
         return this.cachedLookups[modelName] as Array<string | number>;
     }
-    protected updateServiceCachedLookupIds(modelName: string, ...items: BaseItem[]): void {
+    protected updateServiceCachedLookupIds(modelName: string, ...items: BaseItem<string | number>[]): void {
         this.cachedLookups[modelName] = this.cachedLookups[modelName] || [];
         items.forEach(i => {
             const idx = findIndex(this.cachedLookups[modelName], iv => iv === i.id);
@@ -76,15 +76,15 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     }
 
 
-    protected getServiceInitValues<Tvalue extends BaseItem>(model: new (data?: any) => Tvalue): Tvalue[] {
+    protected getServiceInitValues<Tvalue extends BaseItem<string | number>>(model: new (data?: any) => Tvalue): Tvalue[] {
         return this.getServiceInitValuesByName<Tvalue>(model["name"]);
     }
 
-    protected getServiceInitValuesByName<Tvalue extends BaseItem>(modelName: string): Tvalue[] {
+    protected getServiceInitValuesByName<Tvalue extends BaseItem<string | number>>(modelName: string): Tvalue[] {
         return this.initValues[modelName] as Tvalue[];
     }
 
-    protected updateInitValues(modelName: string, ...items: BaseItem[]): void {
+    protected updateInitValues(modelName: string, ...items: BaseItem<string | number>[]): void {
         this.initValues[modelName] = this.initValues[modelName] || [];
         items.forEach(i => {
             const idx = findIndex(this.initValues[modelName], iv => iv.id === i.id);
@@ -362,7 +362,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     protected isFieldIgnored(item: T, propertyName: string, fieldDescriptor: IFieldDescriptor): boolean {
         return (this.ignoredFields && this.ignoredFields.indexOf(fieldDescriptor.fieldName) !== -1)
             ||
-            (propertyName === "id" && typeof (item.id) === "number" && item.id <= 0);
+            (propertyName === "id" && item.isLocal);
     }
 
     protected async convertItem(item: T): Promise<any> {
@@ -818,7 +818,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     @trace(TraceLevel.Service)
     public async deleteItem(item: T): Promise<T> {
         item.error = undefined;
-        if (typeof (item.id) === "number" && item.id === -1) {
+        if (item.id === item.defaultKey) {
             item.deleted = true;
         }
         else {
@@ -827,10 +827,10 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
                 isconnected = await UtilsService.CheckOnline();
             }
             if (isconnected) {
-                if (typeof (item.id) !== "number" || item.id > -1) {
+                if (!item.isLocal) {
                     item = await this.deleteItem_Internal(item);
                 }
-                if (item.deleted || item.id < -1) {
+                if (item.deleted || item.isCreatedOffline) {
                     item = await this.dbService.deleteItem(item);
                 }
             }
@@ -853,7 +853,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
 
     @trace(TraceLevel.Service)
     public async recycleItems(items: Array<T>): Promise<Array<T>> {
-        items.filter(i => (typeof (i.id) === "number" && i.id === -1)).forEach(i => {
+        items.filter(i => (i.id === i.defaultKey)).forEach(i => {
             i.error = undefined;
             i.deleted = true;
         });
@@ -862,11 +862,11 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
             isconnected = await UtilsService.CheckOnline();
         }
         if (isconnected) {
-            await this.deleteItems_Internal(items.filter(i => (typeof (i.id) !== "number" || i.id > -1)));
-            await this.dbService.deleteItems(items.filter(i => i.deleted || i.id < -1));
+            await this.deleteItems_Internal(items.filter(i => !i.isLocal));
+            await this.dbService.deleteItems(items.filter(i => i.deleted || i.isCreatedOffline));
         }
         else {
-            await this.dbService.deleteItems(items.filter(i => i.id > -1));
+            await this.dbService.deleteItems(items.filter(i => !i.isLocal));
             const transactions: Array<OfflineTransaction> = [];
             // TODO: promise.All
             for (const item of items) {
@@ -888,7 +888,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
 
     @trace(TraceLevel.Service)
     public async deleteItems(items: Array<T>): Promise<Array<T>> {
-        items.filter(i => (typeof (i.id) === "number" && i.id === -1)).forEach(i => {
+        items.filter(i => (i.id === i.defaultKey)).forEach(i => {
             i.error = undefined;
             i.deleted = true;
         });
@@ -897,11 +897,11 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
             isconnected = await UtilsService.CheckOnline();
         }
         if (isconnected) {
-            await this.deleteItems_Internal(items.filter(i => (typeof (i.id) !== "number" || i.id > -1)));
-            await this.dbService.deleteItems(items.filter(i => i.deleted || i.id < -1));
+            await this.deleteItems_Internal(items.filter(i => !i.isLocal));
+            await this.dbService.deleteItems(items.filter(i => i.deleted || i.isCreatedOffline));
         }
         else {
-            await this.dbService.deleteItems(items.filter(i => i.id > -1));
+            await this.dbService.deleteItems(items.filter(i => !i.isLocal));
             const transactions: Array<OfflineTransaction> = [];
             // TODO: promise.All
             for (const item of items) {
@@ -921,7 +921,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
 
 
     @trace(TraceLevel.Service)
-    public async persistItemData(data: any, linkedFields?: Array<string>, preloaded?: { [modelName: string]: BaseItem[] }): Promise<T> {
+    public async persistItemData(data: any, linkedFields?: Array<string>, preloaded?: { [modelName: string]: BaseItem<string | number>[] }): Promise<T> {
         let results: Array<T>;
         if (this.isPersistItemsDataAsync(linkedFields, preloaded)) {
             results = await this.persistItemsDataAsync_internal([data], linkedFields, preloaded);
@@ -937,7 +937,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     }
 
     @trace(TraceLevel.Service)
-    public async persistItemsData(data: any[], linkedFields?: Array<string>, preloaded?: { [modelName: string]: BaseItem[] }): Promise<T[]> {
+    public async persistItemsData(data: any[], linkedFields?: Array<string>, preloaded?: { [modelName: string]: BaseItem<string | number>[] }): Promise<T[]> {
         let result: Array<T>;
         if (this.isPersistItemsDataAsync(linkedFields, preloaded)) {
             result = await this.persistItemsDataAsync_internal(data, linkedFields, preloaded);
@@ -951,12 +951,12 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
         return result;
     }
 
-    protected isPersistItemsDataAsync(linkedFields?: Array<string>, preloaded?: { [modelName: string]: BaseItem[] }): boolean {
+    protected isPersistItemsDataAsync(linkedFields?: Array<string>, preloaded?: { [modelName: string]: BaseItem<string | number>[] }): boolean {
         return !this.initialized || (!preloaded && this.needsPersistInner(linkedFields)) || this.hasLookup(linkedFields);
     }
 
     @trace(TraceLevel.Internal)
-    protected async persistItemsDataAsync_internal(data: any[], linkedFields?: Array<string>, preloaded?: { [modelName: string]: BaseItem[] }): Promise<T[]> {
+    protected async persistItemsDataAsync_internal(data: any[], linkedFields?: Array<string>, preloaded?: { [modelName: string]: BaseItem<string | number>[] }): Promise<T[]> {
         let result = null;
         await this.Init();
         if (data) {
@@ -990,9 +990,9 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
         return keys.length > 0;
     }
 
-    protected async persistInner(objects: any[], linkedFields?: Array<string>): Promise<{ [modelName: string]: BaseItem[] }> {
+    protected async persistInner(objects: any[], linkedFields?: Array<string>): Promise<{ [modelName: string]: BaseItem<string | number>[] }> {
         let level = 0;
-        let result: { [modelName: string]: BaseItem[] } = undefined;
+        let result: { [modelName: string]: BaseItem<string | number>[] } = undefined;
         let sortedByLevel = undefined;
         // get inner objects sorted with level in tree
         let innerItems = this.getInnerValuesForLevel({ [this.itemType["name"]]: objects }, linkedFields);
@@ -1125,7 +1125,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
     }
 
     @trace(TraceLevel.ServiceUtilities)
-    protected async populateLookups(items: Array<T>, loadLookups?: Array<string>, innerItems?: { [modelName: string]: BaseItem[] }): Promise<void> {
+    protected async populateLookups(items: Array<T>, loadLookups?: Array<string>, innerItems?: { [modelName: string]: BaseItem<string | number>[] }): Promise<void> {
         
         await this.Init();
         
@@ -1206,10 +1206,10 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
             }
         }
 
-        const resultItems: { [modelName: string]: BaseItem[] } = innerResult;
+        const resultItems: { [modelName: string]: BaseItem<string | number>[] } = innerResult;
         // get from cache
         // Init queries       
-        const cachedpromises: Array<() => Promise<BaseItem[]>> = [];
+        const cachedpromises: Array<() => Promise<BaseItem<string | number>[]>> = [];
         for (const modelName in cachedIds) {
             if (cachedIds.hasOwnProperty(modelName)) {
                 const ids = cachedIds[modelName];
@@ -1230,7 +1230,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
 
         // Not cached
         // Init queries       
-        const promises: Array<() => Promise<BaseItem[]>> = [];
+        const promises: Array<() => Promise<BaseItem<string | number>[]>> = [];
         for (const modelName in allIds) {
             if (allIds.hasOwnProperty(modelName)) {
                 const ids = allIds[modelName];
@@ -1287,17 +1287,18 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
         for (const propertyName in lookupFields) {
             if (lookupFields.hasOwnProperty(propertyName)) {
                 const fieldDesc = lookupFields[propertyName];
-                if (!loadLookups || loadLookups.indexOf(fieldDesc.fieldName) !== -1) {
-                    if (fieldDesc.fieldType === FieldType.Lookup) {
+                if (!loadLookups || loadLookups.indexOf(fieldDesc.fieldName) !== -1) {                    
+                    const obj = ServiceFactory.getItemByName(fieldDesc.modelName);
+                    if (fieldDesc.fieldType === FieldType.Lookup) {                        
                         item.__deleteInternalLinks(propertyName);
-                        if (item[propertyName] && item[propertyName].id > -1) {
+                        if (item[propertyName] && item[propertyName].id !== obj.defaultKey) {
                             item.__setInternalLinks(propertyName, item[propertyName].id);
                         }
                     }
                     else if (fieldDesc.fieldType === FieldType.LookupMulti) {
                         item.__deleteInternalLinks(propertyName);
                         if (item[propertyName] && item[propertyName].length > 0) {
-                            item.__setInternalLinks(propertyName, item[propertyName].filter(l => l.id !== -1).map(l => l.id));
+                            item.__setInternalLinks(propertyName, item[propertyName].filter(l => l.id !== obj.defaultKey).map(l => l.id));
                         }
                     }
                 }
@@ -1328,7 +1329,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
                             if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                                 //link defered
                                 if (item[propertyName]) {
-                                    result.__setInternalLinks(propertyName, (item[propertyName] as unknown as BaseItem).id);
+                                    result.__setInternalLinks(propertyName, (item[propertyName] as unknown as BaseItem<string | number>).id);
                                 }
                                 delete result[propertyName];
                             }
@@ -1338,9 +1339,9 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
                             if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                                 const ids = [];
                                 if (item[propertyName]) {
-                                    (item[propertyName] as unknown as BaseItem[]).forEach(element => {
+                                    (item[propertyName] as unknown as BaseItem<string | number>[]).forEach(element => {
                                         if (element?.id) {
-                                            if ((typeof (element.id) === "number" && element.id > 0) || (typeof (element.id) === "string" && !stringIsNullOrEmpty(element.id))) {
+                                            if (!element.isLocal) {
                                                 ids.push(element.id);
                                             }
                                         }
@@ -1570,7 +1571,7 @@ export abstract class BaseDataService<T extends BaseItem> extends BaseService im
 
 
 
-                    let service: BaseDataService<BaseItem>;
+                    let service: BaseDataService<BaseItem<string | number>>;
 
                     try {
 

@@ -66,4 +66,8 @@ export interface IConfiguration {
      * @todo
      */
     maxSimultaneousQueries?: number;
+    /**
+     * Key used to share services accross instances
+     */
+    serviceKey?: string;
 }

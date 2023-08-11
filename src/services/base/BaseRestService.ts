@@ -20,11 +20,11 @@ const trace = Decorators.trace;
  * 
  * Base service for sp list items operations
  */
-export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataService<T>{
+export class BaseRestService<T extends RestItem<string | number> | RestFile<string | number>> extends BaseDataService<T>{
 
     /***************************** Fields and properties **************************************/
 
-    protected restMappingDb: BaseDbService<RestResultMapping>;
+    protected restMappingDb: BaseDbService<RestResultMapping<string | number>>;
 
 
     protected baseServiceUrl: string;
@@ -299,7 +299,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
     private async convertSingleUserFieldValue(value: User): Promise<string> {
         let result: string = null;
         if (value) {
-            if (value.id <= 0) {
+            if (value.isLocal) {
                 const userService: UserService = ServiceFactory.getService(User).cast<UserService>();
                 value = await userService.linkToSpUser(value);
             }
@@ -374,11 +374,11 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
     @trace(TraceLevel.Internal)
     protected async addOrUpdateItem_Internal(item: T): Promise<T> {
         const result = cloneDeep(item);
-        if (item.id < 0) {
+        if (item.isLocal) {
             const converted = await this.convertItem(item);
             const addResult = await this.executeRequest(`${this.serviceUrl}${this.Bindings.addOrUpdateItem.url}`, this.Bindings.addOrUpdateItem.method, converted);
             await this.populateCommonFields(result, addResult);
-            if (item.id < -1) {
+            if (item.isCreatedOffline) {
                 await this.updateLinksInDb(Number(item.id), Number(result.id));
             }
         }
@@ -425,14 +425,12 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
     @trace(TraceLevel.Internal)
     protected async addOrUpdateItems_Internal(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void): Promise<Array<T>> {
         const result = cloneDeep(items);
-        const itemsToAdd = result.filter((item) => {
-            return item.id < 0;
-        });
+        const itemsToAdd = result.filter(item => item.isLocal);
         const versionedItems = result.filter((item) => {
-            return !this.disableVersionCheck && item.version !== undefined && item.version !== null && item.id > 0;
+            return !this.disableVersionCheck && item.version !== undefined && item.version !== null && !item.isLocal;
         });
         const updatedItems = result.filter((item) => {
-            return (this.disableVersionCheck || item.version === undefined || item.version === null) && item.id > 0;
+            return (this.disableVersionCheck || item.version === undefined || item.version === null) && !item.isLocal;
         });
 
         // creation batch
@@ -667,7 +665,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
     /************************** Query filters ***************************/
 
     protected async populateCommonFields(item: T, restItem): Promise<void> {
-        if (item.id < 0) {
+        if (item.isLocal) {
             // update ids
             item.id = restItem[Constants.commonRestFields.id];
             item.uniqueId = restItem[Constants.commonRestFields.uniqueid];
@@ -824,7 +822,7 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
             });
         }
 
-        let req = await this.manageAuthentication({
+        const req = await this.manageAuthentication({
             method: method,
             mode: 'cors',
             headers: headers,

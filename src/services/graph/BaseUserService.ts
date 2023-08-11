@@ -202,9 +202,9 @@ export abstract class BaseUserService<T extends User> extends BaseSPService<T> {
 
     public async linkToSpUser(user: T): Promise<T> {
         // user is not registered (or created offline)    
-        if (user.id < 0) {
+        if (user.isLocal) {
             const allItems = await this.getAll();
-            const existing = find(allItems, u => u[BaseUserService.userField]?.toLowerCase() === user[BaseUserService.userField]?.toLowerCase() && u.id > 0);
+            const existing = find(allItems, u => u[BaseUserService.userField]?.toLowerCase() === user[BaseUserService.userField]?.toLowerCase() && !u.isLocal);
             // remove existing
             if (existing) {
                 user = existing;

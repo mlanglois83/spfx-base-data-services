@@ -8,14 +8,14 @@ import { ServicesConfiguration } from "../../configuration";
 import { Mutex, Semaphore } from 'async-mutex';
 import { BaseFile } from "../../models";
 import { Decorators } from "../../decorators";
-import { TraceLevel } from "../../constants";
+import { Constants, TraceLevel } from "../../constants";
 
 const trace = Decorators.trace;
 
 /**
  * Base classe for indexedDB interraction using SP repository
  */
-export class BaseDbService<T extends IBaseItem> extends BaseService implements IDataService<T> {
+export class BaseDbService<T extends IBaseItem<string | number>> extends BaseService implements IDataService<T> {
     protected tableName: string;
 
     protected itemType: (new (item?: any) => T);
@@ -101,23 +101,26 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
 
     private static mutex = new Mutex();
 
-    protected async getNextAvailableKey(store: ObjectStore<T, number>): Promise<number> {
-        let result: number;
+    protected async getNextAvailableKey(store: ObjectStore<T, string | number>): Promise<string | number> {
+        let result: string | number;
         const tmp = new this.itemType();
         if (typeof (tmp.id) === "number") {
             const release = await BaseDbService.mutex.acquire();
             try {
-                const keys = await this.getAllKeysInternal(store);
+                const keys = await (this as BaseDbService<IBaseItem<number>>).getAllKeysInternal(store as ObjectStore<IBaseItem<number>, number>);
                 if (keys.length > 0) {
                     const minKey = Math.min(...keys);
-                    result = Math.min(-2, minKey - 1);
+                    result = Math.min(-1, minKey - 1);
                 }
                 else {
-                    result = -2;
+                    result = -1;
                 }
             } finally {
                 release();
             }
+        }
+        else {
+            return Constants.models.offlineCreatedPrefix +  UtilsService.generateGuid();
         }
         return result;
     }
@@ -193,8 +196,8 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
         const tx = BaseDbService.db.transaction(this.tableName, 'readwrite');
         const store = tx.objectStore(this.tableName);
         try {
-            if (typeof (item.id) === "number" && !store.autoIncrement && item.id === -1) {
-                const nextid = await this.getNextAvailableKey(store as ObjectStore<T, number>);
+            if (item.id === item.defaultKey && !store.autoIncrement) {
+                const nextid = await this.getNextAvailableKey(store as ObjectStore<T, string | number>);
                 item.id = nextid;
             }
             if (item instanceof BaseFile && item.content && item.content.byteLength >= 10485760) {
@@ -216,7 +219,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                     const lastidx = Math.min(item.content.byteLength, firstidx + 10485760);
                     const chunk = item.content.slice(firstidx, lastidx);
                     // create file object
-                    const chunkitem = new this.itemType() as unknown as BaseFile;
+                    const chunkitem = new this.itemType() as unknown as BaseFile<string>;
                     chunkitem.id = item.id.toString() + (idx === 0 ? "" : "_chunk_" + idx);
                     chunkitem.title = item.title;
                     chunkitem.mimeType = item.mimeType;
@@ -365,7 +368,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                     if (nextid === undefined) {
                         nextid = await this.getNextAvailableKey(store as ObjectStore<T, number>);
                     }
-                    item.id = nextid--;
+                    (item as IBaseItem<number>).id = nextid--;
                 }
                 if (item instanceof BaseFile && item.content && item.content.byteLength >= 10485760) {
                     // remove existing chunks
@@ -386,7 +389,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                         const lastidx = Math.min(item.content.byteLength, firstidx + 10485760);
                         const chunk = item.content.slice(firstidx, lastidx);
                         // create file object
-                        const chunkitem = new this.itemType() as unknown as BaseFile;
+                        const chunkitem = new this.itemType() as unknown as BaseFile<string>;
                         chunkitem.id = item.id.toString() + (idx === 0 ? "" : "_chunk_" + idx);
                         chunkitem.title = item.title;
                         chunkitem.mimeType = item.mimeType;
@@ -560,7 +563,7 @@ export class BaseDbService<T extends IBaseItem> extends BaseService implements I
                                 return parseInt(a.id.replace(/^.*_chunk_(\d+)$/g, "$1")) - parseInt(b.id.replace(/^.*_chunk_(\d+)$/g, "$1"));
                             });
                             result.content = UtilsService.concatArrayBuffers(result.content, ...chunks.map(c => {
-                                const file: BaseFile = assign(new this.itemType(), c);
+                                const file: BaseFile<string | number> = assign(new this.itemType(), c);
                                 return file.content;
                             }));
                         }
