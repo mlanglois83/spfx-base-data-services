@@ -814,14 +814,14 @@ export class BaseRestService<T extends (RestItem | RestFile)> extends BaseDataSe
 
         if (data != null) {
             const postData: string = JSON.stringify(data);
-            return {
+            return await this.manageAuthentication({
                 method: method,
                 body: postData,
                 mode: 'cors',
                 headers: headers,
                 referrer: ServicesConfiguration.baseUrl,
                 referrerPolicy: "no-referrer-when-downgrade"
-            };
+            });
         }
 
         let req = await this.manageAuthentication({
