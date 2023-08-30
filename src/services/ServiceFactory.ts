@@ -7,7 +7,7 @@ import { assign } from "lodash";
 import { getHashCode } from "@pnp/common/util";
 export class ServiceFactory {    
     
-    private static __services: {[modelName: string]: {[key: string]: BaseDataService<BaseItem>}};
+    private static __services: {[modelName: string]: {[key: string]: BaseDataService<BaseItem>}} = {};
     private static __serviceInitializing: {[modelName: string]: boolean} = {};
     private static __itemFields: {[modelName: string]: {[propertyName: string]: IFieldDescriptor}} = {};
 
