@@ -1,10 +1,11 @@
 import { BaseDataService } from "./base/BaseDataService";
-import { stringIsNullOrEmpty } from "@pnp/core";
+import { asyncReduce, getHashCode, stringIsNullOrEmpty } from "@pnp/core";
 import { ServicesConfiguration } from "../configuration/ServicesConfiguration";
 import { BaseItem } from "../models/base/BaseItem";
 import { IFieldDescriptor } from "../interfaces";
 import { assign } from "lodash";
 import { Constants } from "../constants";
+import { get } from "http";
 export class ServiceFactory {    
     
     private static get servicesVarName(): string {
@@ -12,7 +13,7 @@ export class ServiceFactory {
     }
 
     private static get windowVar(): { 
-        __services: {[modelName: string]: BaseDataService<BaseItem>}, 
+        __services: {[modelName: string]: {[key: string]: BaseDataService<BaseItem>}}, 
         __serviceInitializing: {[modelName: string]: boolean}, 
         __itemFields: {[modelName: string]: {[propertyName: string]: IFieldDescriptor}}
     } {
@@ -38,17 +39,19 @@ export class ServiceFactory {
      * @param  typeName - name of the model for which a service has to be instanciated
      */
      public static getServiceByModelName(modelName: string, ...args: any[]): BaseDataService<BaseItem> {
-        if(!ServiceFactory.windowVar.__services[modelName]) {
+        const hash = getHashCode(JSON.stringify((args || "")));
+        if(!ServiceFactory.windowVar.__services[modelName] || !ServiceFactory.windowVar.__services[modelName][hash]) {
             if(!ServicesConfiguration.__factory.services[modelName]) {
                 console.log(`modelname: ${modelName}`);
                 console.error("Unknown model name");
                 throw Error("Unknown model name");
             }
             ServiceFactory.windowVar.__serviceInitializing[modelName] = true;
-            ServiceFactory.windowVar.__services[modelName] = new ServicesConfiguration.__factory.services[modelName](...args);            
+            ServiceFactory.windowVar.__services[modelName] = ServiceFactory.windowVar.__services[modelName] || {};
+            ServiceFactory.windowVar.__services[modelName][hash] = new ServicesConfiguration.__factory.services[modelName](...args);            
             delete ServiceFactory.windowVar.__serviceInitializing[modelName];
         }        
-        return ServiceFactory.windowVar.__services[modelName];
+        return ServiceFactory.windowVar.__services[modelName][hash];
     }
 
     public static getService<T extends BaseItem>(model: (new (item?: any) => T), ...args: any[]): BaseDataService<T> {
