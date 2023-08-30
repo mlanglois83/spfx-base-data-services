@@ -81,5 +81,8 @@ export const Constants = {
     windowVars: {
         promiseVarName: "spfxBaseDataServicesPromises",
         servicesVarName: "spfxBaseDataServicesServices"
-    }    
+    },
+    models: {
+        offlineCreatedPrefix : "==OFFLINE=="
+    }
 };

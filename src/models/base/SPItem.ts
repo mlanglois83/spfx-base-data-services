@@ -6,12 +6,12 @@ const field = Decorators.field;
 /**
  * Base object for sharepoint item abstraction objects
  */
-export abstract class SPItem extends BaseItem {
+export abstract class SPItem extends BaseItem<number> {
     /**
      * Item id
      */
-    @field({ fieldName: "ID", defaultValue: -1 })
-    public id = -1;
+    @field({ fieldName: "ID" })
+    public id;
     /**
      * Item title
      */

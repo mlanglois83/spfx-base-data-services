@@ -13,7 +13,7 @@ export class ServiceFactory {
     }
 
     private static get windowVar(): { 
-        __services: {[modelName: string]: {[key: string]: BaseDataService<BaseItem>}}, 
+        __services: {[modelName: string]: {[key: string]: BaseDataService<BaseItem<string | number>>}}, 
         __serviceInitializing: {[modelName: string]: boolean}, 
         __itemFields: {[modelName: string]: {[propertyName: string]: IFieldDescriptor}}
     } {
@@ -21,7 +21,8 @@ export class ServiceFactory {
             window[ServiceFactory.servicesVarName] = {
                 __services: {},
                 __serviceInitializing: {},
-                __itemFields: {}
+                __itemFields: {},
+                __keyTypes: {}
             };
         } 
         return window[ServiceFactory.servicesVarName];
@@ -38,7 +39,7 @@ export class ServiceFactory {
      * Constructs a service given model name
      * @param  typeName - name of the model for which a service has to be instanciated
      */
-     public static getServiceByModelName(modelName: string, ...args: any[]): BaseDataService<BaseItem> {
+    public static getServiceByModelName(modelName: string, ...args: any[]): BaseDataService<BaseItem<string | number>> {
         const hash = getHashCode(JSON.stringify((args || "")));
         if(!ServiceFactory.windowVar.__services[modelName] || !ServiceFactory.windowVar.__services[modelName][hash]) {
             if(!ServicesConfiguration.__factory.services[modelName]) {
@@ -54,7 +55,7 @@ export class ServiceFactory {
         return ServiceFactory.windowVar.__services[modelName][hash];
     }
 
-    public static getService<T extends BaseItem>(model: (new (item?: any) => T), ...args: any[]): BaseDataService<T> {
+    public static getService<T extends BaseItem<string | number>>(model: (new (item?: any) => T), ...args: any[]): BaseDataService<T> {
         return ServiceFactory.getServiceByModelName(model["name"], ...args) as BaseDataService<T>;
     }
 
@@ -62,7 +63,7 @@ export class ServiceFactory {
      * Returns an item contructor given its type name
      * @param typeName - model type name
      */
-    public static getItemTypeByName(modelName: string): (new (item?: any) => BaseItem) {
+    public static getItemTypeByName(modelName: string): (new (item?: any) => BaseItem<string | number>) {
         if(!ServicesConfiguration.__factory.models[modelName]) {
             console.error("Unknown model name");
             throw Error("Unknown model name");
@@ -74,10 +75,11 @@ export class ServiceFactory {
      * Returns an item given its type name
      * @param typeName - model type name
      */
-     public static getItemByName(modelName: string): BaseItem {
+     public static getItemByName(modelName: string): BaseItem<string | number> {
         const itemType = ServiceFactory.getItemTypeByName(modelName);
         return new itemType();
     }
+
 
     public static getModelFields(modelName: string): {[propertyName: string]: IFieldDescriptor} {
         if(!ServiceFactory.windowVar.__itemFields[modelName]) {
@@ -104,8 +106,7 @@ export class ServiceFactory {
         }
         return ServiceFactory.windowVar.__itemFields[modelName];
     }
-
-
+   
     /**
      * Returns an object contructor given its type name
      * @param typeName - model type name

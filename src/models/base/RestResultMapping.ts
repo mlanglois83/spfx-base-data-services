@@ -1,9 +1,10 @@
 import { assign } from "lodash";
 import { IBaseItem } from "../../interfaces";
 
-export class RestResultMapping implements IBaseItem {
+export class RestResultMapping<T extends string | number> implements IBaseItem<string> {
+    public get defaultKey(): string { return undefined; }
     public id: string;
-    public itemIds: number[] = [];
+    public itemIds: T[] = [];
 
     public fromObject(object: any): void {
         assign(this, object);

@@ -5,7 +5,7 @@ import { BaseItem } from "../../models";
 import { UtilsService } from "../UtilsService";
 import { BaseDataService } from "./BaseDataService";
 
-export abstract class BaseSPService<T extends BaseItem> extends BaseDataService<T> {
+export abstract class BaseSPService<T extends BaseItem<string | number>> extends BaseDataService<T> {
     protected baseUrl: string;
 
     public get sp(): SPFI {

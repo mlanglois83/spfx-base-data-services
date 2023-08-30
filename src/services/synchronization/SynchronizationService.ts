@@ -83,12 +83,12 @@ export class SynchronizationService extends BaseService {
             // get associated type & service
             const dataService = ServiceFactory.getServiceByModelName(transaction.itemType);
             // transform item to destination type
-            const item: BaseItem = assign(ServiceFactory.getItemByName(transaction.itemType), transaction.itemData);
+            const item: BaseItem<string | number> = assign(ServiceFactory.getItemByName(transaction.itemType), transaction.itemData);
             switch (transaction.title) {
                 case TransactionType.AddOrUpdate:
                     const oldId = item.id;
                     const isAdd = typeof (oldId) === "number" && oldId < 0;
-                    let tmp: Array<BaseItem>;
+                    let tmp: Array<BaseItem<string | number>>;
                     if(dataService.isMapItemsAsync()) {
                         tmp = await dataService.mapItemsAsync([item]);
                     }
@@ -106,15 +106,15 @@ export class SynchronizationService extends BaseService {
                         if (index < transactions.length - 1) {
                             nextTransactions = await Promise.all(transactions.slice(index + 1).map(async (updatedTr) => {
 
-                                if (updatedTr.itemType === transaction.itemType && (updatedTr.itemData as BaseItem).id === oldId) {
-                                    (updatedTr.itemData as BaseItem).id = updatedItem.id;
-                                    (updatedTr.itemData as BaseItem).version = updatedItem.version;
+                                if (updatedTr.itemType === transaction.itemType && (updatedTr.itemData as BaseItem<string | number>).id === oldId) {
+                                    (updatedTr.itemData as BaseItem<string | number>).id = updatedItem.id;
+                                    (updatedTr.itemData as BaseItem<string | number>).version = updatedItem.version;
 
                                     const identifiers = dataService.Identifier;
                                     if (identifiers) {
                                         for (const identifier of identifiers) {
 
-                                            (updatedTr.itemData as BaseItem)[identifier] = updatedItem[identifier];
+                                            (updatedTr.itemData as BaseItem<string | number>)[identifier] = updatedItem[identifier];
                                         }
                                     }
 
@@ -138,8 +138,8 @@ export class SynchronizationService extends BaseService {
                         if (index < transactions.length - 1) {
                             nextTransactions = await Promise.all(transactions.slice(index + 1).map(async (updatedTr) => {
                                 if (updatedTr.itemType === transaction.itemType &&
-                                    (updatedTr.itemData as BaseItem).id === item.id) {
-                                    (updatedTr.itemData as BaseItem).version = updatedItem.version;
+                                    (updatedTr.itemData as BaseItem<string | number>).id === item.id) {
+                                    (updatedTr.itemData as BaseItem<string | number>).version = updatedItem.version;
                                     await this.transactionService.addOrUpdateItem(updatedTr);
                                 }
                                 return updatedTr;
@@ -179,13 +179,13 @@ export class SynchronizationService extends BaseService {
 
     private formatError(transaction: OfflineTransaction, message: string): string {
         let operationLabel: string;
-        const item = assign(ServiceFactory.getItemByName(transaction.itemType), transaction.itemData);
+        const item = assign(ServiceFactory.getItemByName(transaction.itemType), transaction.itemData) as BaseItem<string | number>;
         switch (transaction.title) {
             case TransactionType.AddOrUpdate:
                 if (item instanceof SPFile) {
                     operationLabel = ServicesConfiguration.configuration.translations.UploadLabel;
                 }
-                else if (item.id < 0) {
+                else if (item.isLocal) {
                     operationLabel = ServicesConfiguration.configuration.translations.AddLabel;
                 }
                 else {
