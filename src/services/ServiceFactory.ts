@@ -4,9 +4,10 @@ import { ServicesConfiguration } from "../configuration/ServicesConfiguration";
 import { BaseItem } from "../models/base/BaseItem";
 import { IFieldDescriptor } from "../interfaces";
 import { assign } from "lodash";
+import { getHashCode } from "@pnp/common/util";
 export class ServiceFactory {    
     
-    private static __services: {[modelName: string]: BaseDataService<BaseItem>} = {};
+    private static __services: {[modelName: string]: {[key: string]: BaseDataService<BaseItem>}};
     private static __serviceInitializing: {[modelName: string]: boolean} = {};
     private static __itemFields: {[modelName: string]: {[propertyName: string]: IFieldDescriptor}} = {};
 
@@ -22,17 +23,19 @@ export class ServiceFactory {
      * @param  typeName - name of the model for which a service has to be instanciated
      */
      public static getServiceByModelName(modelName: string, ...args: any[]): BaseDataService<BaseItem> {
-        if(!ServiceFactory.__services[modelName]) {
+        const hash = getHashCode(JSON.stringify((args || "")));
+        if(!ServiceFactory.__services[modelName] || !ServiceFactory.__services[modelName][hash]) {
             if(!ServicesConfiguration.__factory.services[modelName]) {
                 console.log(`modelname: ${modelName}`);
                 console.error("Unknown model name");
                 throw Error("Unknown model name");
             }
             ServiceFactory.__serviceInitializing[modelName] = true;
-            ServiceFactory.__services[modelName] = new ServicesConfiguration.__factory.services[modelName](...args);            
+            ServiceFactory.__services[modelName] = ServiceFactory.__services[modelName] || {};
+            ServiceFactory.__services[modelName][hash] = new ServicesConfiguration.__factory.services[modelName](...args);                        
             delete ServiceFactory.__serviceInitializing[modelName];
         }        
-        return ServiceFactory.__services[modelName];
+        return ServiceFactory.__services[modelName][hash];
     }
 
     public static getService<T extends BaseItem>(model: (new (item?: any) => T), ...args: any[]): BaseDataService<T> {
