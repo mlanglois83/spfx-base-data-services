@@ -200,6 +200,13 @@ export class UtilsService extends BaseService {
         }
         return out;
     }
+    /**
+     * 
+     * @param promises 
+     * @param stackCount 
+     * @returns 
+     * @deprecated Use executePromisesInStacks
+     */
     public static async runPromisesInStacks<T>(promises: Promise<T>[], stackCount: number): Promise<T[]> {
         const result: T[] = [];
         const segments = UtilsService.divideArray(promises, stackCount);
@@ -222,39 +229,86 @@ export class UtilsService extends BaseService {
         return result;
     }
 
-    public static async executePromisesInStacks<T>(promiseGenerators: (() => Promise<T>)[], stackCount: number): Promise<T[]> {
-        const result: T[] = [];
-        const segments = UtilsService.divideArray(promiseGenerators, stackCount);
-        const results = await Promise.all(segments.map((s) => {
-            return UtilsService.chainPromiseGenerators(s);
-        }));
-        results.forEach((r) => {
-            result.push(...r);
-        });
-        return result;
+    public static delay(time): Promise<void> {
+        return new Promise(resolve => setTimeout(resolve, time));
     }
 
-    public static async chainPromiseGenerators<T>(promiseGenerators: (() => Promise<T>)[]): Promise<T[]> {
-        const result: T[] = [];
-        while (promiseGenerators.length > 0) {
-            const currentPromise = promiseGenerators.shift()();
-            const currentResult = await currentPromise;
-            result.push(currentResult);
+    public static async executePromisesInStacks<T>(promiseGenerators: (() => Promise<T>)[], stackCount: number): Promise<T[]> {
+        const results: T[] = [];
+        const rawResult: {[id: string]: T} = {};
+        const promises: Map<string, Promise<T>> = new Map<string, Promise<T>>();
+        const ordered = promiseGenerators.map(p => {
+            return {
+                id: UtilsService.generateGuid(), 
+                promiseGenerator: p
+            };
+        });
+        const copy = cloneDeep(ordered);
+        const addPromises = (): void => {
+            while (promises.size < stackCount && copy.length > 0) {
+                const currentPromiseGen = copy.shift();
+                const current = currentPromiseGen.promiseGenerator();
+                promises.set(currentPromiseGen.id, current);
+                current.then((data: T) => {
+                    // add data
+                    rawResult[currentPromiseGen.id] = data;
+                    // remove from stack
+                    promises.delete(currentPromiseGen.id);
+                    // add new promises
+                    addPromises();
+                }, (error) => {
+                    console.error(error);
+                    // remove from stack
+                    promises.delete(currentPromiseGen.id);
+                    // add new promises
+                    addPromises();
+                });
+            }
+        };
+        addPromises();
+        // wait for all promises to finish
+        while (promises.size > 0) {
+            await UtilsService.delay(20);
         }
-        return result;
+
+        // Reorder results
+        ordered.forEach((o) => {
+            results.push(rawResult[o.id]);
+        });
+        return results;
     }
 
     public static async runBatchesInStacks(batches: Array<() => Promise<void>>, stackCount: number): Promise<void> {
-        const segments = UtilsService.divideArray(batches, stackCount);
-        await Promise.all(segments.map((s) => {
-            return UtilsService.chainBatches(s);
-        }));
-    }
-
-    public static async chainBatches(batches: Array<() => Promise<void>>): Promise<void> {
-        while (batches.length > 0) {
-            const currentBatch = batches.shift();
-            await currentBatch();
+        const promises: Map<string, Promise<void>> = new Map<string, Promise<void>>();
+        const identified = batches.map(b => {
+            return {
+                id: UtilsService.generateGuid(), 
+                batch: b
+            };
+        });
+        const addPromises = (): void => {
+            while (promises.size < stackCount && identified.length > 0) {
+                const currentBatch = identified.shift();
+                const current = currentBatch.batch();
+                promises.set(currentBatch.id, current);
+                current.then(() => {
+                    // remove from stack
+                    promises.delete(currentBatch.id);
+                    // add new promises
+                    addPromises();
+                }, (error) => {
+                    console.error(error);
+                    // remove from stack
+                    promises.delete(currentBatch.id);
+                    // add new promises
+                    addPromises();
+                });
+            }
+        };
+        addPromises();
+        // wait for all promises to finish
+        while (promises.size > 0) {
+            await UtilsService.delay(20);
         }
     }
 
