@@ -1,11 +1,10 @@
 import { BaseDataService } from "./base/BaseDataService";
-import { asyncReduce, getHashCode, stringIsNullOrEmpty } from "@pnp/core";
+import { getHashCode, stringIsNullOrEmpty } from "@pnp/core";
 import { ServicesConfiguration } from "../configuration/ServicesConfiguration";
 import { BaseItem } from "../models/base/BaseItem";
 import { IFieldDescriptor } from "../interfaces";
 import { assign } from "lodash";
 import { Constants } from "../constants";
-import { get } from "http";
 export class ServiceFactory {    
     
     private static get servicesVarName(): string {
