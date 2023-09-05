@@ -32,7 +32,7 @@ export interface IConfiguration {
     /**
      * SPFX component context
      */
-    context?: any; // To avoid spfx dependency --> BaseComponentContext
+    context?: (any | (() => any)); // To avoid spfx dependency --> BaseComponentContext
     /**
      * SP Web url in case ther is no context
      */

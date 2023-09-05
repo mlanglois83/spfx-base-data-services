@@ -20,6 +20,9 @@ export class ServicesConfiguration {
      * Web Part Context
      */
     public static get context(): any {//BaseComponentContext 
+        if(typeof(ServicesConfiguration.configuration.context) === "function") {
+            return ServicesConfiguration.configuration.context();
+        }
         return ServicesConfiguration.configuration.context;
     }
     /**
@@ -43,11 +46,11 @@ export class ServicesConfiguration {
      * Web Url
      */
      public static get baseUrl(): string {//BaseComponentContext 
-        return ServicesConfiguration.configuration.context ? ServicesConfiguration.context.pageContext.web.absoluteUrl : ServicesConfiguration.configuration.baseUrl;
+        return ServicesConfiguration.context ? ServicesConfiguration.context.pageContext.web.absoluteUrl : ServicesConfiguration.configuration.baseUrl;
     }
 
     public static get serverRelativeUrl(): string {
-        return ServicesConfiguration.configuration.context ? ServicesConfiguration.context.pageContext.web.serverRelativeUrl : ServicesConfiguration.configuration.baseUrl.replace(/^https?:\/\/[^/]+(\/.*)$/g, "$1");
+        return ServicesConfiguration.context ? ServicesConfiguration.context.pageContext.web.serverRelativeUrl : ServicesConfiguration.configuration.baseUrl.replace(/^https?:\/\/[^/]+(\/.*)$/g, "$1");
     }
 
     /**
