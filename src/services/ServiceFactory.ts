@@ -27,6 +27,11 @@ export class ServiceFactory {
         return window[ServiceFactory.servicesVarName];
     }
 
+    public static resetServicesCache() {
+        ServiceFactory.windowVar.__serviceInitializing = {};
+        ServiceFactory.windowVar.__services = {};
+    }
+
     public static isServiceInitializing(modelName: string): boolean {
         return ServiceFactory.windowVar.__serviceInitializing[modelName] === true;
     }
