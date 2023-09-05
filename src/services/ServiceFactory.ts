@@ -12,7 +12,7 @@ export class ServiceFactory {
     }
 
     private static get windowVar(): { 
-        __services: {[modelName: string]: {[key: string]: BaseDataService<BaseItem<string | number>>}}, 
+        __services: {[modelName: string]: {[key: string]: {instanceId: string, service: BaseDataService<BaseItem<string | number>>}}}, 
         __serviceInitializing: {[modelName: string]: boolean}, 
         __itemFields: {[modelName: string]: {[propertyName: string]: IFieldDescriptor}}
     } {
@@ -30,6 +30,19 @@ export class ServiceFactory {
     public static resetServicesCache() {
         ServiceFactory.windowVar.__serviceInitializing = {};
         ServiceFactory.windowVar.__services = {};
+    }
+
+    public static removeServicesForCurrentInstance() {
+        Object.keys(ServiceFactory.windowVar.__services).forEach(modelName => {
+            Object.keys(ServiceFactory.windowVar.__services[modelName]).forEach(serviceHash => {
+                if(ServiceFactory.windowVar.__services[modelName][serviceHash].instanceId === ServicesConfiguration.context.instanceId) {
+                    delete ServiceFactory.windowVar.__services[modelName][serviceHash];
+                }
+            });
+            if(Object.keys(ServiceFactory.windowVar.__services[modelName]).length === 0) {
+                delete ServiceFactory.windowVar.__services[modelName];
+            }
+        });    
     }
 
     public static isServiceInitializing(modelName: string): boolean {
@@ -53,10 +66,13 @@ export class ServiceFactory {
             }
             ServiceFactory.windowVar.__serviceInitializing[modelName] = true;
             ServiceFactory.windowVar.__services[modelName] = ServiceFactory.windowVar.__services[modelName] || {};
-            ServiceFactory.windowVar.__services[modelName][hash] = new ServicesConfiguration.__factory.services[modelName](...args);            
+            ServiceFactory.windowVar.__services[modelName][hash] = { 
+                instanceId: ServicesConfiguration.context.instanceId,
+                service: new ServicesConfiguration.__factory.services[modelName](...args)
+            } ;            
             delete ServiceFactory.windowVar.__serviceInitializing[modelName];
         }        
-        return ServiceFactory.windowVar.__services[modelName][hash];
+        return ServiceFactory.windowVar.__services[modelName][hash].service;
     }
 
     public static getService<T extends BaseItem<string | number>>(model: (new (item?: any) => T), ...args: any[]): BaseDataService<T> {
