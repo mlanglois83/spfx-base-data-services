@@ -63,18 +63,35 @@ export class BaseRestService<T extends RestItem<string | number> | RestFile<stri
         return item;
     }
 
+    protected getLookupId(value: any, fieldDescriptor: IFieldDescriptor): (string | number) {
+        if(typeof(value) === "string" || typeof(value) === "number") {
+            return value;
+        }
+        else if(value) {
+            if(!stringIsNullOrEmpty(fieldDescriptor.lookupFieldName)){
+                return value[fieldDescriptor.lookupFieldName];
+            }
+            else {
+                const modelFields = stringIsNullOrEmpty(fieldDescriptor.modelName) ? {} : ServiceFactory.getModelFields(fieldDescriptor.modelName);
+                const idField = modelFields[Constants.commonRestFields.id]?.fieldName || Constants.commonRestFields.id;
+                return value[idField];
+            }
+        }
+        return undefined;    
+    }
+
     protected populateFieldValue(restItem: any, destItem: T, propertyName: string, fieldDescriptor: IFieldDescriptor): void {
         super.populateFieldValue(restItem, destItem, propertyName, fieldDescriptor);
         const defaultValue = cloneDeep(fieldDescriptor.defaultValue);
         fieldDescriptor.fieldType = fieldDescriptor.fieldType || FieldType.Simple;
         switch (fieldDescriptor.fieldType) {
             case FieldType.Lookup:
-                // TODO : mapping sur id
                 if (fieldDescriptor.containsFullObject && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                     const obj = restItem[fieldDescriptor.fieldName] ? restItem[fieldDescriptor.fieldName] : null;
-                    if (obj && typeof (obj[Constants.commonRestFields.id]) === "number") {
+                    const lookupVal = this.getLookupId(obj, fieldDescriptor);
+                    if (lookupVal !== undefined) {
                         // object allready persisted before, retrieve id and store like classical lookup
-                        destItem.__setInternalLinks(propertyName, obj[Constants.commonRestFields.id]);
+                        destItem.__setInternalLinks(propertyName, lookupVal);
                         destItem[propertyName] = defaultValue;
                     }
                     else {
@@ -82,13 +99,12 @@ export class BaseRestService<T extends RestItem<string | number> | RestFile<stri
                     }
                 }
                 else {
-                    const lookupId: number = restItem[fieldDescriptor.fieldName] ? restItem[fieldDescriptor.fieldName] : -1;
-                    if (lookupId !== -1) {
+                    const lookupId = this.getLookupId(restItem[fieldDescriptor.fieldName], fieldDescriptor);
+                    if (lookupId !== undefined) {
                         if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                             // LOOKUPS --> links
                             destItem.__setInternalLinks(propertyName, lookupId);
                             destItem[propertyName] = defaultValue;
-
                         }
                         else {
                             destItem[propertyName] = lookupId;
@@ -102,8 +118,8 @@ export class BaseRestService<T extends RestItem<string | number> | RestFile<stri
                 break;
             case FieldType.LookupMulti:
                 if (fieldDescriptor.containsFullObject && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                    const lookupIds: Array<number> = restItem[fieldDescriptor.fieldName] && Array.isArray(restItem[fieldDescriptor.fieldName]) ?
-                        restItem[fieldDescriptor.fieldName].map(ri => ri[Constants.commonRestFields.id]).filter(id => typeof (id) === "number") :
+                    const lookupIds: Array<string|number> = restItem[fieldDescriptor.fieldName] && Array.isArray(restItem[fieldDescriptor.fieldName]) ?
+                        restItem[fieldDescriptor.fieldName].map(ri => this.getLookupId(ri, fieldDescriptor)).filter(id => id != undefined) :
                         [];
                     if (lookupIds.length > 0) {
                         // LOOKUPS --> links
@@ -115,7 +131,9 @@ export class BaseRestService<T extends RestItem<string | number> | RestFile<stri
                     }
                 }
                 else {
-                    const lookupIds: Array<number> = restItem[fieldDescriptor.fieldName] ? restItem[fieldDescriptor.fieldName].map(ri => ri.id) : [];
+                    const lookupIds: Array<string|number> = restItem[fieldDescriptor.fieldName] && Array.isArray(restItem[fieldDescriptor.fieldName]) ?
+                        restItem[fieldDescriptor.fieldName].map(ri => this.getLookupId(ri, fieldDescriptor)).filter(id => id != undefined) :
+                        [];
                     if (lookupIds.length > 0) {
                         if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                             // LOOKUPS --> links

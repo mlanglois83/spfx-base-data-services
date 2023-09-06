@@ -35,7 +35,7 @@ export class ServiceFactory {
     public static removeServicesForCurrentInstance() {
         Object.keys(ServiceFactory.windowVar.__services).forEach(modelName => {
             Object.keys(ServiceFactory.windowVar.__services[modelName]).forEach(serviceHash => {
-                if(ServiceFactory.windowVar.__services[modelName][serviceHash].instanceId === ServicesConfiguration.context.instanceId) {
+                if(ServiceFactory.windowVar.__services[modelName][serviceHash].instanceId === ServicesConfiguration.context?.instanceId) {
                     delete ServiceFactory.windowVar.__services[modelName][serviceHash];
                 }
             });
@@ -67,7 +67,7 @@ export class ServiceFactory {
             ServiceFactory.windowVar.__serviceInitializing[modelName] = true;
             ServiceFactory.windowVar.__services[modelName] = ServiceFactory.windowVar.__services[modelName] || {};
             ServiceFactory.windowVar.__services[modelName][hash] = { 
-                instanceId: ServicesConfiguration.context.instanceId,
+                instanceId: ServicesConfiguration.context?.instanceId,
                 service: new ServicesConfiguration.__factory.services[modelName](...args)
             } ;            
             delete ServiceFactory.windowVar.__serviceInitializing[modelName];

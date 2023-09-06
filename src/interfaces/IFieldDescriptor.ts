@@ -22,6 +22,10 @@ export interface IFieldDescriptor {
      */
     modelName?: string;
     /**
+     * Field name used to find id in returned object when linked to model
+     */
+    lookupFieldName?: string;
+    /**
      * Referenced item model type name for Lookup types only
      */
     refItemName?: string;
