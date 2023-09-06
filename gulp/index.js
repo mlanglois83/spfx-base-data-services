@@ -198,11 +198,11 @@ function mergeWebPackConfig(build, config, basePath, includeSourceMap, sourceMap
             tsconfig.include.forEach((pattern) => {
                 glob.sync(pattern).forEach((filePath) => {
                     const buf = fs.readFileSync(filePath, "utf-8");
-                    const classPattern = buf.match(/.*export\s*(abstract\s*)?class\s*(\w+)\s*(implements\s*\w+\s*)?extends\s*(\w+)\s*.*/s); // /!\ implements
+                    const classPattern = buf.match(/.*export\s*(abstract\s*)?class\s*(\w+)\s*(<.*>)?\s*(implements\s*\w+\s*)?extends\s*(\w+)\s*.*/s); // /!\ implements
                     let isParentClass = false;
-                    if (classPattern && classPattern.length === 5) {
+                    if (classPattern && classPattern.length === 6) {
                         const parentName = classPattern[2];
-                        const parentBaseType = classPattern[4];
+                        const parentBaseType = classPattern[5];
                         const nameIdx = baseClasses.indexOf(parentName)
                         isParentClass = nameIdx !== -1;
                         if (isParentClass) {

@@ -69,6 +69,7 @@ export class BaseRestService<T extends RestItem<string | number> | RestFile<stri
         fieldDescriptor.fieldType = fieldDescriptor.fieldType || FieldType.Simple;
         switch (fieldDescriptor.fieldType) {
             case FieldType.Lookup:
+                // TODO : mapping sur id
                 if (fieldDescriptor.containsFullObject && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                     const obj = restItem[fieldDescriptor.fieldName] ? restItem[fieldDescriptor.fieldName] : null;
                     if (obj && typeof (obj[Constants.commonRestFields.id]) === "number") {
