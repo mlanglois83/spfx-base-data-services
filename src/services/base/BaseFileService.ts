@@ -35,8 +35,8 @@ export class BaseFileService<T extends SPFile> extends BaseSPService<T>{
      * @param context - current sp component context 
      * @param listRelativeUrl - list web relative url
      */
-    constructor(type: (new (item?: any) => T), listRelativeUrl: string, cacheDuration?: number, baseUrl?: string) {
-        super(type, cacheDuration, baseUrl);
+    constructor(type: (new (item?: any) => T), listRelativeUrl: string, cacheDuration?: number, baseUrl?: string, ...args: any[]) {
+        super(type, cacheDuration, baseUrl, listRelativeUrl, ...args);
         this.listRelativeUrl = this.baseRelativeUrl + listRelativeUrl;
     }
     /**

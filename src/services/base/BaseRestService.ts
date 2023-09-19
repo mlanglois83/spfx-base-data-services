@@ -48,8 +48,8 @@ export class BaseRestService<T extends RestItem<string | number> | RestFile<stri
      * @param tableName - name of table in local db
      * @param cacheDuration - cache duration in minutes
      */
-    constructor(type: (new (item?: any) => T), baseServiceUrl: string, cacheDuration?: number) {
-        super(type, cacheDuration);
+    constructor(type: (new (item?: any) => T), baseServiceUrl: string, cacheDuration?: number, ...args: any[]) {
+        super(type, cacheDuration, baseServiceUrl, ...args);
         this.baseServiceUrl = baseServiceUrl;
         this.restMappingDb = new BaseDbService(RestResultMapping, "RestMapping");
     }

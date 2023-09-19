@@ -58,7 +58,7 @@ export const Constants = {
          * {1} --> service name
          * {2} --> operation key
          */
-        latestDataLoadFormat: "spfxdataservice-latestDataLoad-{0}-{1}-{2}"
+        latestDataLoadFormat: "spfxdataservice-latestDataLoad-{0}-{1}-{2}-{3}"
     },
     /**
      * Constants for SP Taxaonomy hidden list

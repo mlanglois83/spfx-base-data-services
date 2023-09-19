@@ -32,8 +32,8 @@ export abstract class BaseSPService<T extends BaseItem<string | number>> extends
      * @param type - type of items
      * @param context - context of the current wp
      */
-    constructor(type: (new (item?: any) => T), cacheDuration = -1, baseUrl = undefined) {
-        super(type, cacheDuration);  
+    constructor(type: (new (item?: any) => T), cacheDuration = -1, baseUrl = undefined, ...args: any[]) {
+        super(type, cacheDuration, baseUrl, ...args);  
         this.baseUrl = baseUrl;      
     }
 }

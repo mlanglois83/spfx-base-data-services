@@ -63,9 +63,10 @@ export class SearchService<TKey extends string | number, T extends BaseItem<TKey
   constructor(
     type: new (item?: any) => T,
     cacheDuration?: number,
-    baseUrl?: string
+    baseUrl?: string, 
+    ...args: any[]
   ) {
-    super(type, cacheDuration, baseUrl);
+    super(type, cacheDuration, baseUrl, ...args);
   }
 
   protected _itemfields: any = null;

@@ -159,9 +159,10 @@ export class BaseTermsetService<
         termsetnameorid: string,
         isGlobal = true,
         cacheDuration: number = standardTermSetCacheDuration,
-        baseUrl?: string
+        baseUrl?: string,
+        ...args: any[]
     ) {
-        super(type, cacheDuration, baseUrl);
+        super(type, cacheDuration, baseUrl, termsetnameorid, isGlobal, ...args);
         this.utilsService = new UtilsService();
         this.termsetnameorid = termsetnameorid;
         this.isGlobal = isGlobal;

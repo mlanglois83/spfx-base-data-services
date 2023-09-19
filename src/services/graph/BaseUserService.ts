@@ -32,8 +32,8 @@ export abstract class BaseUserService<T extends User> extends BaseSPService<T> {
      * Instanciates a user service
      * @param cacheDuration - cache duration in minutes (default : 10)
      */
-    constructor(type: new (item?: any) => T, cacheDuration: number = standardUserCacheDuration, groupsToo = false, baseUrl?: string) {
-        super(type, cacheDuration, baseUrl);
+    constructor(type: new (item?: any) => T, cacheDuration: number = standardUserCacheDuration, groupsToo = false, baseUrl?: string, ...args: any[]) {
+        super(type, cacheDuration, baseUrl, groupsToo, ...args);
         this.groupsToo = groupsToo;
     }
 

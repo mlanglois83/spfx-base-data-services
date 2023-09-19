@@ -56,8 +56,8 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
      * @param tableName - name of table in local db
      * @param cacheDuration - cache duration in minutes
      */
-    constructor(type: (new (item?: any) => T), listRelativeUrl: string, cacheDuration?: number, baseUrl?: string) {
-        super(type, cacheDuration, baseUrl);
+    constructor(type: (new (item?: any) => T), listRelativeUrl: string, cacheDuration?: number, baseUrl?: string, ...args: any[]) {
+        super(type, cacheDuration, baseUrl, listRelativeUrl, ...args);
         this.listRelativeUrl =  this.baseRelativeUrl + listRelativeUrl;
         if (this.hasAttachments) {
             this.attachmentsService = new BaseDbService<SPFile>(SPFile, "ListAttachments");
@@ -246,9 +246,14 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
                 break;
             case FieldType.Taxonomy:
                 const wssid: number = spitem[fieldDescriptor.fieldName] ? spitem[fieldDescriptor.fieldName].WssId : -1;
-                if (wssid !== -1) {
+                const termGuid: string = spitem[fieldDescriptor.fieldName] ? spitem[fieldDescriptor.fieldName].TermGuid : "";
+                if (wssid !== -1 || !stringIsNullOrEmpty(termGuid)) {
                     const tterms = this.getServiceInitValuesByName<TaxonomyTerm>(fieldDescriptor.modelName);
                     destItem[propertyName] = this.getTaxonomyTermByWssId(wssid, tterms);
+                    // Fallback on termguid
+                    if(!destItem[propertyName] && !stringIsNullOrEmpty(termGuid)) {
+                        destItem[propertyName] = find(tterms, t => t.id === termGuid);
+                    }
                 }
                 else {
                     destItem[propertyName] = defaultValue;
@@ -259,7 +264,12 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
                 if (tmterms.length > 0) {
                     const allterms = this.getServiceInitValuesByName<TaxonomyTerm>(fieldDescriptor.modelName);
                     destItem[propertyName] = tmterms.map((term) => {
-                        return this.getTaxonomyTermByWssId(term.WssId, allterms);
+                        let cachedterm = this.getTaxonomyTermByWssId(term.WssId, allterms);
+                        // Fallback on termguid
+                        if(!cachedterm) {
+                            cachedterm = find(allterms, t => t.id === term.TermGuid);
+                        }
+                        return cachedterm;
                     });
                 }
                 else {

@@ -36,8 +36,8 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
      * @param type - type of items
      * @param context - context of the current wp
      */
-    constructor(type: (new (item?: any) => T), cacheDuration = -1) {
-        super();
+    constructor(type: (new (item?: any) => T), cacheDuration = -1, ...args: any []) {
+        super(...args);
         if (ServiceFactory.isServiceManaged(type["name"]) && !ServiceFactory.isServiceInitializing(type["name"])) {
             console.warn(`Service constructor called out of Service factory. Please use ServiceFactory.getService(${type["name"]}) or ServiceFactory.getServiceByModelName("${type["name"]}")`);
         }
@@ -179,7 +179,7 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
     /************************************************************************* Cache expiration ************************************************************************************/
 
     protected getCacheKey(key = "all"): string {
-        return UtilsService.formatText(Constants.cacheKeys.latestDataLoadFormat, ServicesConfiguration.serverRelativeUrl, this.serviceName, key);
+        return UtilsService.formatText(Constants.cacheKeys.latestDataLoadFormat, ServicesConfiguration.serverRelativeUrl, this.serviceName, this.hashCode(this.__thisArgs), key);
     }
     /***
      * 

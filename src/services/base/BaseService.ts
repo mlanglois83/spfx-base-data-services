@@ -6,7 +6,7 @@ import { UtilsService } from "../UtilsService";
 
 export abstract class BaseService {   
     
-
+    protected __thisArgs: any[];
     public get serviceName(): string {
         return this.constructor["name"];
     }
@@ -14,7 +14,8 @@ export abstract class BaseService {
     protected get logFormat(): string {
         return LoggingService.defaultLogFormat;
     }
-    constructor() {        
+    constructor(...args: any[]) {     
+        this.__thisArgs = args;   
         if(this.debug) {
             LoggingService.addLoggingToTaggedMembers(this, this.logFormat);
         }
@@ -45,7 +46,7 @@ export abstract class BaseService {
         promiseGenerator: () => Promise<T>,
         key = "all"
       ): Promise<T> {
-        const pkey = this.serviceName + "-" + key
+        const pkey = this.serviceName + "-" + this.hashCode(this.__thisArgs) + "-" + key;
         return UtilsService.callAsyncWithPromiseManagement(pkey, promiseGenerator);
     }
     
