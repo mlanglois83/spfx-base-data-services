@@ -164,10 +164,7 @@ export class SearchService<TKey extends string | number, T extends BaseItem<TKey
   }
 
 
-  protected async get_Internal(query: IQuery<T>, linkedFields?: Array<string>): Promise<Array<T>> {
-
-    console.log(linkedFields);
-
+  protected async get_Internal(query: IQuery<T>): Promise<Array<T>> {
     await this.LoadTaxonomyDependency();
     //Generate query from intermediate language
     let builder = SearchQueryBuilder(

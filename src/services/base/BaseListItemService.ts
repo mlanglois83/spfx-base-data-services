@@ -30,6 +30,8 @@ const trace = Decorators.trace;
  */
 export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
 
+    private useOData = false;
+
     /***************************** Fields and properties **************************************/
     protected listRelativeUrl: string;
     protected taxoMultiFieldNames: { [fieldName: string]: string } = {};
@@ -56,8 +58,9 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
      * @param tableName - name of table in local db
      * @param cacheDuration - cache duration in minutes
      */
-    constructor(type: (new (item?: any) => T), listRelativeUrl: string, cacheDuration?: number, baseUrl?: string, ...args: any[]) {
-        super(type, cacheDuration, baseUrl, listRelativeUrl, ...args);
+    constructor(type: (new (item?: any) => T), listRelativeUrl: string, cacheDuration?: number, baseUrl?: string, useOData = false, ...args: any[]) {
+        super(type, cacheDuration, baseUrl, listRelativeUrl, useOData, ...args);
+        this.useOData = useOData;
         this.listRelativeUrl =  this.baseRelativeUrl + listRelativeUrl;
         if (this.hasAttachments) {
             this.attachmentsService = new BaseDbService<SPFile>(SPFile, "ListAttachments");
@@ -443,11 +446,33 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
 
 
     protected async get_Query(query: IQuery<T>, linkedFields?: Array<string>): Promise<Array<any>> {
-        const spQuery = this.getCamlQuery(query);
-        const selectFields = this.getOdataFieldNames(linkedFields);
         const expandFields = this.getOdataExpandFieldNames(linkedFields);
-        const itemsQuery = this.list.select(...selectFields).expand(...expandFields);
-        return itemsQuery.getItemsByCAMLQuery(spQuery, ...expandFields);
+        const itemsQuery = this.list;
+        if(!this.useOData) {
+            const spQuery = this.getCamlQuery(query);
+            return itemsQuery.getItemsByCAMLQuery(spQuery, ...expandFields);
+        }
+        else {            
+            const restFilter = this.getRestFilter(query);
+            const selectFields = this.getOdataFieldNames(linkedFields);
+            let itemsSelector = itemsQuery.items.select(...selectFields).expand(...expandFields);
+            if(!stringIsNullOrEmpty(restFilter)) {
+                itemsSelector = itemsSelector.filter(restFilter);
+            }
+            if(query.orderBy) {
+                query.orderBy.forEach(ob => {
+                    const fieldName = this.getFieldName(ob.propertyName.toString());
+                    itemsSelector = itemsSelector.orderBy(fieldName, ob.ascending);
+                });
+            }
+            if(query.limit > 0) {
+                itemsSelector = itemsSelector.top(query.limit);
+            }
+            if(query.lastId as number > 0) {
+                itemsSelector = itemsSelector.skip(query.lastId as number);
+            }     
+            return itemsSelector();
+        }
     }
 
     /**
@@ -1198,6 +1223,184 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
         return super.refreshData();
     }
 
+    private getRestFilter(query: IQuery<T>): string {
+        return query.test ? query.test.type === "predicate" ? this.getRestPredicate(query.test) : this.getRestLogicalSequence(query.test) : undefined;
+    }
+
+    private getRestLogicalSequence(sequence: ILogicalSequence<T>): string {
+
+        const cloneSequence = cloneDeep(sequence);
+
+        if (!cloneSequence.children || cloneSequence.children.length === 0) {
+            return undefined;
+        }
+        if (cloneSequence.children.length === 1) {
+            if (cloneSequence.children[0].type === "predicate") {
+                return this.getRestPredicate(cloneSequence.children[0]);
+            }
+            else {
+                return this.getRestLogicalSequence(cloneSequence.children[0]);
+            }
+        }
+        else {
+            return "("  + 
+                cloneSequence.children.map(c => c.type === "predicate" ? this.getRestPredicate(c) : this.getRestLogicalSequence(c)).join(` ${cloneSequence.operator.toLowerCase()} `) +
+                ")";
+        }
+    }
+
+    private getRestPredicate(predicate: IPredicate<T, keyof T>): string {
+        let result = "";
+        const fieldName = this.getFieldName(predicate.propertyName.toString(), predicate.lookupId);
+        switch (predicate.operator) {
+            case TestOperator.IsNotNull:
+                result = `${fieldName} ne null`;
+                break;
+            case TestOperator.IsNull:
+                result = `${fieldName} eq null`;
+                break;
+            case TestOperator.Eq:
+            case TestOperator.Geq:
+            case TestOperator.Gt:
+            case TestOperator.Leq:
+            case TestOperator.Lt:
+            case TestOperator.Neq:
+                result = `${fieldName} ${predicate.operator.substring(0,2).toLowerCase()} ${this.getRestValue(predicate)}`;
+                break;
+            case TestOperator.BeginsWith:
+                result = `startswith(${fieldName}, ${this.getRestValue(predicate)})`;
+                break;
+            case TestOperator.Contains:
+                result = `substringof(${this.getRestValue(predicate)}, ${fieldName})`;
+                break;
+            case TestOperator.FreeRequest:
+                result = predicate.value;
+                break;
+            case TestOperator.In:
+                if (predicate.value && isArray(predicate.value) && predicate.value.length > 0) {
+                    const transformed: ILogicalSequence<T> = {
+                        type: "sequence",
+                        operator: LogicalOperator.Or,
+                        children: predicate.value.map(v => ({
+                            type: "predicate",
+                            operator: TestOperator.Eq,
+                            propertyName: predicate.propertyName,
+                            value: v,
+                            includeTimeValue: predicate.includeTimeValue,
+                            lookupId: predicate.lookupId
+                        }))
+                    };
+                    result = this.getRestLogicalSequence(transformed);
+                }
+                else {
+                    result = this.getRestPredicate({
+                        type: "predicate",
+                        operator: TestOperator.Eq,
+                        propertyName: predicate.propertyName,
+                        value: -1,
+                        includeTimeValue: predicate.includeTimeValue,
+                        lookupId: predicate.lookupId
+                    })
+                }
+
+                break;            
+            case TestOperator.Includes:
+            case TestOperator.NotIncludes:
+                throw new Error("Not implemented in odata");
+            default:                
+                break;
+        }
+        return result;
+    }
+    private getRestValue(obj: IPredicate<T, keyof T>): string {
+        let result = "";
+        const fields = this.ItemFields;
+        const field = fields[obj.propertyName.toString()];
+        if (field) {
+            switch (field.fieldType) {
+                case FieldType.Simple:
+                case FieldType.Boolean:
+                case FieldType.Number:
+                    if (typeof (obj.value) === "number") {
+                        result = obj.value.toString();
+                    }
+                    else if (typeof (obj.value) === "boolean") {
+                        result = obj.value ? "1" : "0";
+                    }
+                    else {
+                        result = `'${encodeURIComponent(obj.value.toString())}'`;
+                    }
+                    break;
+                case FieldType.Date:
+                    let dt = obj.value;
+                    const now = new Date();
+                    if (obj.value === QueryToken.Now) {
+                        dt = now;
+                    }
+                    if(obj.value === QueryToken.Today) {
+                        dt = new Date();
+                    }
+                    if(!obj.includeTimeValue) {
+                        dt = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate())
+                    }
+                    result = `datetime'${dt.toISOString().replace(/\.\d+Z/g, "Z")}'`;
+                    break;                    
+                case FieldType.Url:
+                    result = `'${encodeURIComponent(UtilsService.getRelativeUrl(obj.value))}'`;
+                    break;  
+                case FieldType.Json:
+                    result = `'${encodeURIComponent(JSON.stringify(obj.value))}'`;
+                    break;
+                case FieldType.Lookup:
+                case FieldType.LookupMulti:
+                case FieldType.Taxonomy:
+                case FieldType.TaxonomyMulti:
+                    if(obj.lookupId) {
+                        result = obj.value.toString();
+                    }
+                    else {
+                        result = `'${encodeURIComponent(obj.value)}'`;
+                    }
+                    break;
+                case FieldType.User:
+                case FieldType.UserMulti:
+                    if(obj.value === QueryToken.UserID) {
+                        result = (ServicesConfiguration.configuration.currentUserId || -1).toString()
+                    }
+                    else {
+                        if(obj.lookupId) {
+                            result = obj.value.toString();
+                        }
+                        else {
+                            result = `'${encodeURIComponent(obj.value)}'`;
+                        }
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+        else {
+            throw new Error(`Field was not found : ${obj.propertyName.toString()}`);
+        }
+        return result;
+    }
+
+    private getFieldName(propertyName: string, lookupId?: boolean): string {
+        let result = "";
+        const fields = this.ItemFields;
+        const field = fields[propertyName.toString()];
+        if (field) {
+            result = field.fieldName;
+            if(lookupId) {
+                result += "Id";
+            }
+        }
+        else {
+            throw new Error(`Field was not found : ${propertyName}`);
+        }
+        return result;
+    }
 
     private getCamlQuery(query: IQuery<T>): ICamlQuery {
         const result: ICamlQuery = {
@@ -1227,6 +1430,8 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
         }
         return result;
     }
+
+
     private getWhere(query: IQuery<T>): string {
         let result = "";
         if (query.test) {
@@ -1327,16 +1532,9 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
         return result;
     }
     private getFieldRef(obj: IPredicate<T, keyof T> | IOrderBy<T, keyof T>): string {
-        let result = "";
-        const fields = this.ItemFields;
-        const field = fields[obj.propertyName.toString()];
-        if (field) {
-            result = `<FieldRef Name="${field.fieldName}"${obj.type === "predicate" && obj.lookupId ? " LookupId=\"TRUE\"" : ""}${obj.type === "orderby" && obj.ascending !== undefined && !obj.ascending ? " Ascending=\"FALSE\"" : ""} />`;
-        }
-        else {
-            throw new Error(`Field was not found : ${obj.propertyName.toString()}`);
-        }
-        return result;
+        const fieldName = this.getFieldName(obj.propertyName.toString());
+        return `<FieldRef Name="${fieldName}"${obj.type === "predicate" && obj.lookupId ? " LookupId=\"TRUE\"" : ""}${obj.type === "orderby" && obj.ascending !== undefined && !obj.ascending ? " Ascending=\"FALSE\"" : ""} />`;
+
     }
     private getValue(obj: IPredicate<T, keyof T>, fieldValue: any, lookupID?: boolean): string {
         let result = "";
