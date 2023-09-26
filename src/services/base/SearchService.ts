@@ -3,7 +3,7 @@ import {
   SearchResults,
   SortDirection
 } from "@pnp/sp/search";
-import { assign, cloneDeep, find } from "lodash";
+import { cloneDeep, find } from "lodash";
 import { BaseSPService, ServiceFactory } from "..";
 import { FieldType, LogicalOperator, QueryToken, TestOperator } from "../../constants";
 import { IFieldDescriptor, ILogicalSequence, IPredicate, IQuery } from "../../interfaces";
@@ -91,26 +91,16 @@ export class SearchService<TKey extends string | number, T extends BaseItem<TKey
    * get Fields and their configuration (decorator) from model
    */
   public get ItemFields(): any {
-    let result = {};
-
     if (!this._itemfields) {
-      assign(result, this.itemType["Fields"][SPItem["name"]]);
-      if (this.itemType["Fields"][this.itemType["name"]]) {
-        assign(result, this.itemType["Fields"][this.itemType["name"]]);
-      }
-
-      Object.keys(result).forEach(propertyName => {
-        const fieldDescription = result[propertyName];
+      this._itemfields = ServiceFactory.getModelFields(this.itemType.name);
+      Object.keys(this._itemfields).forEach(propertyName => {
+        const fieldDescription = this._itemfields[propertyName];
         if (fieldDescription.fieldName) {
           this._selectedProperties.push(fieldDescription.fieldName);
         }
       });
-
-      this._itemfields = result;
     }
-
-    result = this._itemfields;
-    return result;
+    return this._itemfields;
   }
 
   /**
