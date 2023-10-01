@@ -8,6 +8,7 @@ import { BaseSPService, ServiceFactory } from "..";
 import { FieldType, LogicalOperator, QueryToken, TestOperator } from "../../constants";
 import { IFieldDescriptor, ILogicalSequence, IPredicate, IQuery } from "../../interfaces";
 import { BaseItem, SPItem, TaxonomyTerm } from "../../models";
+import { stringIsNullOrEmpty } from "@pnp/core";
 
 /**
  *
@@ -39,7 +40,6 @@ export class SearchService<TKey extends string | number, T extends BaseItem<TKey
     throw new Error("Method not implemented." + items.toString());
   }
 
-
   protected async getAll_Internal(linkedFields?: Array<string>): Promise<Array<T>> {
     throw new Error("Not applicable" + linkedFields.toString());
   }
@@ -50,7 +50,6 @@ export class SearchService<TKey extends string | number, T extends BaseItem<TKey
   protected async getItemsById_Internal(ids: Array<number>, linkedFields?: Array<string>): Promise<Array<T>> {
     throw new Error("Not implement yet" + ids.toString() + linkedFields.toString());
   }
-
 
   protected async addOrUpdateItem_Internal(item: T): Promise<T> {
     throw new Error("Not applicable" + item.toString());
@@ -76,8 +75,6 @@ export class SearchService<TKey extends string | number, T extends BaseItem<TKey
 
   private initPromise: Promise<void> = null;
 
-
-
   ///to validate all model dependencies (taxo) is loaded
   protected get isInitialized(): boolean {
     return this.initialized;
@@ -91,7 +88,7 @@ export class SearchService<TKey extends string | number, T extends BaseItem<TKey
    * get Fields and their configuration (decorator) from model
    */
   public get ItemFields(): any {
-    if (!this._itemfields) {
+    if (!this._itemfields) {      
       this._itemfields = ServiceFactory.getModelFields(this.itemType.name);
       Object.keys(this._itemfields).forEach(propertyName => {
         const fieldDescription = this._itemfields[propertyName];
@@ -153,7 +150,6 @@ export class SearchService<TKey extends string | number, T extends BaseItem<TKey
     return this.initPromise;
   }
 
-
   protected async get_Internal(query: IQuery<T>): Promise<Array<T>> {
     await this.LoadTaxonomyDependency();
     //Generate query from intermediate language
@@ -172,7 +168,6 @@ export class SearchService<TKey extends string | number, T extends BaseItem<TKey
 
         const fields = this.ItemFields;
         const field = fields[sort.propertyName];
-
 
         sorts.push({
           Property: field.fieldName,
@@ -276,8 +271,6 @@ export class SearchService<TKey extends string | number, T extends BaseItem<TKey
     return item;
   }
 
-
-
   /**
    *
    * @param termID - termID of term to retrieve
@@ -334,15 +327,48 @@ export class SearchService<TKey extends string | number, T extends BaseItem<TKey
         );
         break;
       case FieldType.User:
-        console.error(
-          "user " + fieldDescriptor.fieldName + " not yet managed"
-        );
-
+        const displayName: string = searchItem[fieldDescriptor.fieldName] ? searchItem[fieldDescriptor.fieldName] : undefined;
+        if (!stringIsNullOrEmpty(displayName)) {
+            if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                // get values from init values
+                const users = this.getServiceInitValuesByName(fieldDescriptor.modelName);
+                const existing = find(users, (user) => {
+                    return user.title === displayName;
+                });
+                destItem[propertyName] = existing ? existing : fieldDescriptor.defaultValue;
+            }
+            else {
+                destItem[propertyName] = displayName;
+            }
+        }
+        else {
+            destItem[propertyName] = fieldDescriptor.defaultValue;
+        }
         break;
       case FieldType.UserMulti:
-        console.error(
-          "user " + fieldDescriptor.fieldName + " not yet managed"
-        );
+        const displayNames: Array<string> = !stringIsNullOrEmpty(searchItem[fieldDescriptor.fieldName]) ? searchItem[fieldDescriptor.fieldName].split(";") : [];
+        if (displayNames.length > 0) {
+            if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                // get values from init values
+                const val = [];
+                const users = this.getServiceInitValuesByName(fieldDescriptor.modelName);
+                displayNames.forEach(displayName => {
+                    const existing = find(users, (user) => {
+                        return user.title === displayName;
+                    });
+                    if (existing) {
+                        val.push(existing);
+                    }
+                });
+                destItem[propertyName] = val;
+            }
+            else {
+                destItem[propertyName] = displayNames;
+            }
+        }
+        else {
+            destItem[propertyName] = fieldDescriptor.defaultValue;
+        }
         break;
       case FieldType.Taxonomy:
         let termId;
@@ -450,7 +476,6 @@ export class SearchService<TKey extends string | number, T extends BaseItem<TKey
     const fields = this.ItemFields;
     const field = fields[predicate.propertyName.toString()];
 
-
     switch (predicate.operator) {
       case TestOperator.BeginsWith:
         result = valueTransformForRequest;
@@ -496,7 +521,6 @@ export class SearchService<TKey extends string | number, T extends BaseItem<TKey
 
     const fields = this.ItemFields;
     const field = fields[predicate.propertyName.toString()];
-
 
     const { propertyName, value } = predicate;
     if (field) {
