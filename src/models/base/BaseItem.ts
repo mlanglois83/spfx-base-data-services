@@ -163,4 +163,38 @@ export abstract class BaseItem<T extends string | number> implements IBaseItem<T
         }
         
     }
+    public equals(other: unknown): boolean {
+        let result = other !== null && other !== undefined && other instanceof BaseItem;
+        if (result) {
+            Object.keys(this.ItemFields).forEach(k => {
+                const thisVal = this[k];
+                const otherVal = other[k];
+                if (Array.isArray(thisVal)) {
+                    result &&= thisVal.length === otherVal.length && thisVal.every(v => otherVal.some(ov => this.valuesEquals(v, ov)));
+                }
+                else {
+                    result &&= this.valuesEquals(thisVal, other[k]);
+                }
+            });
+        }
+        return result;
+    }
+
+    private valuesEquals(a: unknown, b: unknown): boolean {
+        if (a && b && typeof (a) === typeof (b)) {
+            if (a instanceof BaseItem) {
+                return b instanceof BaseItem && a.id === b.id;
+            }
+            else if (typeof (a) === 'object') {
+                return JSON.stringify(a) === JSON.stringify(b);
+            }
+            else {
+                return a === b;
+            }
+        }
+        else {
+            return a === b;
+        }
+    }
+
 }
