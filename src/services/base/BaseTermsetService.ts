@@ -6,6 +6,7 @@ import { find } from "lodash";
 import { ServicesConfiguration } from "../../configuration";
 import { Constants, TraceLevel } from "../../constants/index";
 import { Decorators } from "../../decorators";
+import { IBaseTermsetServiceOptions } from "../../interfaces";
 import { TaxonomyHidden, TaxonomyTerm } from "../../models";
 import "../../pnpExtensions/TermsetExt";
 import { ServiceFactory } from "../ServiceFactory";
@@ -21,10 +22,10 @@ export class BaseTermsetService<
     T extends TaxonomyTerm
     > extends BaseSPService<T> {
     protected utilsService: UtilsService;
-    protected termsetnameorid: string;
-    protected isGlobal: boolean;
     protected static siteCollectionTermsetId: string;
+    protected serviceOptions: IBaseTermsetServiceOptions;
 
+    protected termsetnameorid: string;
     
     protected set customSortOrder(value: string) {
         localStorage.setItem(UtilsService.formatText(Constants.cacheKeys.termsetCustomOrder, ServicesConfiguration.serverRelativeUrl, this.serviceName), value ? value : "");
@@ -98,7 +99,7 @@ export class BaseTermsetService<
                 this.tsId = this.termsetnameorid;
             }
             if (stringIsNullOrEmpty(this.tsId)) {
-                if (this.isGlobal) {
+                if (this.serviceOptions.isGlobal) {
                     const [termsets, tsLngTag] = await Promise.all([
                         this.sp.termStore.sets(),
                         BaseTermsetService.initTermStoreDefaultLanguageTag(),
@@ -155,17 +156,18 @@ export class BaseTermsetService<
      * @param termsetname - term set name
      */
     constructor(
-        type: new (item?: any) => T,
-        termsetnameorid: string,
-        isGlobal = true,
-        cacheDuration: number = standardTermSetCacheDuration,
-        baseUrl?: string,
+        itemType: (new (item?: any) => T), 
+        termsetIdentifier: string, 
+        options?: IBaseTermsetServiceOptions,
         ...args: any[]
     ) {
-        super(type, cacheDuration, baseUrl, termsetnameorid, isGlobal, ...args);
+        super(itemType, options, termsetIdentifier, ...args);
+        this.serviceOptions = this.serviceOptions || {};
+        this.serviceOptions.isGlobal = this.serviceOptions.isGlobal === undefined ? true : this.serviceOptions.isGlobal;
+        this.serviceOptions.cacheDuration = this.serviceOptions.cacheDuration === undefined ? standardTermSetCacheDuration : this.serviceOptions.cacheDuration;
+        this.termsetnameorid = termsetIdentifier
         this.utilsService = new UtilsService();
-        this.termsetnameorid = termsetnameorid;
-        this.isGlobal = isGlobal;
+        
     }
 
     @trace(TraceLevel.ServiceUtilities)
@@ -327,7 +329,7 @@ export class BaseTermsetService<
             () => {
                 return termset.getAllChildrenAsOrderedTreeFull();
             },
-            dateAdd(new Date(), "minute", this.cacheDuration)
+            dateAdd(new Date(), "minute", this.serviceOptions.cacheDuration || -1)
         );
     }
 

@@ -1,3 +1,4 @@
+import { stringIsNullOrEmpty } from "@pnp/core";
 import {
   ISearchResult, SearchQueryBuilder,
   SearchResults,
@@ -6,9 +7,8 @@ import {
 import { cloneDeep, find } from "lodash";
 import { BaseSPService, ServiceFactory } from "..";
 import { FieldType, LogicalOperator, QueryToken, TestOperator } from "../../constants";
-import { IFieldDescriptor, ILogicalSequence, IPredicate, IQuery } from "../../interfaces";
+import { IBaseSPServiceOptions, IFieldDescriptor, ILogicalSequence, IPredicate, IQuery } from "../../interfaces";
 import { BaseItem, SPItem, TaxonomyTerm } from "../../models";
-import { stringIsNullOrEmpty } from "@pnp/core";
 
 /**
  *
@@ -60,12 +60,11 @@ export class SearchService<TKey extends string | number, T extends BaseItem<TKey
   }
 
   constructor(
-    type: new (item?: any) => T,
-    cacheDuration?: number,
-    baseUrl?: string, 
+    itemType: (new (item?: any) => T),
+    options?: IBaseSPServiceOptions, 
     ...args: any[]
   ) {
-    super(type, cacheDuration, baseUrl, ...args);
+    super(itemType, options, ...args);
   }
 
   protected _itemfields: any = null;

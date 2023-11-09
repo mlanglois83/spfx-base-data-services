@@ -9,7 +9,7 @@ import { cloneDeep } from "lodash";
 import * as mime from "mime-types";
 import { TraceLevel } from "../../constants";
 import { Decorators } from "../../decorators";
-import { ChunkedFileUploadProgressData } from "../../interfaces";
+import { ChunkedFileUploadProgressData, IBaseSPFileServiceOptions } from "../../interfaces";
 import { SPFile } from "../../models/base/SPFile";
 import { UtilsService } from "../UtilsService";
 import { BaseSPService } from "./BaseSPService";
@@ -20,6 +20,9 @@ const trace = Decorators.trace;
  * Base service for sp files operations
  */
 export class BaseFileService<T extends SPFile> extends BaseSPService<T>{
+    
+    protected serviceOptions: IBaseSPFileServiceOptions;
+    
     protected listRelativeUrl: string;
 
     /**
@@ -35,8 +38,8 @@ export class BaseFileService<T extends SPFile> extends BaseSPService<T>{
      * @param context - current sp component context 
      * @param listRelativeUrl - list web relative url
      */
-    constructor(type: (new (item?: any) => T), listRelativeUrl: string, cacheDuration?: number, baseUrl?: string, ...args: any[]) {
-        super(type, cacheDuration, baseUrl, listRelativeUrl, ...args);
+    constructor(itemType: (new (item?: any) => T), listRelativeUrl: string, options?: IBaseSPFileServiceOptions, ...args: any[]) {
+        super(itemType, options, listRelativeUrl, ...args);
         this.listRelativeUrl = this.baseRelativeUrl + listRelativeUrl;
     }
     /**

@@ -10,7 +10,7 @@ import { cloneDeep, find, findIndex } from "lodash";
 import { ServicesConfiguration } from "../../configuration/ServicesConfiguration";
 import { Constants, FieldType, LogicalOperator, QueryToken, TestOperator, TraceLevel } from "../../constants/index";
 import { Decorators } from "../../decorators";
-import { IFieldDescriptor, ILogicalSequence, IOrderBy, IPredicate, IQuery } from "../../interfaces/index";
+import { IBaseListItemServiceOptions, IFieldDescriptor, ILogicalSequence, IOrderBy, IPredicate, IQuery } from "../../interfaces/index";
 import { BaseItem, SPFile, SPItem, TaxonomyTerm, User } from "../../models";
 import { UserService } from "../graph/UserService";
 import { ServiceFactory } from "../ServiceFactory";
@@ -30,10 +30,11 @@ const trace = Decorators.trace;
  */
 export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
 
-    private useOData = false;
 
     /***************************** Fields and properties **************************************/
+    protected serviceOptions: IBaseListItemServiceOptions;
     protected listRelativeUrl: string;
+
     protected taxoMultiFieldNames: { [fieldName: string]: string } = {};
 
     /* AttachmentService */
@@ -57,11 +58,13 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
      * @param listRelativeUrl - list web relative url
      * @param tableName - name of table in local db
      * @param cacheDuration - cache duration in minutes
+     * @param baseUrl - absolute base url to instanciate sp context
+     * @param useOData - use odata instead of camlquery
+     * @param multisite - 
      */
-    constructor(type: (new (item?: any) => T), listRelativeUrl: string, cacheDuration?: number, baseUrl?: string, useOData = false, ...args: any[]) {
-        super(type, cacheDuration, baseUrl, listRelativeUrl, useOData, ...args);
-        this.useOData = useOData;
-        this.listRelativeUrl =  this.baseRelativeUrl + listRelativeUrl;
+    constructor(itemType: (new (item?: any) => T), listRelativeUrl: string, options?: IBaseListItemServiceOptions, ...args: any[]) {
+        super(itemType, options, listRelativeUrl, ...args);
+        this.listRelativeUrl = this.baseRelativeUrl + listRelativeUrl;
         if (this.hasAttachments) {
             this.attachmentsService = new BaseDbService<SPFile>(SPFile, "ListAttachments");
         }
@@ -252,7 +255,9 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
                 const termGuid: string = spitem[fieldDescriptor.fieldName] ? spitem[fieldDescriptor.fieldName].TermGuid : "";
                 if (wssid !== -1 || !stringIsNullOrEmpty(termGuid)) {
                     const tterms = this.getServiceInitValuesByName<TaxonomyTerm>(fieldDescriptor.modelName);
-                    destItem[propertyName] = this.getTaxonomyTermByWssId(wssid, tterms);
+                    if(!this.serviceOptions.multiSite) {
+                        destItem[propertyName] = this.getTaxonomyTermByWssId(wssid, tterms);
+                    }
                     // Fallback on termguid
                     if(!destItem[propertyName] && !stringIsNullOrEmpty(termGuid)) {
                         destItem[propertyName] = find(tterms, t => t.id === termGuid);
@@ -267,7 +272,10 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
                 if (tmterms.length > 0) {
                     const allterms = this.getServiceInitValuesByName<TaxonomyTerm>(fieldDescriptor.modelName);
                     destItem[propertyName] = tmterms.map((term) => {
-                        let cachedterm = this.getTaxonomyTermByWssId(term.WssId, allterms);
+                        let cachedterm;
+                        if(!this.serviceOptions.multiSite) {
+                            cachedterm = this.getTaxonomyTermByWssId(term.WssId, allterms);
+                        }
                         // Fallback on termguid
                         if(!cachedterm) {
                             cachedterm = find(allterms, t => t.id === term.TermGuid);
@@ -448,7 +456,7 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
     protected async get_Query(query: IQuery<T>, linkedFields?: Array<string>): Promise<Array<any>> {
         const expandFields = this.getOdataExpandFieldNames(linkedFields);
         const itemsQuery = this.list;
-        if(!this.useOData) {
+        if(!this.serviceOptions.useOData) {
             const spQuery = this.getCamlQuery(query);
             return itemsQuery.getItemsByCAMLQuery(spQuery, ...expandFields);
         }

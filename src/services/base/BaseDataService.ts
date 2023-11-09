@@ -1,5 +1,5 @@
 import { assign, cloneDeep, find, findIndex } from "lodash";
-import { IDataService, IQuery, ILogicalSequence, IPredicate, IFieldDescriptor } from "../../interfaces";
+import { IDataService, IQuery, ILogicalSequence, IPredicate, IFieldDescriptor, IBaseDataServiceOptions } from "../../interfaces";
 import { BaseItem, OfflineTransaction, TaxonomyTerm } from "../../models";
 import { UtilsService } from "../UtilsService";
 import { TransactionService } from "../synchronization/TransactionService";
@@ -16,15 +16,15 @@ const trace = Decorators.trace;
  * Base class for data service allowing automatic management of online/offline mode with links to db and sp 
  */
 export abstract class BaseDataService<T extends BaseItem<string | number>> extends BaseService implements IDataService<T> {
-    private itemModelType: (new (item?: any) => T);
+
 
     protected transactionService: TransactionService;
     protected dbService: BaseDbService<T>;
-    protected cacheDuration = -1;
+    protected serviceOptions: IBaseDataServiceOptions;
 
-
+    protected _itemType: (new (item?: any) => T);
     public get itemType(): (new (item?: any) => T) {
-        return this.itemModelType;
+        return this._itemType;
     }
 
     public cast<Tdest extends BaseDataService<T>>(): Tdest {
@@ -36,14 +36,14 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
      * @param type - type of items
      * @param context - context of the current wp
      */
-    constructor(type: (new (item?: any) => T), cacheDuration = -1, ...args: any []) {
-        super(...args);
-        if (ServiceFactory.isServiceManaged(type["name"]) && !ServiceFactory.isServiceInitializing(type["name"])) {
-            console.warn(`Service constructor called out of Service factory. Please use ServiceFactory.getService(${type["name"]}) or ServiceFactory.getServiceByModelName("${type["name"]}")`);
+    constructor(itemType: (new (item?: any) => T), options?: IBaseDataServiceOptions, ...args: any []) {
+        super(options, ...args);
+        if (ServiceFactory.isServiceManaged(itemType["name"]) && !ServiceFactory.isServiceInitializing(itemType["name"])) {
+            console.warn(`Service constructor called out of Service factory. Please use ServiceFactory.getService(${itemType["name"]}) or ServiceFactory.getServiceByModelName("${itemType["name"]}")`);
         }
-        this.itemModelType = type;
-        this.cacheDuration = cacheDuration;
-        this.dbService = new BaseDbService<T>(type, type["name"]);
+        this._itemType = itemType;
+        this.serviceOptions = options || {};
+        this.dbService = new BaseDbService<T>(itemType, itemType["name"]);
         this.transactionService = new TransactionService();
     }
 
@@ -221,14 +221,14 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
      */
     protected needRefreshCache(key = "all"): boolean {
 
-        let result: boolean = this.cacheDuration === -1;
+        let result = !(this.serviceOptions?.cacheDuration > 0);
         //if cache defined
         if (!result) {
 
             const cachedDataDate = this.getCachedData(key);
             if (cachedDataDate) {
                 //add cache duration
-                cachedDataDate.setMinutes(cachedDataDate.getMinutes() + this.cacheDuration);
+                cachedDataDate.setMinutes(cachedDataDate.getMinutes() + this.serviceOptions.cacheDuration);
 
                 const now = new Date();
 
@@ -248,7 +248,7 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
             let result = true;
             const lastLoad = this.getIdLastLoad(id);
             if (lastLoad) {
-                lastLoad.setMinutes(lastLoad.getMinutes() + this.cacheDuration);
+                lastLoad.setMinutes(lastLoad.getMinutes() + (this.serviceOptions?.cacheDuration || 0));
                 const now = new Date();
                 //cache has expired
                 result = lastLoad < now;
@@ -259,7 +259,7 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
     }
 
     protected UpdateIdsLastLoad(...ids: Array<number | string>): void {
-        if (this.cacheDuration !== -1) {
+        if (this.serviceOptions?.cacheDuration > 0) {
             const cacheKey = this.getCacheKey("ids");
             const initTableString = sessionStorage.getItem(cacheKey);
             let idTable;
@@ -277,7 +277,7 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
         }
     }
     protected UpdateCacheData(key = "all"): void {
-        const result: boolean = this.cacheDuration === -1;
+        const result = !(this.serviceOptions?.cacheDuration > 0);
         //if cache defined
         if (!result) {
             const cacheKey = this.getCacheKey(key);
@@ -698,10 +698,8 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
         }
         if (isconnected) {
             try {
-
-                const oldId = item.id;
                 itemResult = await this.addOrUpdateItem_Internal(item);
-                if (oldId < -1) { // created item allready stored in db
+                if (item.isCreatedOffline) { // created item allready stored in db
                     this.dbService.deleteItem(item);
                 }
                 const converted = this.convertItemToDbFormat(itemResult);

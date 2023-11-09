@@ -17,4 +17,6 @@ export { IOrderBy } from "./IOrderBy";
 export { IPredicate } from "./IPredicate";
 export { IQuery } from "./IQuery";
 
+export * from "./BaseServicesOptions";
+
 export { ChunkedFileUploadProgressData } from "./ChunkedFileUploadProgressData";

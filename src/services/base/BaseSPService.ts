@@ -1,12 +1,17 @@
 import { stringIsNullOrEmpty } from "@pnp/core";
 import { SPBrowser, spfi, SPFI } from "@pnp/sp";
 import { ServicesConfiguration } from "../../configuration";
+import { IBaseSPServiceOptions } from "../../interfaces";
 import { BaseItem } from "../../models";
 import { UtilsService } from "../UtilsService";
 import { BaseDataService } from "./BaseDataService";
 
 export abstract class BaseSPService<T extends BaseItem<string | number>> extends BaseDataService<T> {
-    protected baseUrl: string;
+    protected serviceOptions: IBaseSPServiceOptions;
+
+    protected get baseUrl(): string {
+        return this.serviceOptions?.baseUrl;
+    }
 
     public get sp(): SPFI {
         if(stringIsNullOrEmpty(this.baseUrl)) {
@@ -32,8 +37,7 @@ export abstract class BaseSPService<T extends BaseItem<string | number>> extends
      * @param type - type of items
      * @param context - context of the current wp
      */
-    constructor(type: (new (item?: any) => T), cacheDuration = -1, baseUrl = undefined, ...args: any[]) {
-        super(type, cacheDuration, baseUrl, ...args);  
-        this.baseUrl = baseUrl;      
+    constructor(itemType: (new (item?: any) => T), options?: IBaseSPServiceOptions, ...args: any[]) {
+        super(itemType, options, ...args);  
     }
 }

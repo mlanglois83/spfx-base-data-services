@@ -1,18 +1,18 @@
-import { ServicesConfiguration } from "../../configuration";
-import { cloneDeep, find } from "lodash";
-import { Constants, FieldType, TestOperator, TraceLevel } from "../../constants/index";
-import { IFieldDescriptor, IQuery, ILogicalSequence, IRestQuery, IRestLogicalSequence, IEndPointBindings, IPredicate, IRestPredicate, IOrderBy } from "../../interfaces/index";
-import { BaseDataService } from "./BaseDataService";
-import { UtilsService } from "../UtilsService";
-import { RestItem, User, RestResultMapping } from "../../models";
-import { UserService } from "../graph/UserService";
 import { isArray, stringIsNullOrEmpty } from "@pnp/core";
-import { RestFile } from "../../models/base/RestFile";
+import { cloneDeep, find } from "lodash";
 import * as mime from "mime-types";
-import { ServiceFactory } from "../ServiceFactory";
-import { IEndPointBinding } from "../../interfaces/IEndPointBindings";
-import { BaseDbService } from "../base/BaseDbService";
+import { ServicesConfiguration } from "../../configuration";
+import { Constants, FieldType, TestOperator, TraceLevel } from "../../constants/index";
 import { Decorators } from "../../decorators";
+import { IEndPointBinding } from "../../interfaces/IEndPointBindings";
+import { IBaseRestServiceOptions, IEndPointBindings, IFieldDescriptor, ILogicalSequence, IOrderBy, IPredicate, IQuery, IRestLogicalSequence, IRestPredicate, IRestQuery } from "../../interfaces/index";
+import { RestItem, RestResultMapping, User } from "../../models";
+import { RestFile } from "../../models/base/RestFile";
+import { ServiceFactory } from "../ServiceFactory";
+import { UtilsService } from "../UtilsService";
+import { BaseDbService } from "../base/BaseDbService";
+import { UserService } from "../graph/UserService";
+import { BaseDataService } from "./BaseDataService";
 
 const trace = Decorators.trace;
 
@@ -25,7 +25,7 @@ export class BaseRestService<T extends RestItem<string | number> | RestFile<stri
     /***************************** Fields and properties **************************************/
 
     protected restMappingDb: BaseDbService<RestResultMapping<string | number>>;
-
+    protected serviceOptions: IBaseRestServiceOptions;
 
     protected baseServiceUrl: string;
 
@@ -36,6 +36,7 @@ export class BaseRestService<T extends RestItem<string | number> | RestFile<stri
     public get serviceUrl(): string {
         return this.baseServiceUrl + this.constructor["serviceProps"].relativeUrl;
     }
+
     public get disableVersionCheck(): boolean {
         return this.constructor["serviceProps"].disableVersionCheck === true;
     }
@@ -48,8 +49,8 @@ export class BaseRestService<T extends RestItem<string | number> | RestFile<stri
      * @param tableName - name of table in local db
      * @param cacheDuration - cache duration in minutes
      */
-    constructor(type: (new (item?: any) => T), baseServiceUrl: string, cacheDuration?: number, ...args: any[]) {
-        super(type, cacheDuration, baseServiceUrl, ...args);
+    constructor(itemType: (new (item?: any) => T), baseServiceUrl: string, options?: IBaseRestServiceOptions, ...args: any[]) {
+        super(itemType, options, baseServiceUrl, ...args);
         this.baseServiceUrl = baseServiceUrl;
         this.restMappingDb = new BaseDbService(RestResultMapping, "RestMapping");
     }
@@ -466,7 +467,7 @@ export class BaseRestService<T extends RestItem<string | number> | RestFile<stri
                         const currentIdx = idx;
                         const itemId = item.id;
                         await this.populateCommonFields(item, addResult[index]);
-                        if (itemId < -1) {
+                        if (item.isCreatedOffline) {
                             await this.updateLinksInDb(Number(itemId), Number(item.id));
                         }
                         if (onItemUpdated) {

@@ -8,17 +8,17 @@ import "@pnp/sp/sputilities";
 import { cloneDeep, find, isArray } from "lodash";
 import { ServicesConfiguration } from "../../configuration/ServicesConfiguration";
 import { PictureSize, TestOperator } from "../../constants";
-import { IPredicate, IQuery } from "../../interfaces";
+import { IBaseUserServiceOptions, IPredicate, IQuery } from "../../interfaces";
 import { User } from "../../models";
-import { BaseSPService } from "../base/BaseSPService";
 import { UtilsService } from "../UtilsService";
+import { BaseSPService } from "../base/BaseSPService";
 
 
 const standardUserCacheDuration = 10;
 
 export abstract class BaseUserService<T extends User> extends BaseSPService<T> {
 
-    protected groupsToo = false;
+    protected serviceOptions: IBaseUserServiceOptions;
 
     public static get userField(): keyof Pick<User, "userPrincipalName" | "loginName"> {
         return ServicesConfiguration.configuration.spVersion === "Online" ? "userPrincipalName" : "loginName";
@@ -32,9 +32,9 @@ export abstract class BaseUserService<T extends User> extends BaseSPService<T> {
      * Instanciates a user service
      * @param cacheDuration - cache duration in minutes (default : 10)
      */
-    constructor(type: new (item?: any) => T, cacheDuration: number = standardUserCacheDuration, groupsToo = false, baseUrl?: string, ...args: any[]) {
-        super(type, cacheDuration, baseUrl, groupsToo, ...args);
-        this.groupsToo = groupsToo;
+    constructor(itemType: (new (item?: any) => T), options?: IBaseUserServiceOptions, ...args: any[]) {
+        super(itemType, options, ...args);        
+        this.serviceOptions.cacheDuration = this.serviceOptions.cacheDuration === undefined ? standardUserCacheDuration : this.serviceOptions.cacheDuration;
     }
 
     public async currentUser(extendedProperties: Array<string>): Promise<User> {
@@ -92,7 +92,7 @@ export abstract class BaseUserService<T extends User> extends BaseSPService<T> {
         }
         else {
             const [searchResults, spUsers, cached] = await Promise.all([
-                this.sp.utility.searchPrincipals(queryStr, (PrincipalType.User | (this.groupsToo ? PrincipalType.SecurityGroup : PrincipalType.None)) , PrincipalSource.All,"", 15),
+                this.sp.utility.searchPrincipals(queryStr, (PrincipalType.User | (this.serviceOptions.includeGroups ? PrincipalType.SecurityGroup : PrincipalType.None)) , PrincipalSource.All,"", 15),
                 this.sp.web.siteUsers.select("Id", "UserPrincipalName", "LoginName", "Email", "Title", "IsSiteAdmin")(),
                 this.dbService.getAll()
             ]);
@@ -151,7 +151,7 @@ export abstract class BaseUserService<T extends User> extends BaseSPService<T> {
      */
     protected async getAll_Query(): Promise<Array<any>> {
         const spUsers = await this.sp.web.siteUsers.select("Id", "UserPrincipalName", "LoginName", "Email", "Title", "IsSiteAdmin")();
-        if (this.groupsToo)
+        if (this.serviceOptions.includeGroups)
             return spUsers;
         else
             return spUsers.filter(u => ServicesConfiguration.configuration.spVersion === "Online" ? !stringIsNullOrEmpty(u.UserPrincipalName) : u.LoginName.indexOf("i:0#") === 0);

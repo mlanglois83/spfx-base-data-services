@@ -1,5 +1,6 @@
 import { Constants } from "../../constants/index";
 import { Decorators } from "../../decorators";
+import { IBaseListItemServiceOptions } from "../../interfaces";
 import { TaxonomyHidden } from "../../models/";
 import { BaseListItemService } from "../base/BaseListItemService";
 
@@ -12,7 +13,8 @@ const cacheDuration = 60;
  */
 @dataService("TaxonomyHidden")
 export class TaxonomyHiddenListService extends BaseListItemService<TaxonomyHidden> {
-    constructor(baseUrl?: string, ...args: any[]) {
-        super(TaxonomyHidden, Constants.taxonomyHiddenList.relativeUrl, cacheDuration, baseUrl, false, ...args);
+    constructor(options?: Partial<IBaseListItemServiceOptions>, ...args: any[]) {
+        super(TaxonomyHidden, Constants.taxonomyHiddenList.relativeUrl, options, ...args);
+        this.serviceOptions.cacheDuration = this.serviceOptions.cacheDuration === undefined ? cacheDuration : this.serviceOptions.cacheDuration;
     }
 }
