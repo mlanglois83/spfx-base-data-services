@@ -8,7 +8,7 @@ const dataService = Decorators.dataService;
 export class EntityService extends BaseUserService<Entity> {
 
     constructor(options?: IBaseUserServiceOptions, ...args: any[]) {
-        super(Entity, options, ...args);
+        super(Entity, {...options, includeGroups: true}, ...args);
     }
 
 
