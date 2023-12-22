@@ -42,29 +42,25 @@ const stream = function (injectMethod) {
 
 const baseItems = ["BaseFile", "BaseItem", "RestFile", "RestItem", "SPFile", "SPItem", "TaxonomyTerm", "TaxonomyHidden", "User", "Entity"];
 
-const inject = function (imports, filePath) {    
+const inject = function (imports, filePath) {
     return stream(function (fileContents) {
         const newLineChar = fileContents.indexOf("\r\n") !== -1 ? "\r\n" : "\n";
         const begin = "//inject:imports", end = "//endinject";
         const comment = `${newLineChar}/************************* Automatic services declaration injection for base-data-services *************************/`
         let importString = "";
         const declarations = [];
-        for (const className in imports) {
-            if (imports.hasOwnProperty(className)) {
-                const classRef = imports[className];
-                declarations.push(className);
-                if (classRef.isFile) {
-                    const dirPath = path.dirname(filePath);
-                    let relativePath =  path.relative(dirPath, classRef.ref).replace(/\\/g, "/");
-                    if(!relativePath.match(/^\.(\.)?\/.*$/g)){
-                        relativePath = "./" + relativePath;
-                    }
-                    importString += `import { ${className} } from '${relativePath}';${newLineChar}`
+        for (const currentImport of imports) {
+            declarations.push(...currentImport.classNames);
+            if (currentImport.isFile) {
+                const dirPath = path.dirname(filePath);
+                let relativePath = path.relative(dirPath, currentImport.ref).replace(/\\/g, "/");
+                if (!relativePath.match(/^\.(\.)?\/.*$/g)) {
+                    relativePath = "./" + relativePath;
                 }
-                else {
-                    importString += `import { ${className} } from '${classRef.ref}';${newLineChar}`
-                }
-
+                importString += `import { ${currentImport.classNames.join(', ')} } from '${relativePath}';${newLineChar}`
+            }
+            else {
+                importString += `import { ${currentImport.classNames.join(', ')} } from '${currentImport.ref}';${newLineChar}`
             }
         }
         const str = importString + `${newLineChar}console.groupCollapsed('spfx-base-data-services - register services');${newLineChar}[${newLineChar}${declarations.map(d => "\t" + d).join(`,${newLineChar}`)}${newLineChar}].forEach(function (value) { ${newLineChar}\tconsole.log((value as new() => BaseService).name + ' added to ServiceFactory');${newLineChar}});${newLineChar}console.groupEnd();${newLineChar}`;
@@ -104,24 +100,11 @@ function getInjectionTask(build, basePath) {
             }
         }
         // construct injection
-        const imports = {
-            BaseService: {
-                isFile: false,
-                ref: "spfx-base-data-services"
-            },
-            TaxonomyHiddenListService: {
-                isFile: false,
-                ref: "spfx-base-data-services"
-            },
-            UserService: {
-                isFile: false,
-                ref: "spfx-base-data-services"
-            },
-            EntityService: {
-                isFile: false,
-                ref: "spfx-base-data-services"
-            }
-        };
+        const imports = [{
+            isFile: false,
+            ref: "spfx-base-data-services",
+            classNames: ['BaseService', 'TaxonomyHiddenListService', 'UserService', 'EntityService']
+        }];
         // search services in each tsconfig includes
         tsconfig.include.forEach((pattern) => {
             glob.sync(pattern).forEach((filePath) => {
@@ -129,10 +112,11 @@ function getInjectionTask(build, basePath) {
                 const serviceDeclaration = buf.match(/@.*dataService\((["']\w+["'])?\).*export\s*class\s*(\w+)\s*extends.*/s);
                 if (serviceDeclaration && serviceDeclaration.length === 3) {
                     const className = serviceDeclaration[2];
-                    imports[className] = {
+                    imports.push({
                         isFile: true,
-                        ref: path.resolve(basePath, filePath.replace(/^src(\/.*)\.ts$/g, `src$1`))
-                    }
+                        ref: path.resolve(basePath, filePath.replace(/^src(\/.*)\.ts$/g, `src$1`)),
+                        classNames: [className]
+                    })
 
                 }
             });
