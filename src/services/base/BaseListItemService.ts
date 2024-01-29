@@ -409,7 +409,6 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
         let result: any = null;
         if (value) {
             result = {
-                __metadata: { type: 'SP.Taxonomy.TaxonomyFieldValue' },
                 Label: value.title,
                 TermGuid: value.id,
                 WssId: -1 // fake
