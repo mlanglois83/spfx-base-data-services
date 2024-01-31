@@ -338,19 +338,19 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
                         const links = item.__getInternalLinks(propertyName);
                         const firstLookupVal = itemValue[0];
                         if (typeof (firstLookupVal) === "number") {
-                            destItem[fieldDescriptor.fieldName + "Id"] = { results: itemValue };
+                            destItem[fieldDescriptor.fieldName + "Id"] = itemValue;
                         }
                         else {
                             if (links && links.length > 0) {
-                                destItem[fieldDescriptor.fieldName + "Id"] = { results: links };
+                                destItem[fieldDescriptor.fieldName + "Id"] = links;
                             }
                             else {
-                                destItem[fieldDescriptor.fieldName + "Id"] = { results: [] };
+                                destItem[fieldDescriptor.fieldName + "Id"] = [];
                             }
                         }
                     }
                     else {
-                        destItem[fieldDescriptor.fieldName + "Id"] = { results: [] };
+                        destItem[fieldDescriptor.fieldName + "Id"] = [];
                     }
                     break;
                 case FieldType.User:
