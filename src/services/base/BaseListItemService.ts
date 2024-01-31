@@ -370,17 +370,17 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
                     if (itemValue && isArray(itemValue) && itemValue.length > 0) {
                         const firstUserVal = itemValue[0];
                         if (typeof (firstUserVal) === "number") {
-                            destItem[fieldDescriptor.fieldName + "Id"] = { results: itemValue };
+                            destItem[fieldDescriptor.fieldName + "Id"] = itemValue;
                         }
                         else {
                             const userIds = await Promise.all(itemValue.map((user) => {
                                 return this.convertSingleUserFieldValue(user);
                             }));
-                            destItem[fieldDescriptor.fieldName + "Id"] = { results: userIds };
+                            destItem[fieldDescriptor.fieldName + "Id"] = userIds;
                         }
                     }
                     else {
-                        destItem[fieldDescriptor.fieldName + "Id"] = { results: [] };
+                        destItem[fieldDescriptor.fieldName + "Id"] = [];
                     }
                     break;
                 case FieldType.Taxonomy:
