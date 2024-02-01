@@ -531,7 +531,7 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
     protected async getAll_Query(linkedFields?: Array<string>): Promise<Array<any>> {
         const selectFields = this.getOdataFieldNames(linkedFields);        
         const expandFields = this.getOdataExpandFieldNames(linkedFields);
-        const itemsQuery = this.list.items.select(...selectFields).expand(...expandFields);
+        const itemsQuery = this.list.items.top(2000).select(...selectFields).expand(...expandFields); // PnPv3 removed auto .top(2000) so only first 100 items wered fecthed. TODO: Need to paginate it to retrieve all
         return itemsQuery();
     }
 
