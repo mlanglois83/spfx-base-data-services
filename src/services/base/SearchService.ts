@@ -563,9 +563,6 @@ export class SearchService<TKey extends string | number, T extends BaseItem<TKey
           if (typeof value === "number") {
             transformValue = value.toString();
           } else if (typeof value === "boolean") {
-            console.error(
-              "type value boolean not yet implement. " + field.fieldName
-            );
             transformValue = value ? "1" : "0";
           } else {
             transformValue = value.toString();

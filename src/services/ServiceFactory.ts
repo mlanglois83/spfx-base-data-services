@@ -57,7 +57,7 @@ export class ServiceFactory {
      * @param  typeName - name of the model for which a service has to be instanciated
      */
     public static getServiceByModelName(modelName: string, ...args: any[]): BaseDataService<BaseItem<string | number>> {
-        const hash = getHashCode(JSON.stringify((args || "")));
+        const hash = getHashCode(ServicesConfiguration.serverRelativeUrl + JSON.stringify((args || "")));
         if(!ServiceFactory.windowVar.__services[modelName] || !ServiceFactory.windowVar.__services[modelName][hash]) {
             if(!ServicesConfiguration.__factory.services[modelName]) {
                 console.log(`modelname: ${modelName}`);
