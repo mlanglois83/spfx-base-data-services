@@ -1034,28 +1034,27 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
     
     private getOdataCommonFieldNames(): Array<string> {
         const fields = this.ItemFields;
-        const fieldNames = [Constants.commonFields.version];
+        const fieldNames = [];
         Object.keys(fields).filter((propertyName) => {
             return fields.hasOwnProperty(propertyName);
         }).forEach((prop) => {
-            const fieldName = fields[prop].fieldName;
+            let fieldName: string = fields[prop].fieldName;
             if (fieldName === Constants.commonFields.author ||
                 fieldName === Constants.commonFields.created ||
                 fieldName === Constants.commonFields.editor ||
                 fieldName === Constants.commonFields.modified) {
-                let result: string = fields[prop].fieldName;
                 switch (fields[prop].fieldType) {
                     case FieldType.Lookup:
                     case FieldType.LookupMulti:
                     case FieldType.User:
                     case FieldType.UserMulti:
-                        result += "Id";
+                        fieldName += "Id";
                         break;
                     default:
                         break;
                 }
-                fieldNames.push(result);
             }
+            fieldNames.push(fieldName);
         });
         return fieldNames;
     }
