@@ -546,7 +546,7 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
         const selectFields = this.getOdataCommonFieldNames();
         if (item.isLocal) {
             const converted = await this.convertItem(item);
-            const addResult = await this.list.items.select(...selectFields).add(converted);
+            const addResult = await this.list.items.add(converted);
             await this.populateCommonFields(result, addResult.data);
             await this.updateWssIds(result, addResult.data);
             await this.updateAttachments(result, addResult);
@@ -1034,27 +1034,28 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
     
     private getOdataCommonFieldNames(): Array<string> {
         const fields = this.ItemFields;
-        const fieldNames = [];
+        const fieldNames = [Constants.commonFields.version];
         Object.keys(fields).filter((propertyName) => {
             return fields.hasOwnProperty(propertyName);
         }).forEach((prop) => {
-            let fieldName: string = fields[prop].fieldName;
+            const fieldName: string = fields[prop].fieldName;
             if (fieldName === Constants.commonFields.author ||
                 fieldName === Constants.commonFields.created ||
                 fieldName === Constants.commonFields.editor ||
                 fieldName === Constants.commonFields.modified) {
+                let result: string = fields[prop].fieldName;
                 switch (fields[prop].fieldType) {
                     case FieldType.Lookup:
                     case FieldType.LookupMulti:
                     case FieldType.User:
                     case FieldType.UserMulti:
-                        fieldName += "Id";
+                        result += "Id";
                         break;
                     default:
                         break;
                 }
+                fieldNames.push(result);
             }
-            fieldNames.push(fieldName);
         });
         return fieldNames;
     }
