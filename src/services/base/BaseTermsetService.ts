@@ -357,7 +357,7 @@ export class BaseTermsetService<
     protected async getAll_Query(): Promise<Array<IOrderedTermInfo>> {
         const termset = await this.GetTermset();
         const store = new PnPClientStorage();
-        return store.session.getOrPut(
+        return store.local.getOrPut(
             this.serviceName + "-alltermsordered",
             () => {
                 return termset.getAllChildrenAsOrderedTreeFull();
