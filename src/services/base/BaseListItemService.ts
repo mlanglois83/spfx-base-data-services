@@ -255,13 +255,15 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
                 const termGuid: string = spitem[fieldDescriptor.fieldName] ? spitem[fieldDescriptor.fieldName].TermGuid : "";
                 if (wssid !== -1 || !stringIsNullOrEmpty(termGuid)) {
                     const tterms = this.getServiceInitValuesByName<TaxonomyTerm>(fieldDescriptor.modelName);
+                    let foundTerm;
                     if(!this.serviceOptions.multiSite) {
-                        destItem[propertyName] = this.getTaxonomyTermByWssId(wssid, tterms);
+                         foundTerm = this.getTaxonomyTermByWssId(wssid, tterms);
                     }
                     // Fallback on termguid
                     if(!destItem[propertyName] && !stringIsNullOrEmpty(termGuid)) {
-                        destItem[propertyName] = find(tterms, t => t.id === termGuid);
+                        foundTerm = find(tterms, t => t.id === termGuid);
                     }
+                    destItem[propertyName] = foundTerm ?? defaultValue;
                 }
                 else {
                     destItem[propertyName] = defaultValue;
@@ -281,7 +283,7 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
                             cachedterm = find(allterms, t => t.id === term.TermGuid);
                         }
                         return cachedterm;
-                    });
+                    }).filter(ct => ct);
                 }
                 else {
                     destItem[propertyName] = defaultValue;
