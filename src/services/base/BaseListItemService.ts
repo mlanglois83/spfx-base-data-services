@@ -546,7 +546,7 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
         const selectFields = this.getOdataCommonFieldNames();
         if (item.isLocal) {
             const converted = await this.convertItem(item);
-            const addResult = await this.list.items.select(...selectFields).add(converted);
+            const addResult = await this.list.items.add(converted);
             await this.populateCommonFields(result, addResult.data);
             await this.updateWssIds(result, addResult.data);
             await this.updateAttachments(result, addResult);
@@ -1038,7 +1038,7 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
         Object.keys(fields).filter((propertyName) => {
             return fields.hasOwnProperty(propertyName);
         }).forEach((prop) => {
-            const fieldName = fields[prop].fieldName;
+            const fieldName: string = fields[prop].fieldName;
             if (fieldName === Constants.commonFields.author ||
                 fieldName === Constants.commonFields.created ||
                 fieldName === Constants.commonFields.editor ||
