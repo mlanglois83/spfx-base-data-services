@@ -174,7 +174,7 @@ export class BaseTermsetService<
     protected async init_internal(): Promise<void> {
         await super.init_internal();
         const [taxonomyHiddenItems] = await Promise.all([
-            ServiceFactory.getService(TaxonomyHidden).getAll(),
+            ServiceFactory.getService(TaxonomyHidden, {baseUrl: this.baseUrl}).getAll(),
             BaseTermsetService.initTermStoreDefaultLanguageTag(),
         ]);
         this.updateInitValues(TaxonomyHidden["name"], ...taxonomyHiddenItems);
