@@ -15,7 +15,7 @@ import { BaseItem, SPFile, SPItem, TaxonomyTerm, User } from "../../models";
 import { UserService } from "../graph/UserService";
 import { ServiceFactory } from "../ServiceFactory";
 import { UtilsService } from "../UtilsService";
-import { BaseDbService } from "./BaseDbService";
+import { BaseDbService } from "./cache/BaseDbService";
 
 import { SPFI } from "@pnp/sp";
 import "@pnp/sp/batching";
@@ -929,10 +929,10 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
             if (ServicesConfiguration.configuration.checkOnline) {
                 load = await UtilsService.CheckOnline();
             }
-            if (load) {
+            if (load && this.hasCache) {
                 const updatedItems: T[] = [];
                 const operations: Promise<void>[] = [];
-                const items = await this.dbService.getAll();
+                const items = await this.cacheService.getAll();
                 for (const item of items) {                    
                     let mapped: Array<T>;
                     if(this.isMapItemsAsync()) {
@@ -958,7 +958,7 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
 
                     if (updatedItems.length > 0) {
                         const dbitems = updatedItems.map(u => this.convertItemToDbFormat(u));
-                        await this.dbService.addOrUpdateItems(dbitems);
+                        await this.cacheService.addOrUpdateItems(dbitems);
                     }
                 });
 
@@ -1164,21 +1164,23 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
                         const id = item[propertyName].id;
                         // find corresponding object in service
                         const service = ServiceFactory.getServiceByModelName(fieldDescription.modelName);
-                        const term = await service.__getFromCache(id);
-                        if (term instanceof TaxonomyTerm) {
-                            term.wssids = term.wssids || [];
-                            if (term.wssids.indexOf(wssid) === -1) {
-                                term.wssids.push(wssid);
-                                needUpdate = true;
+                        if(service.hasCache) {
+                            const term = await service.__getFromCache(id);
+                            if (term instanceof TaxonomyTerm) {
+                                term.wssids = term.wssids || [];
+                                if (term.wssids.indexOf(wssid) === -1) {
+                                    term.wssids.push(wssid);
+                                    needUpdate = true;
+                                }
                             }
-                        }
-                        if (needUpdate) {
-                            await service.__updateCache(term);
-                            // update initValues
-                            if (this.initialized) {
-                                const idx = findIndex(this.initValues[fieldDescription.modelName], (t: BaseItem<string | number>) => { return t.id === id; });
-                                if (idx !== -1) {
-                                    this.initValues[fieldDescription.modelName][idx] = term;
+                            if (needUpdate) {
+                                await service.__updateCache(term);
+                                // update initValues
+                                if (this.initialized) {
+                                    const idx = findIndex(this.initValues[fieldDescription.modelName], (t: BaseItem<string | number>) => { return t.id === id; });
+                                    if (idx !== -1) {
+                                        this.initValues[fieldDescription.modelName][idx] = term;
+                                    }
                                 }
                             }
                         }
@@ -1188,36 +1190,38 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
                     const updated = [];
                     const terms = spItem[fieldDescription.fieldName] ? spItem[fieldDescription.fieldName].results : [];
                     const service = ServiceFactory.getServiceByModelName(fieldDescription.modelName);
-                    if (terms && terms.length > 0) {
-                        await Promise.all(terms.map(async (termitem) => {
-                            const wssid = termitem.WssId;
-                            const id = termitem.TermGuid;
-                            // find corresponding object in allready updated
-                            let term = find(updated, (u) => { return u.id === id; });
-                            if (!term) {
-                                term = await service.__getFromCache(id);
-                            }
-                            if (term instanceof TaxonomyTerm) {
-                                term.wssids = term.wssids || [];
-                                if (term.wssids.indexOf(wssid) === -1) {
-                                    term.wssids.push(wssid);
-                                    if (!find(updated, (u) => { return u.id === id; })) {
-                                        updated.push(term);
+                    if(service.hasCache) {
+                        if (terms && terms.length > 0) {
+                            await Promise.all(terms.map(async (termitem) => {
+                                const wssid = termitem.WssId;
+                                const id = termitem.TermGuid;
+                                // find corresponding object in allready updated
+                                let term = find(updated, (u) => { return u.id === id; });
+                                if (!term) {
+                                    term = await service.__getFromCache(id);
+                                }
+                                if (term instanceof TaxonomyTerm) {
+                                    term.wssids = term.wssids || [];
+                                    if (term.wssids.indexOf(wssid) === -1) {
+                                        term.wssids.push(wssid);
+                                        if (!find(updated, (u) => { return u.id === id; })) {
+                                            updated.push(term);
+                                        }
                                     }
                                 }
+                            }));
+                        }
+                        if (updated.length > 0) {
+                            await service.__updateCache(...updated);
+                            // update initValues
+                            if (this.initialized) {
+                                updated.forEach((u) => {
+                                    const idx = findIndex(this.initValues[fieldDescription.modelName], (t: BaseItem<string | number>) => { return t.id === u.id; });
+                                    if (idx !== -1) {
+                                        this.initValues[fieldDescription.modelName][idx] = u;
+                                    }
+                                });
                             }
-                        }));
-                    }
-                    if (updated.length > 0) {
-                        await service.__updateCache(...updated);
-                        // update initValues
-                        if (this.initialized) {
-                            updated.forEach((u) => {
-                                const idx = findIndex(this.initValues[fieldDescription.modelName], (t: BaseItem<string | number>) => { return t.id === u.id; });
-                                if (idx !== -1) {
-                                    this.initValues[fieldDescription.modelName][idx] = u;
-                                }
-                            });
                         }
                     }
                 }

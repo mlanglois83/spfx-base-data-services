@@ -1,24 +1,22 @@
+import { DB, ObjectStore, openDb } from "idb";
 import { assign, cloneDeep } from "lodash";
-import {  DB, ObjectStore, openDb } from "idb";
-import { IBaseItem, IDataService, IQuery } from "../../interfaces";
-import { BaseService } from "./BaseService";
-import { UtilsService } from "../UtilsService";
-import { ServicesConfiguration } from "../../configuration";
+import { ServicesConfiguration } from "../../../configuration";
+import { IBaseItem, IQuery } from "../../../interfaces";
+import { UtilsService } from "../../UtilsService";
+import { BaseCacheService } from "./BaseCacheService";
 
 import { Mutex, Semaphore } from 'async-mutex';
-import { BaseFile } from "../../models";
-import { Decorators } from "../../decorators";
-import { Constants, TraceLevel } from "../../constants";
+import { Constants, TraceLevel } from "../../../constants";
+import { Decorators } from "../../../decorators";
+import { BaseFile } from "../../../models";
 
 const trace = Decorators.trace;
 
 /**
  * Base classe for indexedDB interraction using SP repository
  */
-export class BaseDbService<T extends IBaseItem<string | number>> extends BaseService implements IDataService<T> {
-    protected tableName: string;
+export class BaseDbService<T extends IBaseItem<string | number>> extends BaseCacheService<T> {
 
-    protected itemType: (new (item?: any) => T);
     protected static openPromise: Promise<void> = undefined;
     protected static db: DB;
     protected static semaphore: Semaphore = undefined;
@@ -54,29 +52,6 @@ export class BaseDbService<T extends IBaseItem<string | number>> extends BaseSer
             func = release;
         }
                 return func;
-    }
-
-
-    protected get logFormat(): string {
-        return "%Time% - [%ClassName%<%Property:itemType.name%> (%Property:tableName%)] --> %Function%: %Duration%ms";
-    }
-
-
-
-
-    public get serviceName(): string {
-        return this.constructor["name"] + "<" + this.itemType["name"] + ">";
-    }
-
-    /**
-     * 
-     * @param tableName - name of the db table the service interracts with
-     */
-    constructor(type: (new (item?: any) => T), tableName: string) {
-        super();
-        this.tableName = tableName;
-        //BaseDbService.db = null;
-        this.itemType = type;
     }
 
     protected getChunksRegexp(fileId: number | string): RegExp {
@@ -364,11 +339,14 @@ export class BaseDbService<T extends IBaseItem<string | number>> extends BaseSer
         const copy = cloneDeep(newItems);
         try {
             await Promise.all(copy.map(async (item, itemIdx) => {
-                if (typeof (item.id) === "number" && !store.autoIncrement && item.id === -1) {
+                if (typeof (item.typedKey) === "number" && !store.autoIncrement && item.id === item.defaultKey) {
                     if (nextid === undefined) {
                         nextid = await this.getNextAvailableKey(store as ObjectStore<T, number>);
                     }
                     (item as IBaseItem<number>).id = nextid--;
+                }
+                else if(typeof (item.typedKey) === "string" && item.id === item.defaultKey) {
+                    item.id = await this.getNextAvailableKey(store as ObjectStore<T, number>);
                 }
                 if (item instanceof BaseFile && item.content && item.content.byteLength >= 10485760) {
                     // remove existing chunks

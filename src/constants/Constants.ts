@@ -58,7 +58,15 @@ export const Constants = {
          * {1} --> service name
          * {2} --> operation key
          */
-        latestDataLoadFormat: "spfxdataservice-latestDataLoad-{0}-{1}-{2}-{3}"
+        latestDataLoadFormat: "spfxdataservice-latestDataLoad-{0}-{1}-{2}-{3}",
+        /**
+         * Cache key for data service
+         * {0} --> app key
+         * {1} --> web server relative url
+         * {2} --> service name
+         */
+        localStorageTableFormat: "spfxdataservice-table-{0}-{1}-{2}"
+
     },
     /**
      * Constants for SP Taxaonomy hidden list

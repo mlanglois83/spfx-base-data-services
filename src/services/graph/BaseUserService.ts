@@ -75,7 +75,7 @@ export abstract class BaseUserService<T extends User> extends BaseSPService<T> {
                 )
                 (), 
                 this.sp.web.siteUsers.select("Id", "UserPrincipalName", "LoginName", "Email", "Title", "IsSiteAdmin")(),
-                this.dbService.getAll()
+                this.hasCache ? this.cacheService.getAll() : Promise.resolve([])
             ]);
 
             return users.map((u: any) => {
@@ -94,7 +94,7 @@ export abstract class BaseUserService<T extends User> extends BaseSPService<T> {
             const [searchResults, spUsers, cached] = await Promise.all([
                 this.sp.utility.searchPrincipals(queryStr, (PrincipalType.User | (this.serviceOptions.includeGroups ? PrincipalType.SecurityGroup : PrincipalType.None)) , PrincipalSource.All,"", 15),
                 this.sp.web.siteUsers.select("Id", "UserPrincipalName", "LoginName", "Email", "Title", "IsSiteAdmin")(),
-                this.dbService.getAll()
+                this.hasCache ? this.cacheService.getAll() : Promise.resolve([])
             ]);
             let searchConv = searchResults;
             if(!isArray(searchConv)) // parsing error
@@ -212,16 +212,17 @@ export abstract class BaseUserService<T extends User> extends BaseSPService<T> {
             else {
                 // remove existing without id
                 const sameUsers = allItems.filter(u => u[BaseUserService.userField]?.toLowerCase() === user[BaseUserService.userField]?.toLowerCase());
-                if (sameUsers.length > 0) {
-                    await this.dbService.deleteItems(sameUsers);
+                if (sameUsers.length > 0 && this.hasCache) {
+                    await this.cacheService.deleteItems(sameUsers);
                 }
                 // register user
                 const result = await this.sp.web.ensureUser(user[BaseUserService.userField]);
                 const userItem = await result.user.select("Id", "UserPrincipalName", "Email", "Title", "IsSiteAdmin")();
                 user = new this.itemType(userItem);
                 // cache 
-                const dbresult = await this.dbService.addOrUpdateItem(user);
-                user = dbresult;
+                if(this.hasCache) {
+                    user = await this.cacheService.addOrUpdateItem(user);
+                }
             }
         }
         return user;

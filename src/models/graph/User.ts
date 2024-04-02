@@ -1,11 +1,11 @@
-import { BaseItem } from "../base/BaseItem";
 import { Decorators } from "../../decorators";
+import { BaseNumberItem } from "../base/BaseNumberItem";
 const dataModel = Decorators.dataModel;
 /**
  * Abstraction class for O365 user associated with a SP User
  */
 @dataModel()
-export class User extends BaseItem<number> {
+export class User extends BaseNumberItem {
     /**
      * id of the user
      */

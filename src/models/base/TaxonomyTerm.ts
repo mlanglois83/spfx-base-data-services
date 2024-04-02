@@ -1,10 +1,10 @@
 import { stringIsNullOrEmpty } from "@pnp/core";
-import { BaseItem } from "../base/BaseItem";
+import { BaseStringItem } from "./BaseStringItem";
 
 /**
  * Base object for sharepoint taxonomy term abstraction objects
  */
-export class TaxonomyTerm extends BaseItem<string> {
+export class TaxonomyTerm extends BaseStringItem {
     /**
      * WssIds assiciated with term
      */

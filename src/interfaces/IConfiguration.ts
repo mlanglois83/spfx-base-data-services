@@ -70,4 +70,8 @@ export interface IConfiguration {
      * Key used to share services accross instances
      */
     serviceKey?: string;
+    /**
+     * Use local storage instead of indexed db
+     */
+    useLocalStorage?: boolean;
 }

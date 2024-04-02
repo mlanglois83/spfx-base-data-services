@@ -66,7 +66,16 @@ export abstract class BaseItem<T extends string | number> implements IBaseItem<T
             )
         );
     }
-    public get defaultKey(): T { return undefined}
+    /**
+     * default value for id
+     */
+    public get defaultKey(): T { return undefined; }
+
+    /**
+     * typed value for id
+     */
+    public abstract get typedKey(): T;
+
     /**
      * Item id
      */

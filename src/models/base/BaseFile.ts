@@ -6,6 +6,7 @@ import { BaseItem } from "./BaseItem";
  */
 export class BaseFile<T extends string | number> extends BaseItem<T> implements IBaseFile<T> {
     
+    public get typedKey(): T{ return undefined }
     public mimeType: string;  
     private  _content: ArrayBuffer;
     public get content(): ArrayBuffer {

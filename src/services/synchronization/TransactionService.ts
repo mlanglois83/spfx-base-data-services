@@ -1,7 +1,7 @@
 import { assign } from "lodash";
 import { ServiceFactory } from "../ServiceFactory";
 import { BaseFile, OfflineTransaction } from "../../models/index";
-import { BaseDbService } from "../base/BaseDbService";
+import { BaseDbService } from "../base/cache/BaseDbService";
 
 export class TransactionService extends BaseDbService<OfflineTransaction> {
     private transactionFileService: BaseDbService<BaseFile<string | number>>;

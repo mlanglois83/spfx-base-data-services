@@ -2,7 +2,7 @@
 export { ServiceFactory } from "./ServiceFactory";
 export { BaseSPService } from "./base/BaseSPService";
 export { BaseDataService } from "./base/BaseDataService";
-export { BaseDbService } from "./base/BaseDbService";
+export { BaseDbService } from "./base/cache/BaseDbService";
 export { BaseFileService } from "./base/BaseFileService";
 export { BaseListItemService } from "./base/BaseListItemService";
 export { BaseRestService } from "./base/BaseRestService";

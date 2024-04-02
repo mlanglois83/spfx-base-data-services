@@ -10,7 +10,7 @@ import { RestItem, RestResultMapping, User } from "../../models";
 import { RestFile } from "../../models/base/RestFile";
 import { ServiceFactory } from "../ServiceFactory";
 import { UtilsService } from "../UtilsService";
-import { BaseDbService } from "../base/BaseDbService";
+import { BaseDbService } from "./cache/BaseDbService";
 import { UserService } from "../graph/UserService";
 import { BaseDataService } from "./BaseDataService";
 
@@ -641,34 +641,35 @@ export class BaseRestService<T extends RestItem<string | number> | RestFile<stri
                 else {
                     result = this.persistItemsDataSync_internal(json);
                 }
-
-                //check if data exist for this query in database
-                let mapping = await this.restMappingDb.getItemById(keyCached);
-                if (mapping) {
-                    const tmp = await this.dbService.getItemsById(mapping.itemIds);
-                    //if data exists trash them 
-                    if (tmp && tmp.length > 0) {
-                        await this.dbService.deleteItems(tmp);
+                if(this.hasCache) {
+                    //check if data exist for this query in database
+                    let mapping = await this.restMappingDb.getItemById(keyCached);
+                    if (mapping) {
+                        const tmp = await this.cacheService.getItemsById(mapping.itemIds);
+                        //if data exists trash them 
+                        if (tmp && tmp.length > 0) {
+                            await this.cacheService.deleteItems(tmp);
+                        }
                     }
+                    if (result && result.length > 0) {
+                        const convresult = result.map(res => this.convertItemToDbFormat(res));
+                        await this.cacheService.addOrUpdateItems(convresult);
+                        mapping = new RestResultMapping();
+                        mapping.id = keyCached;
+                        mapping.itemIds = convresult.map(r => r.id);
+                        await this.restMappingDb.addOrUpdateItem(mapping);
+                        this.UpdateIdsLastLoad(...convresult.map(e => e.id));
+                    }
+                    else if (mapping) {
+                        await this.restMappingDb.deleteItem(mapping);
+                    }
+                    this.UpdateCacheData(keyCached);
                 }
-                if (result && result.length > 0) {
-                    const convresult = result.map(res => this.convertItemToDbFormat(res));
-                    await this.dbService.addOrUpdateItems(convresult);
-                    mapping = new RestResultMapping();
-                    mapping.id = keyCached;
-                    mapping.itemIds = convresult.map(r => r.id);
-                    await this.restMappingDb.addOrUpdateItem(mapping);
-                    this.UpdateIdsLastLoad(...convresult.map(e => e.id));
-                }
-                else if (mapping) {
-                    await this.restMappingDb.deleteItem(mapping);
-                }
-                this.UpdateCacheData(keyCached);
             }
             else {
                 const mapping = await this.restMappingDb.getItemById(keyCached);
                 if (mapping && mapping.itemIds && mapping.itemIds.length > 0) {
-                    const tmp = await this.dbService.getItemsById(mapping.itemIds);
+                    const tmp = await this.cacheService.getItemsById(mapping.itemIds);
                     if (this.isMapItemsAsync(linkedFields)) {
                         result = await this.mapItemsAsync(tmp, linkedFields);
                     }

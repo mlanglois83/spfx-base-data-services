@@ -2,6 +2,7 @@
  * Interface to describe minimal items manipulated by all data services
  */
 export interface IBaseItem<T extends string | number> {
+    typedKey: T;
     defaultKey: T;
     isCreatedOffline?: boolean;
      /**

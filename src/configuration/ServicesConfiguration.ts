@@ -69,6 +69,7 @@ export class ServicesConfiguration {
         dbVersion: 1,
         lastConnectionCheckResult: false,
         checkOnline: false,
+        useLocalStorage: false,
         onlineCheckPage: "",
         context: null,
         currentUserId: -1,
@@ -95,6 +96,7 @@ export class ServicesConfiguration {
         configuration.tableNames = Constants.tableNames.concat(configuration.tableNames || []);
         configuration.lastConnectionCheckResult = false;
         configuration.checkOnline = configuration.checkOnline === true;
+        configuration.useLocalStorage = configuration.useLocalStorage === true;
         configuration.translations = configuration.translations || {
             AddLabel: "Add",
             DeleteLabel: "Delete",

@@ -1,12 +1,12 @@
 import { Decorators } from "../../decorators";
-import { BaseItem } from "./BaseItem";
+import { BaseNumberItem } from "./BaseNumberItem";
 
 const field = Decorators.field;
 
 /**
  * Base object for sharepoint item abstraction objects
  */
-export abstract class SPItem extends BaseItem<number> {
+export abstract class SPItem extends BaseNumberItem {
     /**
      * Item id
      */

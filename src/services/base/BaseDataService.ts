@@ -3,13 +3,15 @@ import { IDataService, IQuery, ILogicalSequence, IPredicate, IFieldDescriptor, I
 import { BaseItem, OfflineTransaction, TaxonomyTerm } from "../../models";
 import { UtilsService } from "../UtilsService";
 import { TransactionService } from "../synchronization/TransactionService";
-import { BaseDbService } from "./BaseDbService";
+import { BaseDbService } from "./cache/BaseDbService";
 import { BaseService } from "./BaseService";
 import { TransactionType, Constants, LogicalOperator, TestOperator, QueryToken, FieldType, TraceLevel } from "../../constants";
 import { ServicesConfiguration } from "../../configuration";
 import { isArray, stringIsNullOrEmpty } from "@pnp/core";
 import { ServiceFactory } from "../ServiceFactory";
 import { Decorators } from "../../decorators";
+import { BaseCacheService } from "./cache/BaseCacheService";
+import { BaseLocalStorageService } from "./cache/BaseLocalStorageService";
 const trace = Decorators.trace;
 
 /**
@@ -19,7 +21,7 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
 
 
     protected transactionService: TransactionService;
-    protected dbService: BaseDbService<T>;
+    protected cacheService: BaseCacheService<T>;
     protected serviceOptions: IBaseDataServiceOptions;
 
     protected _itemType: (new (item?: any) => T);
@@ -43,7 +45,12 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
         }
         this._itemType = itemType;
         this.serviceOptions = options || {};
-        this.dbService = new BaseDbService<T>(itemType, itemType["name"]);
+        if(ServicesConfiguration.configuration.useLocalStorage) {
+            this.cacheService = new BaseLocalStorageService<T>(itemType, itemType["name"]);
+        }
+        else {
+            this.cacheService = new BaseDbService<T>(itemType, itemType["name"]);
+        }
         this.transactionService = new TransactionService();
     }
 
@@ -210,7 +217,9 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
         return lastDataLoad;
     }
 
-
+    public get hasCache(): boolean {
+        return this.serviceOptions?.cacheDuration > 0 || ServicesConfiguration.configuration.checkOnline;
+    }
     /**
      * Cache has to be relaod ?
      *
@@ -446,13 +455,19 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
             if (reloadData) {
                 result = await this.getAll_Internal(linkedFields);
                 const convresult = result.map(res => this.convertItemToDbFormat(res));
-                await this.dbService.replaceAll(convresult);
-                this.UpdateIdsLastLoad(...convresult.map(e => e.id));
-                this.UpdateCacheData();
-
+                if(this.hasCache) {
+                    try {
+                        await this.cacheService.replaceAll(convresult);
+                        this.UpdateIdsLastLoad(...convresult.map(e => e.id));
+                        this.UpdateCacheData();
+                    }
+                    catch(error) {
+                        console.error(error);
+                    }
+                }
             }
             else {
-                const tmp = await this.dbService.getAll();
+                const tmp = await this.cacheService.getAll();
                 if (this.isMapItemsAsync(linkedFields)) {
                     result = await this.mapItemsAsync(tmp, linkedFields);
                 }
@@ -511,25 +526,29 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
             if (reloadData) {
 
                 result = await this.get_Internal(query, linkedFields);
-                //check if data exist for this query in database
-                let tmp = await this.dbService.get(query);
-
-                tmp = this.filterItems(query, tmp);
-
-                //if data exists trash them 
-                if (tmp && tmp.length > 0) {
-                    await this.dbService.deleteItems(tmp);
+                if(this.hasCache) {
+                    try {
+                        //check if data exist for this query in database
+                        let tmp = await this.cacheService.get(query);
+                        tmp = this.filterItems(query, tmp);
+                        //if data exists trash them 
+                        if (tmp && tmp.length > 0) {
+                            await this.cacheService.deleteItems(tmp);
+                        }
+                        const convresult = result.map(res => this.convertItemToDbFormat(res));
+                        await this.cacheService.addOrUpdateItems(convresult);
+                        this.UpdateIdsLastLoad(...convresult.map(e => e.id));
+                        this.UpdateCacheData(keyCached);
+                    }
+                    catch(error) {
+                        console.error(error);
+                    }
                 }
-
-                const convresult = result.map(res => this.convertItemToDbFormat(res));
-                await this.dbService.addOrUpdateItems(convresult);
-                this.UpdateIdsLastLoad(...convresult.map(e => e.id));
-                this.UpdateCacheData(keyCached);
 
             }
             else {
 
-                const tmp = await this.dbService.get(query);
+                const tmp = await this.cacheService.get(query);
                 if (this.isMapItemsAsync(linkedFields)) {
                     result = await this.mapItemsAsync(tmp, linkedFields);
                 }
@@ -580,11 +599,18 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
             if (reloadData) {
                 result = await this.getItemById_Internal(id, linkedFields);
                 const converted = this.convertItemToDbFormat(result);
-                await this.dbService.addOrUpdateItem(converted);
-                this.UpdateIdsLastLoad(id);
+                if(this.hasCache) {
+                    try {
+                        await this.cacheService.addOrUpdateItem(converted);
+                        this.UpdateIdsLastLoad(id);
+                    }
+                    catch(error) {
+                        console.error(error);
+                    }
+                }
             }
             else {
-                const temp = await this.dbService.getItemById(id);
+                const temp = await this.cacheService.getItemById(id);
                 if (temp) {
                     let res: Array<T>;
                     if (this.isMapItemsAsync(linkedFields)) {
@@ -628,7 +654,7 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
     }
 
     public async getItemsFromCacheById(ids: Array<number | string>, linkedFields?: Array<string>): Promise<Array<T>> {
-        const tmp = await this.dbService.getItemsById(ids);
+        const tmp = await this.cacheService.getItemsById(ids);
         if (this.isMapItemsAsync(linkedFields)) {
             return this.mapItemsAsync(tmp, linkedFields);
         }
@@ -643,7 +669,7 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
         return this.callAsyncWithPromiseManagement(async () => {
             if (ids.length > 0) {
                 let results: Array<T>;
-                const deprecatedIds = await this.getExpiredIds(...ids);
+                const deprecatedIds = this.hasCache ? await this.getExpiredIds(...ids): ids;
                 let reloadData = deprecatedIds.length > 0;
                 //if refresh is needed, test offline/online
                 if (reloadData && ServicesConfiguration.configuration.checkOnline) {
@@ -651,22 +677,29 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
                 }
 
                 if (reloadData) {
-                    const expired = await this.getItemsById_Internal(deprecatedIds, linkedFields);
-                    const tmpcached = await this.dbService.getItemsById(ids.filter((i) => { return deprecatedIds.indexOf(i) === -1; }));
-                    let cached: Array<T>;
-                    if (this.isMapItemsAsync(linkedFields)) {
-                        cached = await this.mapItemsAsync(tmpcached, linkedFields);
+                    results = await this.getItemsById_Internal(deprecatedIds, linkedFields);
+                    if(this.hasCache) {
+                        const tmpcached = await this.cacheService.getItemsById(ids.filter((i) => { return deprecatedIds.indexOf(i) === -1; }));
+                        let cached: Array<T>;
+                        if (this.isMapItemsAsync(linkedFields)) {
+                            cached = await this.mapItemsAsync(tmpcached, linkedFields);
+                        }
+                        else {
+                            cached = this.mapItemsSync(tmpcached);
+                        }
+                        results = results.concat(cached);
+                        try {
+                            const convresults = results.map(res => this.convertItemToDbFormat(res));
+                            await this.cacheService.addOrUpdateItems(convresults);
+                            this.UpdateIdsLastLoad(...ids);
+                        }
+                        catch(error) {
+                            console.error(error);
+                        }
                     }
-                    else {
-                        cached = this.mapItemsSync(tmpcached);
-                    }
-                    results = expired.concat(cached);
-                    const convresults = results.map(res => this.convertItemToDbFormat(res));
-                    await this.dbService.addOrUpdateItems(convresults);
-                    this.UpdateIdsLastLoad(...ids);
                 }
                 else {
-                    const tmp = await this.dbService.getItemsById(ids);
+                    const tmp = await this.cacheService.getItemsById(ids);
                     if (this.isMapItemsAsync(linkedFields)) {
                         results = await this.mapItemsAsync(tmp, linkedFields);
                     }
@@ -690,7 +723,6 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
         item.error = undefined;
         this.updateInternalLinks(item);
         let result: T = null;
-        let itemResult: T = null;
 
         let isconnected = true;
         if (ServicesConfiguration.configuration.checkOnline) {
@@ -698,25 +730,37 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
         }
         if (isconnected) {
             try {
-                itemResult = await this.addOrUpdateItem_Internal(item);
-                if (item.isCreatedOffline) { // created item allready stored in db
-                    this.dbService.deleteItem(item);
+                result = await this.addOrUpdateItem_Internal(item);
+                if(this.hasCache) {
+                    try {
+                        if (item.isCreatedOffline) { // created item allready stored in db
+                            this.cacheService.deleteItem(item);
+                        }
+                        const converted = this.convertItemToDbFormat(result);
+                        await this.cacheService.addOrUpdateItem(converted);
+                        this.UpdateIdsLastLoad(converted.id);
+                    }
+                    catch(error) {
+                        console.error(error);
+                    }
                 }
-                const converted = this.convertItemToDbFormat(itemResult);
-                await this.dbService.addOrUpdateItem(converted);
-                this.UpdateIdsLastLoad(converted.id);
-                result = itemResult;
 
 
             } catch (error) {
                 console.error(error);
                 if (error.name === Constants.Errors.ItemVersionConfict) {
-                    itemResult = await this.getItemById_Internal(item.id);
-                    const converted = this.convertItemToDbFormat(itemResult);
-                    await this.dbService.addOrUpdateItem(converted);
-                    itemResult.error = error;
-                    result = itemResult;
-                    this.UpdateIdsLastLoad(converted.id);
+                    result = await this.getItemById_Internal(item.id);
+                    result.error = error;
+                    if(this.hasCache) {
+                        try {
+                            const converted = this.convertItemToDbFormat(result);
+                            await this.cacheService.addOrUpdateItem(converted);
+                            this.UpdateIdsLastLoad(converted.id);
+                        }
+                        catch(error) {
+                            console.error(error);
+                        }
+                    }
                 }
                 else {
                     item.error = error;
@@ -727,7 +771,7 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
         }
         else {
             const dbItem = this.convertItemToDbFormat(item);
-            const resultitem = await this.dbService.addOrUpdateItem(dbItem);
+            const resultitem = await this.cacheService.addOrUpdateItem(dbItem);
             item.error = resultitem.error;
             result = item;
             // update id (only field modified in db)
@@ -776,10 +820,17 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
                 });
             }
             // TODO: promise.All (concurrency on idslastload ?)
-            for (const item of results) {
-                const converted = this.convertItemToDbFormat(item);
-                await this.dbService.addOrUpdateItem(converted);
-                this.UpdateIdsLastLoad(converted.id);
+            if(this.hasCache) {
+                try {
+                    for (const item of results) {
+                        const converted = this.convertItemToDbFormat(item);
+                        await this.cacheService.addOrUpdateItem(converted);
+                        this.UpdateIdsLastLoad(converted.id);
+                    }
+                }
+                catch(error) {
+                    console.error(error);
+                }
             }
 
 
@@ -789,7 +840,7 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
             for (const item of items) {
                 const copy = cloneDeep(item);
                 const dbItem = this.convertItemToDbFormat(item);
-                const resultitem = await this.dbService.addOrUpdateItem(dbItem);
+                const resultitem = await this.cacheService.addOrUpdateItem(dbItem);
                 copy.error = resultitem.error;
                 // update id (only field modified in db)
                 copy.id = resultitem.id;
@@ -828,12 +879,17 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
                 if (!item.isLocal) {
                     item = await this.deleteItem_Internal(item);
                 }
-                if (item.deleted || item.isCreatedOffline) {
-                    item = await this.dbService.deleteItem(item);
+                if ((item.deleted || item.isCreatedOffline) && this.hasCache) {
+                    try {
+                        item = await this.cacheService.deleteItem(item);
+                    }
+                    catch(error) {
+                        console.error(error);
+                    }
                 }
             }
             else {
-                item = await this.dbService.deleteItem(item);
+                item = await this.cacheService.deleteItem(item);
 
                 // create a new transaction
                 const ot: OfflineTransaction = new OfflineTransaction();
@@ -861,10 +917,17 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
         }
         if (isconnected) {
             await this.deleteItems_Internal(items.filter(i => !i.isLocal));
-            await this.dbService.deleteItems(items.filter(i => i.deleted || i.isCreatedOffline));
+            if(this.hasCache) {
+                try {
+                    await this.cacheService.deleteItems(items.filter(i => i.deleted || i.isCreatedOffline));
+                }
+                catch(error){
+                    console.error(error);
+                }
+            }
         }
         else {
-            await this.dbService.deleteItems(items.filter(i => !i.isLocal));
+            await this.cacheService.deleteItems(items.filter(i => !i.isLocal));
             const transactions: Array<OfflineTransaction> = [];
             // TODO: promise.All
             for (const item of items) {
@@ -896,10 +959,17 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
         }
         if (isconnected) {
             await this.deleteItems_Internal(items.filter(i => !i.isLocal));
-            await this.dbService.deleteItems(items.filter(i => i.deleted || i.isCreatedOffline));
+            if(this.hasCache) {
+                try {
+                    await this.cacheService.deleteItems(items.filter(i => i.deleted || i.isCreatedOffline));
+                }
+                catch(error){
+                    console.error(error);
+                }
+            }
         }
         else {
-            await this.dbService.deleteItems(items.filter(i => !i.isLocal));
+            await this.cacheService.deleteItems(items.filter(i => !i.isLocal));
             const transactions: Array<OfflineTransaction> = [];
             // TODO: promise.All
             for (const item of items) {
@@ -929,7 +999,7 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
         }
         const result = results.shift();
         const convresult = this.convertItemToDbFormat(result);
-        await this.dbService.addOrUpdateItem(convresult);
+        await this.cacheService.addOrUpdateItem(convresult);
         this.UpdateIdsLastLoad(convresult.id);
         return result;
     }
@@ -943,9 +1013,16 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
         else {
             result = this.persistItemsDataSync_internal(data);
         }
-        const convresult = result.map(r => this.convertItemToDbFormat(r));
-        await this.dbService.addOrUpdateItems(convresult);
-        this.UpdateIdsLastLoad(...convresult.map(cr => cr.id));
+        if(this.hasCache) {
+            try {
+                const convresult = result.map(r => this.convertItemToDbFormat(r));
+                result = await this.cacheService.addOrUpdateItems(convresult);
+                this.UpdateIdsLastLoad(...convresult.map(cr => cr.id));
+            }
+            catch(error) {
+                console.error(error);
+            }
+        }
         return result;
     }
 
@@ -1583,7 +1660,7 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
 
 
 
-                    if (service) {
+                    if (service && service.hasCache) {
 
                         const allitems = await service.__getAllFromCache();
                         const updated = [];
@@ -1638,7 +1715,12 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
                         });
 
                         if (updated.length > 0) {
-                            await service.__updateCache(...updated);
+                            try {
+                                await service.__updateCache(...updated);
+                            }
+                            catch(error) {
+                                console.error(error);
+                            }
                         }
                     }
                 }
@@ -1647,15 +1729,15 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
     }
 
     public __getFromCache(id: number | string): Promise<T> {
-        return this.dbService.getItemById(id);
+        return this.cacheService.getItemById(id);
     }
 
     public __getAllFromCache(): Promise<Array<T>> {
-        return this.dbService.getAll();
+        return this.cacheService.getAll();
     }
 
     public __updateCache(...items: Array<T>): Promise<Array<T>> {
-        return this.dbService.addOrUpdateItems(items);
+        return this.cacheService.addOrUpdateItems(items);
     }
 
     /**

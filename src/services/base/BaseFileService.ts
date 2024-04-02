@@ -268,17 +268,17 @@ export class BaseFileService<T extends SPFile> extends BaseSPService<T>{
         const oldFolderRelativeUrl = this.listRelativeUrl + oldFolderListRelativeUrl;
         const newFolderRelativeUrl = this.listRelativeUrl + newFolderListRelativeUrl;
 
-        const allFiles = await this.dbService.getAll();
+        const allFiles = await this.cacheService.getAll();
         const files = allFiles.filter(f => {
             return UtilsService.getParentFolderUrl(f.id.toString()).toLowerCase() === oldFolderRelativeUrl.toLowerCase();
         });
         const newFiles = cloneDeep(files);
         await Promise.all(files.map((f) => {
-            return this.dbService.deleteItem(f);
+            return this.cacheService.deleteItem(f);
         }));
         newFiles.forEach((file) => {
             file.id = newFolderRelativeUrl + "/" + file.title;            
         });
-        await this.dbService.addOrUpdateItems(newFiles);
+        await this.cacheService.addOrUpdateItems(newFiles);
     }
 }
