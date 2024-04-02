@@ -9,7 +9,7 @@ export class User extends BaseItem<number> {
     /**
      * id of the user
      */
-    public id: number;
+    public id = -1;
     /**
      * Graph id of the user
      */
