@@ -79,7 +79,7 @@ export abstract class BaseUserService<T extends User> extends BaseSPService<T> {
             ]);
 
             return users.map((u: any) => {
-                const spuser = find(spUsers, (spu: ISiteUserInfo) => { return spu[this.spUserField]?.toLowerCase() === u[this.spUserField]?.toLowerCase(); });
+                const spuser = find(spUsers, (spu: ISiteUserInfo) => { return spu[this.spUserField]?.toLowerCase() === u[BaseUserService.userField]?.toLowerCase(); });
                 const cachedUser = find(cached, (spu) => { return spu[BaseUserService.userField]?.toLowerCase() === u[this.spUserField]?.toLowerCase(); });
                 if (spuser) {
                     u.Id = spuser.Id;
