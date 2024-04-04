@@ -40,7 +40,7 @@ const stream = function (injectMethod) {
     });
 };
 
-const baseItems = ["BaseFile", "BaseItem", "RestFile", "RestItem", "SPFile", "SPItem", "TaxonomyTerm", "TaxonomyHidden", "User", "Entity"];
+const baseItems = ["BaseFile", "BaseNumberFile", "BaseStringFile", "BaseItem", "BaseNumberItem", "BaseStringItem", "RestFile", "RestNumberFile", "RestStringFile", "RestItem", "RestNumberItem", "RestStringItem", "SPFile", "SPItem", "TaxonomyTerm", "TaxonomyHidden", "User", "Entity"];
 
 const inject = function (imports, filePath) {
     return stream(function (fileContents) {

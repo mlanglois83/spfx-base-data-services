@@ -83,15 +83,12 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
     }
 
 
-    public async Init(): Promise<void> {
-        
-        if (!this.initialized) {
-            return this.callAsyncWithPromiseManagement(async (): Promise<void> => {
-                if (this.init_internal) {
-                    await this.init_internal();
-                }
-                this.initialized = true;
-            }, "init");            
+    public async Init(): Promise<void> {        
+        if (!this.initialized) {            
+            if (this.init_internal) {
+                await this.init_internal();
+            }
+            this.initialized = true;          
         }
     }
 
