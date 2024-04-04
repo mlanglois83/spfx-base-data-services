@@ -22,6 +22,15 @@ export abstract class BaseSPService<T extends BaseItem<string | number>> extends
         }
     }
 
+    protected get cacheKeyUrl(): string {
+        if(stringIsNullOrEmpty(this.baseUrl)) {
+            return super.cacheKeyUrl;
+        }
+        else {
+            return UtilsService.getRelativeUrl(this.baseUrl);
+        }
+    }
+
     public get baseRelativeUrl(): string {
         if(stringIsNullOrEmpty(this.baseUrl)) {
             return ServicesConfiguration.serverRelativeUrl;

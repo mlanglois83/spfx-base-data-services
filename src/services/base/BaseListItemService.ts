@@ -11,10 +11,10 @@ import { ServicesConfiguration } from "../../configuration/ServicesConfiguration
 import { Constants, FieldType, LogicalOperator, QueryToken, TestOperator, TraceLevel } from "../../constants/index";
 import { Decorators } from "../../decorators";
 import { IBaseListItemServiceOptions, IFieldDescriptor, ILogicalSequence, IOrderBy, IPredicate, IQuery } from "../../interfaces/index";
-import { BaseItem, SPFile, SPItem, TaxonomyTerm, User } from "../../models";
-import { UserService } from "../graph/UserService";
+import { SPFile, SPItem, TaxonomyTerm, User } from "../../models";
 import { ServiceFactory } from "../ServiceFactory";
 import { UtilsService } from "../UtilsService";
+import { UserService } from "../graph/UserService";
 import { BaseDbService } from "./cache/BaseDbService";
 
 import { SPFI } from "@pnp/sp";
@@ -66,7 +66,7 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
         super(itemType, options, listRelativeUrl, ...args);
         this.listRelativeUrl = this.baseRelativeUrl + listRelativeUrl;
         if (this.hasAttachments) {
-            this.attachmentsService = new BaseDbService<SPFile>(SPFile, "ListAttachments");
+            this.attachmentsService = new BaseDbService<SPFile>(SPFile, "ListAttachments", this.cacheKeyUrl);
         }
     }
 
@@ -144,10 +144,11 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
                     }
                 }
                 break;
-            case FieldType.Lookup:                
+            case FieldType.Lookup:  
+            case FieldType.User:              
                 if (fieldDescriptor.containsFullObject && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                     const obj = spitem[fieldDescriptor.fieldName] ? spitem[fieldDescriptor.fieldName] : null;
-                    if (obj && typeof (obj[Constants.commonFields.id]) === "number") {
+                    if (obj && typeof (obj[Constants.commonRestFields.id]) === "number") {
                         // object allready persisted before, retrieve id and store like classical lookup
                         destItem.__setInternalLinks(propertyName, obj[Constants.commonRestFields.id]);
                         destItem[propertyName] = defaultValue;
@@ -175,10 +176,29 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
                     }
                 }
                 break;
+            case FieldType.Taxonomy:
+                const termGuid: string = spitem[fieldDescriptor.fieldName] ? spitem[fieldDescriptor.fieldName].TermGuid : "";
+                if (!stringIsNullOrEmpty(termGuid)) {
+                    if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                        // --> links
+                        destItem.__setInternalLinks(propertyName, termGuid);
+                        destItem[propertyName] = defaultValue;
+
+                    }
+                    else {
+                        destItem[propertyName] = termGuid;
+                    }
+
+                }
+                else {
+                    destItem[propertyName] = defaultValue;
+                }
+                break;                    
             case FieldType.LookupMulti:
+            case FieldType.UserMulti:
                 if (fieldDescriptor.containsFullObject && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                     const lookupIds: Array<number> = spitem[fieldDescriptor.fieldName] && Array.isArray(spitem[fieldDescriptor.fieldName]) ?
-                    spitem[fieldDescriptor.fieldName].map(ri => ri[Constants.commonFields.id]).filter(objid => typeof (objid) === "number") :
+                    spitem[fieldDescriptor.fieldName].map(ri => ri[Constants.commonRestFields.id]).filter(objid => typeof (objid) === "number") :
                     [];
                     if (lookupIds.length > 0) {
                         // LOOKUPS --> links
@@ -205,89 +225,23 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
                         destItem[propertyName] = defaultValue;
                     }
                 }
-                break;
-            case FieldType.User:
-                const id: number = spitem[fieldDescriptor.fieldName + "Id"] ? spitem[fieldDescriptor.fieldName + "Id"] : -1;
-                if (id !== -1) {
-                    if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                        // get values from init values
-                        const users = this.getServiceInitValuesByName(fieldDescriptor.modelName);
-                        const existing = find(users, (user) => {
-                            return user.id === id;
-                        });
-                        destItem[propertyName] = existing ? existing : defaultValue;
-                    }
-                    else {
-                        destItem[propertyName] = id;
-                    }
-                }
-                else {
-                    destItem[propertyName] = defaultValue;
-                }
-                break;
-            case FieldType.UserMulti:
-                const ids: Array<number> = spitem[fieldDescriptor.fieldName + "Id"] ? (spitem[fieldDescriptor.fieldName + "Id"].results ? spitem[fieldDescriptor.fieldName + "Id"].results : spitem[fieldDescriptor.fieldName + "Id"]) : [];
-                if (ids.length > 0) {
-                    if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                        // get values from init values
-                        const val = [];
-                        const users = this.getServiceInitValuesByName(fieldDescriptor.modelName);
-                        ids.forEach(umid => {
-                            const existing = find(users, (user) => {
-                                return user.id === umid;
-                            });
-                            if (existing) {
-                                val.push(existing);
-                            }
-                        });
-                        destItem[propertyName] = val;
-                    }
-                    else {
-                        destItem[propertyName] = ids;
-                    }
-                }
-                else {
-                    destItem[propertyName] = defaultValue;
-                }
-                break;
-            case FieldType.Taxonomy:
-                const wssid: number = spitem[fieldDescriptor.fieldName] ? spitem[fieldDescriptor.fieldName].WssId : -1;
-                const termGuid: string = spitem[fieldDescriptor.fieldName] ? spitem[fieldDescriptor.fieldName].TermGuid : "";
-                if (wssid !== -1 || !stringIsNullOrEmpty(termGuid)) {
-                    const tterms = this.getServiceInitValuesByName<TaxonomyTerm>(fieldDescriptor.modelName);
-                    let foundTerm;
-                    if(!this.serviceOptions.multiSite) {
-                         foundTerm = this.getTaxonomyTermByWssId(wssid, tterms);
-                    }
-                    // Fallback on termguid
-                    if(!destItem[propertyName] && !stringIsNullOrEmpty(termGuid)) {
-                        foundTerm = find(tterms, t => t.id === termGuid);
-                    }
-                    destItem[propertyName] = foundTerm ?? defaultValue;
-                }
-                else {
-                    destItem[propertyName] = defaultValue;
-                }
-                break;
+                break;           
             case FieldType.TaxonomyMulti:
                 const tmterms = spitem[fieldDescriptor.fieldName] ? (spitem[fieldDescriptor.fieldName].results ? spitem[fieldDescriptor.fieldName].results : spitem[fieldDescriptor.fieldName]) : [];
-                if (tmterms.length > 0) {
-                    const allterms = this.getServiceInitValuesByName<TaxonomyTerm>(fieldDescriptor.modelName);
-                    destItem[propertyName] = tmterms.map((term) => {
-                        let cachedterm;
-                        if(!this.serviceOptions.multiSite) {
-                            cachedterm = this.getTaxonomyTermByWssId(term.WssId, allterms);
-                        }
-                        // Fallback on termguid
-                        if(!cachedterm) {
-                            cachedterm = find(allterms, t => t.id === term.TermGuid);
-                        }
-                        return cachedterm;
-                    }).filter(ct => ct);
+                const termGuids = tmterms.map(t => t.TermGuid);
+                if (termGuids.length > 0) {
+                    if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                        // LOOKUPS --> links
+                        destItem.__setInternalLinks(propertyName, termGuids);
+                        destItem[propertyName] = defaultValue;
+                    }
+                    else {
+                        destItem[propertyName] = termGuids;
+                    }
                 }
                 else {
                     destItem[propertyName] = defaultValue;
-                }
+                }         
                 break;
             case FieldType.Attachment:        
                 if (Array.isArray(spitem[fieldDescriptor.fieldName])){
@@ -430,7 +384,7 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
         let result: User | number = null;
         if (value) {
             if (value.isLocal) {
-                const userService: UserService = ServiceFactory.getService(User).cast<UserService>();
+                const userService: UserService = ServiceFactory.getService(User, {baseUrl: this.baseUrl}).cast<UserService>();
                 value = await userService.linkToSpUser(value);
 
             }
@@ -927,7 +881,7 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
         if (prop !== null) {
             let load = true;
             if (ServicesConfiguration.configuration.checkOnline) {
-                load = await UtilsService.CheckOnline();
+                load = navigator.onLine;
             }
             if (load && this.hasCache) {
                 const updatedItems: T[] = [];
@@ -1087,15 +1041,9 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
                     break;
                 case FieldType.User:
                     const id = restItem[fieldName + "Id"];
-                    let user = null;
-                    if (this.initialized) {
-                        const users = this.getServiceInitValues(User);
-                        user = find(users, (u) => { return u.id === id; });
-                    }
-                    else {
-                        const userService = ServiceFactory.getService(User);
-                        user = await userService.getItemById(id);
-                    }
+                    let user = null;                    
+                    const userService = ServiceFactory.getService(User, {baseUrl: this.baseUrl});
+                    user = await userService.getItemById(id);
                     item[prop] = user;
                     break;
                 default:
@@ -1174,14 +1122,7 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
                                 }
                             }
                             if (needUpdate) {
-                                await service.__updateCache(term);
-                                // update initValues
-                                if (this.initialized) {
-                                    const idx = findIndex(this.initValues[fieldDescription.modelName], (t: BaseItem<string | number>) => { return t.id === id; });
-                                    if (idx !== -1) {
-                                        this.initValues[fieldDescription.modelName][idx] = term;
-                                    }
-                                }
+                                await service.__updateCache(term);                                
                             }
                         }
                     }
@@ -1213,15 +1154,6 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
                         }
                         if (updated.length > 0) {
                             await service.__updateCache(...updated);
-                            // update initValues
-                            if (this.initialized) {
-                                updated.forEach((u) => {
-                                    const idx = findIndex(this.initValues[fieldDescription.modelName], (t: BaseItem<string | number>) => { return t.id === u.id; });
-                                    if (idx !== -1) {
-                                        this.initValues[fieldDescription.modelName][idx] = u;
-                                    }
-                                });
-                            }
                         }
                     }
                 }
@@ -1232,7 +1164,6 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
     @trace(TraceLevel.Service)
     public async refreshData(): Promise<void> {
         this.initialized = false;
-        this.initValues = {};
         return super.refreshData();
     }
 

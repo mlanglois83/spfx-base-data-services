@@ -104,6 +104,10 @@ export class BaseDbService<T extends IBaseItem<string | number>> extends BaseCac
         return BaseDbService.db !== undefined;
     }
 
+    protected get dbName(): string {
+        return UtilsService.formatText(Constants.cacheKeys.dbNameFormat, ServicesConfiguration.configuration.serviceKey, this.cacheUrl, ServicesConfiguration.configuration.dbName);
+    }
+
     /**
      * Opens indexed db, update structure if needed
      */
@@ -120,9 +124,9 @@ export class BaseDbService<T extends IBaseItem<string | number>> extends BaseCac
                     if (!('indexedDB' in window)) {
                         throw new Error(ServicesConfiguration.configuration.translations.IndexedDBNotDefined);
                     }
-                    const dbName = UtilsService.formatText(ServicesConfiguration.configuration.dbName, ServicesConfiguration.serverRelativeUrl);
+                    
                     try {
-                        BaseDbService.db = await openDb(dbName, ServicesConfiguration.configuration.dbVersion, (UpgradeDB) => {
+                        BaseDbService.db = await openDb(this.dbName, ServicesConfiguration.configuration.dbVersion, (UpgradeDB) => {
                             // remove old tables
                             for (let index = 0; index < UpgradeDB.objectStoreNames.length; index++) {
                                 const element = UpgradeDB.objectStoreNames.item(index);

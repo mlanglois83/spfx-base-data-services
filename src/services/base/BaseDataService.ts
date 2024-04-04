@@ -1,5 +1,5 @@
 import { assign, cloneDeep, find, findIndex } from "lodash";
-import { IDataService, IQuery, ILogicalSequence, IPredicate, IFieldDescriptor, IBaseDataServiceOptions } from "../../interfaces";
+import { IDataService, IQuery, ILogicalSequence, IPredicate, IFieldDescriptor, IBaseDataServiceOptions, IBaseSPServiceOptions } from "../../interfaces";
 import { BaseItem, OfflineTransaction, TaxonomyTerm } from "../../models";
 import { UtilsService } from "../UtilsService";
 import { TransactionService } from "../synchronization/TransactionService";
@@ -33,6 +33,24 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
         return this as unknown as Tdest;
     }
 
+    protected get singleLinkedTypes(): FieldType[] {
+        return [
+            FieldType.Lookup,
+            FieldType.Taxonomy,
+            FieldType.User
+        ];
+    }
+    protected get multipleLinkedTypes(): FieldType[] {
+        return [
+            FieldType.LookupMulti,
+            FieldType.TaxonomyMulti,
+            FieldType.UserMulti
+        ];
+    }
+    protected get allLinkedTypes(): FieldType[] {
+        return this.singleLinkedTypes.concat(...this.multipleLinkedTypes);
+    }
+
     /**
      * 
      * @param type - type of items
@@ -55,58 +73,6 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
     }
 
     /***************************** External sources init and access **************************************/
-    protected initValues: { [modelName: string]: BaseItem<string | number>[] } = {};
-    protected cachedLookups: { [modelName: string]: Array<string | number> } = {};
-
-    protected getServiceCachedLookupIds<Tvalue extends BaseItem<string | number>>(model: new (data?: any) => Tvalue): Array<number | string> {
-        return this.getServiceCachedLookupIdsByName(model["name"]);
-    }
-
-    protected getServiceCachedLookupIdsByName(modelName: string): Array<string | number> {
-        return this.cachedLookups[modelName] as Array<string | number>;
-    }
-    protected updateServiceCachedLookupIds(modelName: string, ...items: BaseItem<string | number>[]): void {
-        this.cachedLookups[modelName] = this.cachedLookups[modelName] || [];
-        items.forEach(i => {
-            const idx = findIndex(this.cachedLookups[modelName], iv => iv === i.id);
-            if (idx !== -1) {
-                this.cachedLookups[modelName][idx] = i.id;
-            }
-            else {
-                this.cachedLookups[modelName].push(i.id);
-            }
-        });
-    }
-    protected isServiceLookupIdCached(modelName: string, id: number | string): boolean {
-        const values = this.getServiceCachedLookupIdsByName(modelName);
-        return values && values.indexOf(id) !== -1;
-    }
-
-
-    protected getServiceInitValues<Tvalue extends BaseItem<string | number>>(model: new (data?: any) => Tvalue): Tvalue[] {
-        return this.getServiceInitValuesByName<Tvalue>(model["name"]);
-    }
-
-    protected getServiceInitValuesByName<Tvalue extends BaseItem<string | number>>(modelName: string): Tvalue[] {
-        return this.initValues[modelName] as Tvalue[];
-    }
-
-    protected updateInitValues(modelName: string, ...items: BaseItem<string | number>[]): void {
-        this.initValues[modelName] = this.initValues[modelName] || [];
-        items.forEach(i => {
-            const idx = findIndex(this.initValues[modelName], iv => iv.id === i.id);
-            if (idx !== -1) {
-                this.initValues[modelName][idx] = i;
-            }
-            else {
-                this.initValues[modelName].push(i);
-            }
-        });
-    }
-
-
-
-
     protected initialized = false;
     protected get isInitialized(): boolean {
         return this.initialized;
@@ -116,40 +82,14 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
         return;
     }
 
-    @trace(TraceLevel.ServiceUtilities)
-    private async initLinkedFields(): Promise<void> {
-        const fields = this.ItemFields;
-        const models: string[] = [];
-        for (const key in fields) {
-            if (fields.hasOwnProperty(key)) {
-                const fieldDescription = fields[key];
-                if (fieldDescription.modelName &&
-                    models.indexOf(fieldDescription.modelName) === -1 &&
-                    fieldDescription.fieldType !== FieldType.Lookup &&
-                    fieldDescription.fieldType !== FieldType.LookupMulti &&
-                    fieldDescription.fieldType !== FieldType.Json) {
-                    models.push(fieldDescription.modelName);
-                }
-            }
-        }
-        await Promise.all(models.map(async (modelName) => {
-            if (!this.initValues[modelName]) {
-                const service = ServiceFactory.getServiceByModelName(modelName);
-                const values = await service.getAll();
-                this.initValues[modelName] = values;
-            }
-        }));
-    }
 
     public async Init(): Promise<void> {
         
         if (!this.initialized) {
             return this.callAsyncWithPromiseManagement(async (): Promise<void> => {
-                this.initValues = {};
                 if (this.init_internal) {
                     await this.init_internal();
                 }
-                await this.initLinkedFields();
                 this.initialized = true;
             }, "init");            
         }
@@ -185,8 +125,12 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
 
     /************************************************************************* Cache expiration ************************************************************************************/
 
+    protected get cacheKeyUrl(): string {
+        return ServicesConfiguration.serverRelativeUrl;
+    }
+
     protected getCacheKey(key = "all"): string {
-        return UtilsService.formatText(Constants.cacheKeys.latestDataLoadFormat, ServicesConfiguration.serverRelativeUrl, this.serviceName, this.hashCode(this.__thisArgs), key);
+        return UtilsService.formatText(Constants.cacheKeys.latestDataLoadFormat, ServicesConfiguration.configuration.serviceKey, this.cacheKeyUrl, this.serviceName, this.hashCode(this.__thisArgs), key);
     }
     /***
      * 
@@ -285,6 +229,12 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
             window.sessionStorage.setItem(cacheKey, JSON.stringify(idTable));
         }
     }
+
+    protected resetIdsLastLoad(): void {
+        const cacheKey = this.getCacheKey("ids");           
+        window.sessionStorage.removeItem(cacheKey);
+    }
+
     protected UpdateCacheData(key = "all"): void {
         const result = !(this.serviceOptions?.cacheDuration > 0);
         //if cache defined
@@ -293,6 +243,10 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
             window.sessionStorage.setItem(cacheKey, JSON.stringify(new Date()));
         }
 
+    }
+    protected resetCacheData(key = "all"): void {
+        const cacheKey = this.getCacheKey(key);
+        window.sessionStorage.removeItem(cacheKey);
     }
 
     /*********************************************************************************************************************************************************/
@@ -424,8 +378,8 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
                 preloaded = await this.persistInner(items, linkedFields);
             }
             results = items.map(r => this.populateItem(r));
-            if (this.hasLookup(linkedFields)) {
-                await this.populateLookups(results, linkedFields, preloaded);
+            if (this.hasLinkedFields(linkedFields)) {
+                await this.populateLinkedFields(results, linkedFields, preloaded);
             }
         }
 
@@ -444,13 +398,26 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
             let result: Array<T>;
 
             //has to refresh cache
-            let reloadData = this.needRefreshCache();
+            let reloadData = this.needRefreshCache();            
 
             //if refresh is needed, test offline/online
             if (reloadData && ServicesConfiguration.configuration.checkOnline) {
-                reloadData = await UtilsService.CheckOnline();
+                reloadData = navigator.onLine;
             }
 
+            if(!reloadData) {
+                try {
+                    const tmp = await this.cacheService.getAll();
+                    if (this.isMapItemsAsync(linkedFields)) {
+                        result = await this.mapItemsAsync(tmp, linkedFields);
+                    }
+                    else {
+                        result = this.mapItemsSync(tmp);
+                    }
+                } catch (error) {                    
+                    reloadData = !ServicesConfiguration.configuration.checkOnline || navigator.onLine;
+                }
+            }
 
             if (reloadData) {
                 result = await this.getAll_Internal(linkedFields);
@@ -462,17 +429,10 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
                         this.UpdateCacheData();
                     }
                     catch(error) {
+                        this.resetIdsLastLoad();
+                        this.resetCacheData();
                         console.error(error);
                     }
-                }
-            }
-            else {
-                const tmp = await this.cacheService.getAll();
-                if (this.isMapItemsAsync(linkedFields)) {
-                    result = await this.mapItemsAsync(tmp, linkedFields);
-                }
-                else {
-                    result = this.mapItemsSync(tmp);
                 }
             }
             return result;
@@ -503,8 +463,8 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
                 preloaded = await this.persistInner(items, linkedFields);
             }
             results = items.map(r => this.populateItem(r));
-            if (this.hasLookup(linkedFields)) {
-                await this.populateLookups(results, linkedFields, preloaded);
+            if (this.hasLinkedFields(linkedFields)) {
+                await this.populateLinkedFields(results, linkedFields, preloaded);
             }
         }
         return results;
@@ -520,7 +480,23 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
             let reloadData = this.needRefreshCache(keyCached);
             //if refresh is needed, test offline/online
             if (reloadData && ServicesConfiguration.configuration.checkOnline) {
-                reloadData = await UtilsService.CheckOnline();
+                reloadData = navigator.onLine;
+            }
+
+            if(!reloadData) {
+                try {
+                    const tmp = await this.cacheService.get(query);
+                    if (this.isMapItemsAsync(linkedFields)) {
+                        result = await this.mapItemsAsync(tmp, linkedFields);
+                    }
+                    else {
+                        result = this.mapItemsSync(tmp);
+                    }
+                    // filter
+                    result = this.filterItems(query, result);
+                } catch (error) {                    
+                    reloadData = !ServicesConfiguration.configuration.checkOnline || navigator.onLine;
+                }
             }
 
             if (reloadData) {
@@ -541,22 +517,12 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
                         this.UpdateCacheData(keyCached);
                     }
                     catch(error) {
+                        this.resetIdsLastLoad();
+                        this.resetCacheData(keyCached);
                         console.error(error);
                     }
                 }
 
-            }
-            else {
-
-                const tmp = await this.cacheService.get(query);
-                if (this.isMapItemsAsync(linkedFields)) {
-                    result = await this.mapItemsAsync(tmp, linkedFields);
-                }
-                else {
-                    result = this.mapItemsSync(tmp);
-                }
-                // filter
-                result = this.filterItems(query, result);
             }
             return result;
         }, keyCached);
@@ -576,8 +542,8 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
                 preloaded = await this.persistInner([temp], linkedFields);
             }
             result = this.populateItem(temp);
-            if (this.hasLookup(linkedFields)) {
-                await this.populateLookups([result], linkedFields, preloaded);
+            if (this.hasLinkedFields(linkedFields)) {
+                await this.populateLinkedFields([result], linkedFields, preloaded);
             }
         }
         return result;
@@ -593,7 +559,25 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
             let reloadData = deprecatedIds.length > 0;
             //if refresh is needed, test offline/online
             if (reloadData && ServicesConfiguration.configuration.checkOnline) {
-                reloadData = await UtilsService.CheckOnline();
+                reloadData = navigator.onLine;
+            }
+
+            if(!reloadData) {
+                try {
+                    const temp = await this.cacheService.getItemById(id);
+                    if (temp) {
+                        let res: Array<T>;
+                        if (this.isMapItemsAsync(linkedFields)) {
+                            res = await this.mapItemsAsync([temp], linkedFields);
+                        }
+                        else {
+                            res = this.mapItemsSync([temp]);
+                        }
+                        result = res.shift();
+                    }
+                } catch (error) {                    
+                    reloadData = !ServicesConfiguration.configuration.checkOnline || navigator.onLine;
+                }
             }
 
             if (reloadData) {
@@ -605,21 +589,9 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
                         this.UpdateIdsLastLoad(id);
                     }
                     catch(error) {
+                        this.resetIdsLastLoad();
                         console.error(error);
                     }
-                }
-            }
-            else {
-                const temp = await this.cacheService.getItemById(id);
-                if (temp) {
-                    let res: Array<T>;
-                    if (this.isMapItemsAsync(linkedFields)) {
-                        res = await this.mapItemsAsync([temp], linkedFields);
-                    }
-                    else {
-                        res = this.mapItemsSync([temp]);
-                    }
-                    result = res.shift();
                 }
             }
             return result;
@@ -646,8 +618,8 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
                 preloaded = await this.persistInner(items, linkedFields);
             }
             results = items.map(r => this.populateItem(r));
-            if (this.hasLookup(linkedFields)) {
-                await this.populateLookups(results, linkedFields, preloaded);
+            if (this.hasLinkedFields(linkedFields)) {
+                await this.populateLinkedFields(results, linkedFields, preloaded);
             }
         }
         return results;
@@ -673,7 +645,21 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
                 let reloadData = deprecatedIds.length > 0;
                 //if refresh is needed, test offline/online
                 if (reloadData && ServicesConfiguration.configuration.checkOnline) {
-                    reloadData = await UtilsService.CheckOnline();
+                    reloadData = navigator.onLine;
+                }
+
+                if(!reloadData) {
+                    try {
+                        const tmp = await this.cacheService.getItemsById(ids);
+                        if (this.isMapItemsAsync(linkedFields)) {
+                            results = await this.mapItemsAsync(tmp, linkedFields);
+                        }
+                        else {
+                            results = this.mapItemsSync(tmp);
+                        }
+                    } catch (error) {                    
+                        reloadData = !ServicesConfiguration.configuration.checkOnline || navigator.onLine;
+                    }
                 }
 
                 if (reloadData) {
@@ -694,17 +680,9 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
                             this.UpdateIdsLastLoad(...ids);
                         }
                         catch(error) {
+                            this.resetIdsLastLoad();
                             console.error(error);
                         }
-                    }
-                }
-                else {
-                    const tmp = await this.cacheService.getItemsById(ids);
-                    if (this.isMapItemsAsync(linkedFields)) {
-                        results = await this.mapItemsAsync(tmp, linkedFields);
-                    }
-                    else {
-                        results = this.mapItemsSync(tmp);
                     }
                 }
                 return results;
@@ -726,7 +704,7 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
 
         let isconnected = true;
         if (ServicesConfiguration.configuration.checkOnline) {
-            isconnected = await UtilsService.CheckOnline();
+            isconnected = navigator.onLine;
         }
         if (isconnected) {
             try {
@@ -801,7 +779,7 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
 
         let isconnected = true;
         if (ServicesConfiguration.configuration.checkOnline) {
-            isconnected = await UtilsService.CheckOnline();
+            isconnected = navigator.onLine;
         }
         if (isconnected) {
             results = await this.addOrUpdateItems_Internal(items, onItemUpdated, onRefreshItems);
@@ -863,7 +841,6 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
 
     protected abstract deleteItem_Internal(item: T): Promise<T>;
 
-    // TODO: remove cached ids
     @trace(TraceLevel.Service)
     public async deleteItem(item: T): Promise<T> {
         item.error = undefined;
@@ -873,7 +850,7 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
         else {
             let isconnected = true;
             if (ServicesConfiguration.configuration.checkOnline) {
-                isconnected = await UtilsService.CheckOnline();
+                isconnected = navigator.onLine;
             }
             if (isconnected) {
                 if (!item.isLocal) {
@@ -913,7 +890,7 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
         });
         let isconnected = true;
         if (ServicesConfiguration.configuration.checkOnline) {
-            isconnected = await UtilsService.CheckOnline();
+            isconnected = navigator.onLine;
         }
         if (isconnected) {
             await this.deleteItems_Internal(items.filter(i => !i.isLocal));
@@ -955,7 +932,7 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
         });
         let isconnected = true;
         if (ServicesConfiguration.configuration.checkOnline) {
-            isconnected = await UtilsService.CheckOnline();
+            isconnected = navigator.onLine;
         }
         if (isconnected) {
             await this.deleteItems_Internal(items.filter(i => !i.isLocal));
@@ -1027,7 +1004,7 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
     }
 
     protected isPersistItemsDataAsync(linkedFields?: Array<string>, preloaded?: { [modelName: string]: BaseItem<string | number>[] }): boolean {
-        return !this.initialized || (!preloaded && this.needsPersistInner(linkedFields)) || this.hasLookup(linkedFields);
+        return !this.initialized || (!preloaded && this.needsPersistInner(linkedFields)) || this.hasLinkedFields(linkedFields);
     }
 
     @trace(TraceLevel.Internal)
@@ -1039,8 +1016,8 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
                 preloaded = await this.persistInner(data, linkedFields);
             }
             result = data.map(d => this.populateItem(d));
-            if (this.hasLookup(linkedFields)) {
-                await this.populateLookups(result, linkedFields, preloaded);
+            if (this.hasLinkedFields(linkedFields)) {
+                await this.populateLinkedFields(result, linkedFields, preloaded);
             }
         }
         return result;
@@ -1058,7 +1035,7 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
         const fields = this.ItemFields;
         const keys = Object.keys(fields).filter(k => fields.hasOwnProperty(k) &&
             (!linkedFields || (linkedFields.length === 1 && linkedFields[0] === 'loadAll') || linkedFields.indexOf(fields[k].fieldName) !== -1) &&
-            (fields[k].fieldType === FieldType.Lookup || fields[k].fieldType === FieldType.LookupMulti) &&
+            (this.allLinkedTypes.some(lt => lt === fields[k].fieldType)) &&
             fields[k].containsFullObject &&
             !stringIsNullOrEmpty(fields[k].modelName)
         );
@@ -1156,7 +1133,7 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
                 const destModelName = descriptor.modelName;
                 objects.forEach(o => {
                     if (o[descriptor.fieldName]) {
-                        if (descriptor.fieldType === FieldType.Lookup) {
+                        if (this.singleLinkedTypes.some(lt => lt === descriptor.fieldType)) {
                             result = result || {};
                             result[destModelName] = result[destModelName] || [];
                             result[destModelName].push(o[descriptor.fieldName]);
@@ -1177,13 +1154,13 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
 
 
     /********************************** Link to lookups  *************************************/
-    private linkedLookupFields(loadLookups?: Array<string>): Array<IFieldDescriptor> {
+    protected linkedFields(loadLookups?: Array<string>): Array<IFieldDescriptor> {
         const result: Array<IFieldDescriptor> = [];
         const fields = this.ItemFields;
         for (const key in fields) {
             if (fields.hasOwnProperty(key)) {
                 const fieldDesc = fields[key];
-                if ((fieldDesc.fieldType === FieldType.Lookup || fieldDesc.fieldType === FieldType.LookupMulti) && !stringIsNullOrEmpty(fieldDesc.modelName)) {
+                if (this.allLinkedTypes.some(lt => lt === fieldDesc.fieldType) && !stringIsNullOrEmpty(fieldDesc.modelName)) {
                     if (!loadLookups || (loadLookups.length === 1 && loadLookups[0] === 'loadAll') || loadLookups.indexOf(fieldDesc.fieldName) !== -1) {
                         result[key] = fieldDesc;
                     }
@@ -1194,37 +1171,31 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
         return result;
     }
 
-    public hasLookup(linkedFields?: Array<string>): boolean {
-        const lookupFields = this.linkedLookupFields(linkedFields);
-        return Object.keys(lookupFields).filter(k => lookupFields.hasOwnProperty(k)).length > 0;
+    public hasLinkedFields(linkedFields?: Array<string>): boolean {
+        const serviceLinkedFields = this.linkedFields(linkedFields);
+        return Object.keys(serviceLinkedFields).filter(k => serviceLinkedFields.hasOwnProperty(k)).length > 0;
     }
 
     @trace(TraceLevel.ServiceUtilities)
-    protected async populateLookups(items: Array<T>, loadLookups?: Array<string>, innerItems?: { [modelName: string]: BaseItem<string | number>[] }): Promise<void> {
-        
-        await this.Init();
-        
-        // get lookup fields
-        const lookupFields = this.linkedLookupFields(loadLookups);
-
+    protected async populateLinkedFields(items: Array<T>, loadLinked?: Array<string>, innerItems?: { [modelName: string]: BaseItem<string | number>[] }): Promise<void> {
+        await this.Init();        
+        // get linked fields
+        const linkedFields = this.linkedFields(loadLinked);
         // init values and retrieve all ids by model
         const allIds = {};
-        const cachedIds = {};
         const innerResult = {};
-        for (const key in lookupFields) {
-            if (lookupFields.hasOwnProperty(key)) {
-                const fieldDesc = lookupFields[key];
+        for (const key in linkedFields) {
+            if (linkedFields.hasOwnProperty(key)) {
+                const fieldDesc = linkedFields[key];
                 allIds[fieldDesc.modelName] = allIds[fieldDesc.modelName] || [];
-                cachedIds[fieldDesc.modelName] = cachedIds[fieldDesc.modelName] || [];
                 const ids = allIds[fieldDesc.modelName];
-                const cached = cachedIds[fieldDesc.modelName];
                 items.forEach((item: T) => {
                     const links = item.__getInternalLinks(key);
                     //init value 
-                    if (fieldDesc.fieldType === FieldType.Lookup || fieldDesc.fieldType === FieldType.LookupMulti) {
+                    if (this.allLinkedTypes.some(lt => lt === fieldDesc.fieldType)) {
                         item[key] = fieldDesc.defaultValue;
                     }
-                    if (fieldDesc.fieldType === FieldType.Lookup &&
+                    if (this.singleLinkedTypes.some(lt => lt === fieldDesc.fieldType) &&
                         // lookup has value
                         links &&
                         links !== -1) {
@@ -1239,15 +1210,10 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
                             innerResult[fieldDesc.modelName].push(inner);
                         }
                         else {
-                            if (this.isServiceLookupIdCached(fieldDesc.modelName, links)) {
-                                cached.push(links);
-                            }
-                            else {
-                                ids.push(links);
-                            }
+                            ids.push(links);
                         }
                     }
-                    else if (fieldDesc.fieldType === FieldType.LookupMulti &&
+                    else if (this.multipleLinkedTypes.some(lt => lt === fieldDesc.fieldType) &&
                         links &&
                         links.length > 0) {
                         links.forEach((id) => {
@@ -1261,12 +1227,7 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
                                 innerResult[fieldDesc.modelName].push(inner);
                             }
                             else {
-                                if (this.isServiceLookupIdCached(fieldDesc.modelName, id)) {
-                                    cached.push(id);
-                                }
-                                else {
-                                    ids.push(id);
-                                }
+                                ids.push(id);
                             }
                         });
                     }
@@ -1274,43 +1235,21 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
 
             }
         }
-        // store preloaded ids
-        for (const modelName in innerResult) {
-            if (innerResult.hasOwnProperty(modelName)) {
-                this.updateServiceCachedLookupIds(modelName, ...innerResult[modelName]);
-            }
-        }
 
         const resultItems: { [modelName: string]: BaseItem<string | number>[] } = innerResult;
-        // get from cache
-        // Init queries       
-        const cachedpromises: Array<() => Promise<BaseItem<string | number>[]>> = [];
-        for (const modelName in cachedIds) {
-            if (cachedIds.hasOwnProperty(modelName)) {
-                const ids = cachedIds[modelName];
-                if (ids && ids.length > 0) {
-                    const service = ServiceFactory.getServiceByModelName(modelName);
-                    cachedpromises.push(() => service.getItemsFromCacheById(ids));
-                }
-            }
-        }
-        // execute and store
-        const cachedresults = await UtilsService.executePromisesInStacks(cachedpromises, 3);
-        cachedresults.forEach(itemsTab => {
-            if (itemsTab.length > 0) {
-                resultItems[itemsTab[0].constructor["name"]] = resultItems[itemsTab[0].constructor["name"]] || [];
-                resultItems[itemsTab[0].constructor["name"]].push(...itemsTab);
-            }
-        });
-
-        // Not cached
+        
         // Init queries       
         const promises: Array<() => Promise<BaseItem<string | number>[]>> = [];
         for (const modelName in allIds) {
             if (allIds.hasOwnProperty(modelName)) {
                 const ids = allIds[modelName];
                 if (ids && ids.length > 0) {
-                    const service = ServiceFactory.getServiceByModelName(modelName);
+                    const options: IBaseSPServiceOptions = {};
+                    // for sp services
+                    if(this.serviceOptions.hasOwnProperty('baseUrl')) {
+                        options.baseUrl = (this.serviceOptions as IBaseSPServiceOptions).baseUrl;
+                    }
+                    const service = ServiceFactory.getServiceByModelName(modelName, options);
                     promises.push(() => service.getItemsById(ids));
                 }
             }
@@ -1321,18 +1260,17 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
             if (itemsTab.length > 0) {
                 resultItems[itemsTab[0].constructor["name"]] = resultItems[itemsTab[0].constructor["name"]] || [];
                 resultItems[itemsTab[0].constructor["name"]].push(...itemsTab);
-                this.updateServiceCachedLookupIds(itemsTab[0].constructor["name"], ...itemsTab);
             }
         });
 
         // Associate to items
-        for (const propertyName in lookupFields) {
-            if (lookupFields.hasOwnProperty(propertyName)) {
-                const fieldDesc = lookupFields[propertyName];
+        for (const propertyName in linkedFields) {
+            if (linkedFields.hasOwnProperty(propertyName)) {
+                const fieldDesc = linkedFields[propertyName];
                 const refCol = resultItems[fieldDesc.modelName];
                 items.forEach((item: T) => {
                     const links = item.__getInternalLinks(propertyName);
-                    if (fieldDesc.fieldType === FieldType.Lookup &&
+                    if (this.singleLinkedTypes.some(lt => lt === fieldDesc.fieldType) &&
                         links &&
                         links !== -1) {
                         const litem = find(refCol, { id: links });
@@ -1341,7 +1279,7 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
                         }
 
                     }
-                    else if (fieldDesc.fieldType === FieldType.LookupMulti &&
+                    else if (this.multipleLinkedTypes.some(lt => lt === fieldDesc.fieldType) &&
                         links &&
                         links.length > 0) {
                         item[propertyName] = [];
@@ -1357,20 +1295,20 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
         }
     }
 
-    protected updateInternalLinks(item: T, loadLookups?: Array<string>): void {
-        const lookupFields = this.linkedLookupFields(loadLookups);
-        for (const propertyName in lookupFields) {
-            if (lookupFields.hasOwnProperty(propertyName)) {
-                const fieldDesc = lookupFields[propertyName];
-                if (!loadLookups || loadLookups.indexOf(fieldDesc.fieldName) !== -1) {                    
+    protected updateInternalLinks(item: T, loadLinkedFields?: Array<string>): void {
+        const linkedFields = this.linkedFields(loadLinkedFields);
+        for (const propertyName in linkedFields) {
+            if (linkedFields.hasOwnProperty(propertyName)) {
+                const fieldDesc = linkedFields[propertyName];
+                if (!loadLinkedFields || loadLinkedFields.indexOf(fieldDesc.fieldName) !== -1) {                    
                     const obj = ServiceFactory.getItemByName(fieldDesc.modelName);
-                    if (fieldDesc.fieldType === FieldType.Lookup) {                        
+                    if (this.singleLinkedTypes.some(lt => lt === fieldDesc.fieldType)) {                        
                         item.__deleteInternalLinks(propertyName);
                         if (item[propertyName] && item[propertyName].id !== obj.defaultKey) {
                             item.__setInternalLinks(propertyName, item[propertyName].id);
                         }
                     }
-                    else if (fieldDesc.fieldType === FieldType.LookupMulti) {
+                    else if (this.multipleLinkedTypes.some(lt => lt === fieldDesc.fieldType)) {
                         item.__deleteInternalLinks(propertyName);
                         if (item[propertyName] && item[propertyName].length > 0) {
                             item.__setInternalLinks(propertyName, item[propertyName].filter(l => l.id !== obj.defaultKey).map(l => l.id));
@@ -1401,6 +1339,7 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
                     switch (fieldDescriptor.fieldType) {
                         case FieldType.User:
                         case FieldType.Taxonomy:
+                        case FieldType.Lookup:
                             if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                                 //link defered
                                 if (item[propertyName]) {
@@ -1411,14 +1350,13 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
                             break;
                         case FieldType.UserMulti:
                         case FieldType.TaxonomyMulti:
+                        case FieldType.LookupMulti:
                             if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                                 const ids = [];
                                 if (item[propertyName]) {
                                     (item[propertyName] as unknown as BaseItem<string | number>[]).forEach(element => {
                                         if (element?.id) {
-                                            if (!element.isLocal) {
-                                                ids.push(element.id);
-                                            }
+                                            ids.push(element.id);
                                         }
                                     });
                                 }
@@ -1428,29 +1366,19 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
                                 delete result[propertyName];
                             }
                             break;
-                        case FieldType.Lookup:
-                        case FieldType.LookupMulti:
-                            // internal links allready updated before (used for rest calls)
-                            if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                                delete result[propertyName];
-                                result.__setInternalLinks(propertyName, item.__getInternalLinks(propertyName));
-                            }
-                            break;
                         default:
                             break;
                     }
                 } else if (typeof (result[propertyName]) === "function") {
                     delete result[propertyName];
                 }
-
-
             }
         }
         return result;
     }
 
     public isMapItemsAsync(linkedFields?: Array<string>): boolean {
-        return !this.initialized || this.hasLookup(linkedFields);
+        return !this.initialized || this.hasLinkedFields(linkedFields);
     }
 
     /**
@@ -1464,8 +1392,8 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
         if (items && items.length > 0) {
             results = this.mapItems_internal(items);
         }
-        if (this.hasLookup(linkedFields)) {
-            await this.populateLookups(results, linkedFields);
+        if (this.hasLinkedFields(linkedFields)) {
+            await this.populateLinkedFields(results, linkedFields);
         }
         return results;
     }
@@ -1486,52 +1414,8 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
             if (item) {
                 for (const propertyName in this.ItemFields) {
                     if (this.ItemFields.hasOwnProperty(propertyName)) {
-                        const fieldDescriptor = this.ItemFields[propertyName];
-                        if (
-                            fieldDescriptor.fieldType === FieldType.User ||
-                            fieldDescriptor.fieldType === FieldType.Taxonomy) {
-                            if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                                // get values from init values
-                                const id: number = item.__getInternalLinks(propertyName);
-                                if (id !== null) {
-                                    const destElements = this.getServiceInitValuesByName(fieldDescriptor.modelName);
-                                    const existing = find(destElements, (destElement) => {
-                                        return destElement.id === id;
-                                    });
-                                    result[propertyName] = existing ? existing : fieldDescriptor.defaultValue;
-                                }
-                                else {
-                                    result[propertyName] = fieldDescriptor.defaultValue;
-                                }
-                            }
-                            result.__deleteInternalLinks(propertyName);
-                        }
-                        else if (
-                            fieldDescriptor.fieldType === FieldType.UserMulti ||
-                            fieldDescriptor.fieldType === FieldType.TaxonomyMulti) {
-                            if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                                // get values from init values
-                                const ids = item.__getInternalLinks(propertyName) || [];
-                                if (ids.length > 0) {
-                                    const val = [];
-                                    const targetItems = this.getServiceInitValuesByName(fieldDescriptor.modelName);
-                                    ids.forEach(id => {
-                                        const existing = find(targetItems, (tmpitem) => {
-                                            return tmpitem.id === id;
-                                        });
-                                        if (existing) {
-                                            val.push(existing);
-                                        }
-                                    });
-                                    result[propertyName] = val;
-                                }
-                                else {
-                                    result[propertyName] = fieldDescriptor.defaultValue;
-                                }
-                            }
-                            result.__deleteInternalLinks(propertyName);
-                        }
-                        else if (fieldDescriptor.fieldType === FieldType.Json && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                        const fieldDescriptor = this.ItemFields[propertyName];                        
+                        if (fieldDescriptor.fieldType === FieldType.Json && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                             const itemType = ServiceFactory.getObjectTypeByName(fieldDescriptor.modelName);
                             result[propertyName] = assign(new itemType(), item[propertyName]);
                         }
@@ -1643,25 +1527,13 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
                         modelFields[prop].refItemName === this.itemType["name"] || modelFields[prop].modelName === this.itemType["name"]);
                 });
                 if (lookupProperties.length > 0) {
-
-
-
                     let service: BaseDataService<BaseItem<string | number>>;
-
                     try {
-
                         service = ServiceFactory.getServiceByModelName(modelName);
-
                     } catch {
-
                         console.warn("No service found for '" + modelName + "'");
-
                     }
-
-
-
                     if (service && service.hasCache) {
-
                         const allitems = await service.__getAllFromCache();
                         const updated = [];
                         allitems.forEach(element => {
@@ -1670,7 +1542,7 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
                                 const fieldDescription = modelFields[propertyName];
                                 if (fieldDescription.fieldType === FieldType.Lookup) {
                                     if (fieldDescription.modelName) {
-                                        // serch in internalLinks
+                                        // search in internalLinks
                                         const link = element.__getInternalLinks(propertyName);
                                         if (link && link === oldId) {
                                             element.__setInternalLinks(propertyName, newId);
@@ -1748,7 +1620,6 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
         const cacheKey = this.getCacheKey(); // Default key is "ALL"
         window.sessionStorage.removeItem(cacheKey);
         // remove local cache
-        this.initValues = {};
         this.initialized = false;
         // Reload all data
         await this.getAll();

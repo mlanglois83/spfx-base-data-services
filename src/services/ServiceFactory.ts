@@ -8,7 +8,7 @@ import { Constants } from "../constants";
 export class ServiceFactory {    
     
     private static get servicesVarName(): string {
-        return Constants.windowVars.servicesVarName + (ServicesConfiguration.configuration.serviceKey ? "-" + ServicesConfiguration.configuration.serviceKey : "");
+        return Constants.windowVars.servicesVarName +  "-" + ServicesConfiguration.configuration.serviceKey;
     }
 
     private static get windowVar(): { 

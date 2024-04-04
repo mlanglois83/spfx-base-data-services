@@ -2,12 +2,12 @@ import { dateAdd, PnPClientStorage, stringIsNullOrEmpty } from "@pnp/core";
 import "@pnp/sp/sites";
 import { IOrderedTermInfo, ITermSet } from "@pnp/sp/taxonomy";
 import "@pnp/sp/webs";
-import { find } from "lodash";
+import { find, findIndex } from "lodash";
 import { ServicesConfiguration } from "../../configuration";
 import { Constants, TraceLevel } from "../../constants/index";
 import { Decorators } from "../../decorators";
 import { IBaseTermsetServiceOptions } from "../../interfaces";
-import { TaxonomyHidden, TaxonomyTerm } from "../../models";
+import { BaseItem, TaxonomyHidden, TaxonomyTerm } from "../../models";
 import "../../pnpExtensions/TermsetExt";
 import { ServiceFactory } from "../ServiceFactory";
 import { UtilsService } from "../UtilsService";
@@ -28,32 +28,58 @@ export class BaseTermsetService<
     protected termsetnameorid: string;
     
     protected set customSortOrder(value: string) {
-        localStorage.setItem(UtilsService.formatText(Constants.cacheKeys.termsetCustomOrder, ServicesConfiguration.serverRelativeUrl, this.serviceName), value ? value : "");
+        localStorage.setItem(UtilsService.formatText(Constants.cacheKeys.termsetCustomOrder, ServicesConfiguration.configuration.serviceKey, this.cacheKeyUrl, this.serviceName), value ? value : "");
     }
     protected get customSortOrder(): string {
-        return localStorage.getItem(UtilsService.formatText(Constants.cacheKeys.termsetCustomOrder, ServicesConfiguration.serverRelativeUrl, this.serviceName));
+        return localStorage.getItem(UtilsService.formatText(Constants.cacheKeys.termsetCustomOrder, ServicesConfiguration.configuration.serviceKey, this.cacheKeyUrl, this.serviceName));
     }
 
     protected set tsId(value: string) {
-        localStorage.setItem(UtilsService.formatText(Constants.cacheKeys.termsetId, ServicesConfiguration.serverRelativeUrl, this.serviceName), value ? value : "");
+        localStorage.setItem(UtilsService.formatText(Constants.cacheKeys.termsetId, ServicesConfiguration.configuration.serviceKey, this.cacheKeyUrl, this.serviceName), value ? value : "");
     }
     protected get tsId(): string {
-        return localStorage.getItem(UtilsService.formatText(Constants.cacheKeys.termsetId, ServicesConfiguration.serverRelativeUrl, this.serviceName));
+        return localStorage.getItem(UtilsService.formatText(Constants.cacheKeys.termsetId, ServicesConfiguration.configuration.serviceKey, this.cacheKeyUrl, this.serviceName));
     }
 
     protected set siteCollectionGroupId(value: string) {
-        localStorage.setItem(UtilsService.formatText(Constants.cacheKeys.termsetSiteCollectionGroupId, ServicesConfiguration.serverRelativeUrl, this.serviceName), value ? value : "");
+        localStorage.setItem(UtilsService.formatText(Constants.cacheKeys.termsetSiteCollectionGroupId, ServicesConfiguration.configuration.serviceKey, this.cacheKeyUrl, this.serviceName), value ? value : "");
     }
     protected get siteCollectionGroupId(): string {
-        return localStorage.getItem(UtilsService.formatText(Constants.cacheKeys.termsetSiteCollectionGroupId, ServicesConfiguration.serverRelativeUrl, this.serviceName));
+        return localStorage.getItem(UtilsService.formatText(Constants.cacheKeys.termsetSiteCollectionGroupId, ServicesConfiguration.configuration.serviceKey, this.cacheKeyUrl, this.serviceName));
     }
 
-    protected static set termStoreDefaultLanguageTag(value: string) {
-        localStorage.setItem(UtilsService.formatText(Constants.cacheKeys.termStoreDefaultLanguageTag, ServicesConfiguration.serverRelativeUrl), value ? value : "");
+    protected static setTermStoreDefaultLanguageTag(value: string, cacheUrl: string) {
+        localStorage.setItem(UtilsService.formatText(Constants.cacheKeys.termStoreDefaultLanguageTag, ServicesConfiguration.configuration.serviceKey, cacheUrl), value ? value : "");
     }
-    protected static get termStoreDefaultLanguageTag(): string {
-        return localStorage.getItem(UtilsService.formatText(Constants.cacheKeys.termStoreDefaultLanguageTag, ServicesConfiguration.serverRelativeUrl));
+    protected static getTermStoreDefaultLanguageTag(cacheUrl: string): string {
+        return localStorage.getItem(UtilsService.formatText(Constants.cacheKeys.termStoreDefaultLanguageTag, ServicesConfiguration.configuration.serviceKey, cacheUrl));
     }
+
+     /**************************************** Taxo hidden list storage ****************************************************/
+    protected initValues: { [modelName: string]: BaseItem<string | number>[] } = {};
+    
+    protected getServiceInitValues<Tvalue extends BaseItem<string | number>>(model: new (data?: any) => Tvalue): Tvalue[] {
+        return this.getServiceInitValuesByName<Tvalue>(model["name"]);
+    }
+
+    protected getServiceInitValuesByName<Tvalue extends BaseItem<string | number>>(modelName: string): Tvalue[] {
+        return this.initValues[modelName] as Tvalue[];
+    }
+
+    protected updateInitValues(modelName: string, ...items: BaseItem<string | number>[]): void {
+        this.initValues[modelName] = this.initValues[modelName] || [];
+        items.forEach(i => {
+            const idx = findIndex(this.initValues[modelName], iv => iv.id === i.id);
+            if (idx !== -1) {
+                this.initValues[modelName][idx] = i;
+            }
+            else {
+                this.initValues[modelName].push(i);
+            }
+        });
+    }
+
+    /**********************************************************************************************************************/
 
     /**
      * Get site collection group
@@ -75,14 +101,13 @@ export class BaseTermsetService<
         }, "SiteColGroupId");        
     }
 
-    protected static async initTermStoreDefaultLanguageTag(): Promise<string> {
+    protected static async initTermStoreDefaultLanguageTag(cacheUrl: string): Promise<string> {
         return UtilsService.callAsyncWithPromiseManagement("BaseTermSetService-TermStore", async () => {
-            if (stringIsNullOrEmpty(BaseTermsetService.termStoreDefaultLanguageTag)) {                
+            if (stringIsNullOrEmpty(BaseTermsetService.getTermStoreDefaultLanguageTag(cacheUrl))) {                
                 const ts = await ServicesConfiguration.sp.termStore();
-                BaseTermsetService.termStoreDefaultLanguageTag =
-                    ts.defaultLanguageTag;
+                BaseTermsetService.setTermStoreDefaultLanguageTag(ts.defaultLanguageTag, cacheUrl);
             }
-            return BaseTermsetService.termStoreDefaultLanguageTag;
+            return BaseTermsetService.getTermStoreDefaultLanguageTag(cacheUrl);
         });        
     }
 
@@ -102,7 +127,7 @@ export class BaseTermsetService<
                 if (this.serviceOptions.isGlobal) {
                     const [termsets, tsLngTag] = await Promise.all([
                         this.sp.termStore.sets(),
-                        BaseTermsetService.initTermStoreDefaultLanguageTag(),
+                        BaseTermsetService.initTermStoreDefaultLanguageTag(this.cacheKeyUrl),
                     ]);
                     const ts = find(termsets, (t) =>
                         t.localizedNames.some(
@@ -123,7 +148,7 @@ export class BaseTermsetService<
                         await this.getSiteCollectionGroupId();
                     const [termsets, tsLngTag] = await Promise.all([
                         this.sp.termStore.groups.getById(groupId).sets(),
-                        BaseTermsetService.initTermStoreDefaultLanguageTag(),
+                        BaseTermsetService.initTermStoreDefaultLanguageTag(this.cacheKeyUrl),
                     ]);
                     const ts = find(termsets, (t) =>
                         t.localizedNames.some(
@@ -175,7 +200,7 @@ export class BaseTermsetService<
         await super.init_internal();
         const [taxonomyHiddenItems] = await Promise.all([
             ServiceFactory.getService(TaxonomyHidden, {baseUrl: this.baseUrl}).getAll(),
-            BaseTermsetService.initTermStoreDefaultLanguageTag(),
+            BaseTermsetService.initTermStoreDefaultLanguageTag(this.cacheKeyUrl),
         ]);
         this.updateInitValues(TaxonomyHidden["name"], ...taxonomyHiddenItems);
     }
@@ -293,7 +318,7 @@ export class BaseTermsetService<
                 return webLabel.label;
             } else {
                 // default termstore language
-                const taxonomy = BaseTermsetService.termStoreDefaultLanguageTag;
+                const taxonomy = BaseTermsetService.getTermStoreDefaultLanguageTag(this.cacheKeyUrl);
                 const taxonomyLabel = find(
                     labelCollection,
                     (label) => label.languageTag === taxonomy
@@ -420,7 +445,7 @@ export class BaseTermsetService<
 
     @trace(TraceLevel.Internal)
     protected async getItemsById_Internal(
-        ids: Array<number | string>
+        ids: Array<string>
     ): Promise<Array<T>> {
         const results = new Array<T>();
         await this.Init();

@@ -1,5 +1,7 @@
+import { stringIsNullOrEmpty } from "@pnp/core";
 import { IBaseItem, IDataService, IQuery } from "../../../interfaces";
 import { BaseService } from "../BaseService";
+import { ServicesConfiguration } from "../../../configuration";
 
 
 /**
@@ -18,14 +20,24 @@ export abstract class BaseCacheService<T extends IBaseItem<string | number>> ext
         return this.constructor["name"] + "<" + this.itemType["name"] + ">";
     }
 
+    private internalCacheUrl: string;
+    protected get cacheUrl(): string {
+        if(stringIsNullOrEmpty(this.internalCacheUrl)) {
+            return ServicesConfiguration.serverRelativeUrl;
+        }
+        else {
+            return this.internalCacheUrl;
+        }
+    }
+
     /**
      * 
      * @param tableName - name of the db table the service interracts with
      */
-    constructor(type: (new (item?: any) => T), tableName: string) {
+    constructor(type: (new (item?: any) => T), tableName: string, cacheUrl?: string) {
         super();
         this.tableName = tableName;
-        //BaseDbService.db = null;
+        this.internalCacheUrl = cacheUrl;
         this.itemType = type;
     }
     public abstract getAll(): Promise<T[]>;

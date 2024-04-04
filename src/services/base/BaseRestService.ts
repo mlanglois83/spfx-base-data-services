@@ -5,14 +5,14 @@ import { ServicesConfiguration } from "../../configuration";
 import { Constants, FieldType, TestOperator, TraceLevel } from "../../constants/index";
 import { Decorators } from "../../decorators";
 import { IEndPointBinding } from "../../interfaces/IEndPointBindings";
-import { IBaseRestServiceOptions, IEndPointBindings, IFieldDescriptor, ILogicalSequence, IOrderBy, IPredicate, IQuery, IRestLogicalSequence, IRestPredicate, IRestQuery } from "../../interfaces/index";
-import { RestItem, RestResultMapping, User } from "../../models";
+import { IBaseRestServiceOptions, IBaseSPServiceOptions, IEndPointBindings, IFieldDescriptor, ILogicalSequence, IOrderBy, IPredicate, IQuery, IRestLogicalSequence, IRestPredicate, IRestQuery } from "../../interfaces/index";
+import { BaseItem, RestItem, RestResultMapping, User } from "../../models";
 import { RestFile } from "../../models/base/RestFile";
 import { ServiceFactory } from "../ServiceFactory";
 import { UtilsService } from "../UtilsService";
-import { BaseDbService } from "./cache/BaseDbService";
 import { UserService } from "../graph/UserService";
 import { BaseDataService } from "./BaseDataService";
+import { BaseDbService } from "./cache/BaseDbService";
 
 const trace = Decorators.trace;
 
@@ -86,84 +86,53 @@ export class BaseRestService<T extends RestItem<string | number> | RestFile<stri
         const defaultValue = cloneDeep(fieldDescriptor.defaultValue);
         fieldDescriptor.fieldType = fieldDescriptor.fieldType || FieldType.Simple;
         switch (fieldDescriptor.fieldType) {
-            case FieldType.Lookup:
-                if (fieldDescriptor.containsFullObject && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                    const obj = restItem[fieldDescriptor.fieldName] ? restItem[fieldDescriptor.fieldName] : null;
-                    const lookupVal = this.getLookupId(obj, fieldDescriptor);
-                    if (lookupVal !== undefined) {
-                        // object allready persisted before, retrieve id and store like classical lookup
-                        destItem.__setInternalLinks(propertyName, lookupVal);
+            case FieldType.Lookup:                
+                const lookupId = this.getLookupId(restItem[fieldDescriptor.fieldName], fieldDescriptor);
+                if (lookupId !== undefined) {
+                    if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                        // LOOKUPS --> links
+                        destItem.__setInternalLinks(propertyName, lookupId);
                         destItem[propertyName] = defaultValue;
                     }
                     else {
-                        destItem[propertyName] = defaultValue;
+                        destItem[propertyName] = lookupId;
                     }
+
                 }
                 else {
-                    const lookupId = this.getLookupId(restItem[fieldDescriptor.fieldName], fieldDescriptor);
-                    if (lookupId !== undefined) {
-                        if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                            // LOOKUPS --> links
-                            destItem.__setInternalLinks(propertyName, lookupId);
-                            destItem[propertyName] = defaultValue;
-                        }
-                        else {
-                            destItem[propertyName] = lookupId;
-                        }
-
-                    }
-                    else {
-                        destItem[propertyName] = defaultValue;
-                    }
+                    destItem[propertyName] = defaultValue;
                 }
                 break;
-            case FieldType.LookupMulti:
-                if (fieldDescriptor.containsFullObject && !stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                    const lookupIds: Array<string|number> = restItem[fieldDescriptor.fieldName] && Array.isArray(restItem[fieldDescriptor.fieldName]) ?
-                        restItem[fieldDescriptor.fieldName].map(ri => this.getLookupId(ri, fieldDescriptor)).filter(id => id != undefined) :
-                        [];
-                    if (lookupIds.length > 0) {
+            case FieldType.LookupMulti:                
+                const lookupIds: Array<string|number> = restItem[fieldDescriptor.fieldName] && Array.isArray(restItem[fieldDescriptor.fieldName]) ?
+                    restItem[fieldDescriptor.fieldName].map(ri => this.getLookupId(ri, fieldDescriptor)).filter(id => id != undefined) :
+                    [];
+                if (lookupIds.length > 0) {
+                    if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                         // LOOKUPS --> links
                         destItem.__setInternalLinks(propertyName, lookupIds);
                         destItem[propertyName] = defaultValue;
                     }
                     else {
-                        destItem[propertyName] = defaultValue;
+                        destItem[propertyName] = lookupIds;
                     }
                 }
                 else {
-                    const lookupIds: Array<string|number> = restItem[fieldDescriptor.fieldName] && Array.isArray(restItem[fieldDescriptor.fieldName]) ?
-                        restItem[fieldDescriptor.fieldName].map(ri => this.getLookupId(ri, fieldDescriptor)).filter(id => id != undefined) :
-                        [];
-                    if (lookupIds.length > 0) {
-                        if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                            // LOOKUPS --> links
-                            destItem.__setInternalLinks(propertyName, lookupIds);
-                            destItem[propertyName] = defaultValue;
-                        }
-                        else {
-                            destItem[propertyName] = lookupIds;
-                        }
-                    }
-                    else {
-                        destItem[propertyName] = defaultValue;
-                    }
+                    destItem[propertyName] = defaultValue;
                 }
                 break;
             case FieldType.User:
                 const upn: string = restItem[fieldDescriptor.fieldName];
                 if (!stringIsNullOrEmpty(upn)) {
                     if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                        // get values from init values
-                        const users = this.getServiceInitValuesByName(fieldDescriptor.modelName);
-                        const existing = find(users, (user: User) => {
-                            return !stringIsNullOrEmpty(user.userPrincipalName) && user.userPrincipalName.toLowerCase() === upn.toLowerCase();
-                        });
-                        destItem[propertyName] = existing ? existing : defaultValue;
+                        // LOOKUPS --> links
+                        destItem.__setInternalLinks(propertyName, upn);
+                        destItem[propertyName] = defaultValue;
                     }
                     else {
                         destItem[propertyName] = upn;
                     }
+
                 }
                 else {
                     destItem[propertyName] = defaultValue;
@@ -173,20 +142,9 @@ export class BaseRestService<T extends RestItem<string | number> | RestFile<stri
                 const upns: Array<string> = restItem[fieldDescriptor.fieldName] ? restItem[fieldDescriptor.fieldName] : [];
                 if (upns.length > 0) {
                     if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
-                        // get values from init values
-                        const val = [];
-                        const users = this.getServiceInitValuesByName(fieldDescriptor.modelName);
-                        upns.forEach(umupn => {
-                            if (!stringIsNullOrEmpty(umupn)) {
-                                const existing = find(users, (user: User) => {
-                                    return !stringIsNullOrEmpty(user.userPrincipalName) && user.userPrincipalName.toLowerCase() === umupn.toLowerCase();
-                                });
-                                if (existing) {
-                                    val.push(existing);
-                                }
-                            }
-                        });
-                        destItem[propertyName] = val;
+                        // LOOKUPS --> links
+                        destItem.__setInternalLinks(propertyName, upns);
+                        destItem[propertyName] = defaultValue;
                     }
                     else {
                         destItem[propertyName] = upns;
@@ -199,12 +157,16 @@ export class BaseRestService<T extends RestItem<string | number> | RestFile<stri
             case FieldType.Taxonomy:
                 const conJsonId = !stringIsNullOrEmpty(restItem[fieldDescriptor.fieldName]) ? JSON.parse(restItem[fieldDescriptor.fieldName]) : null;
                 const termid: string = conJsonId && conJsonId.length > 0 ? conJsonId[0].id : null;
-                if (!stringIsNullOrEmpty(termid)) {
-                    const tterms = this.getServiceInitValuesByName(fieldDescriptor.modelName);
-                    const existing = find(tterms, (term) => {
-                        return term.id === termid;
-                    });
-                    destItem[propertyName] = existing ? existing : defaultValue;
+               if (!stringIsNullOrEmpty(termid)) {
+                    if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                        // LOOKUPS --> links
+                        destItem.__setInternalLinks(propertyName, termid);
+                        destItem[propertyName] = defaultValue;
+                    }
+                    else {
+                        destItem[propertyName] = termid;
+                    }
+
                 }
                 else {
                     destItem[propertyName] = defaultValue;
@@ -213,19 +175,16 @@ export class BaseRestService<T extends RestItem<string | number> | RestFile<stri
             case FieldType.TaxonomyMulti:
                 const conJsonIds = !stringIsNullOrEmpty(restItem[fieldDescriptor.fieldName]) ? JSON.parse(restItem[fieldDescriptor.fieldName]) : null;
                 const tmterms = conJsonIds ? conJsonIds : [];
-                if (tmterms.length > 0) {
-                    // get values from init values
-                    const val = [];
-                    const allterms = this.getServiceInitValuesByName(fieldDescriptor.modelName);
-                    tmterms.forEach(tmterm => {
-                        const existing = find(allterms, (term) => {
-                            return term.id === tmterm.id;
-                        });
-                        if (existing) {
-                            val.push(existing);
-                        }
-                    });
-                    destItem[propertyName] = val;
+                const tids = tmterms.map(t => t.id); 
+                if (tids.length > 0) {
+                    if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                        // LOOKUPS --> links
+                        destItem.__setInternalLinks(propertyName, tids);
+                        destItem[propertyName] = defaultValue;
+                    }
+                    else {
+                        destItem[propertyName] = tids;
+                    }
                 }
                 else {
                     destItem[propertyName] = defaultValue;
@@ -630,9 +589,25 @@ export class BaseRestService<T extends RestItem<string | number> | RestFile<stri
             let reloadData = this.needRefreshCache(keyCached);
             //if refresh is needed, test offline/online
             if (reloadData && ServicesConfiguration.configuration.checkOnline) {
-                reloadData = await UtilsService.CheckOnline();
+                reloadData = navigator.onLine;
             }
-
+            if(!reloadData) {
+                try {
+                    const mapping = await this.restMappingDb.getItemById(keyCached);
+                    if (mapping && mapping.itemIds && mapping.itemIds.length > 0) {
+                        const tmp = await this.cacheService.getItemsById(mapping.itemIds);
+                        if (this.isMapItemsAsync(linkedFields)) {
+                            result = await this.mapItemsAsync(tmp, linkedFields);
+                        }
+                        else {
+                            result = this.mapItemsSync(tmp);
+                        }
+                    }
+                } catch (error) {
+                    console.error(error);
+                    reloadData = !ServicesConfiguration.configuration.checkOnline || navigator.onLine;
+                }
+            }
             if (reloadData) {
                 const json = await this.executeRequest(restQuery.url, restQuery.method, data);
                 if (this.isPersistItemsDataAsync(linkedFields)) {
@@ -659,29 +634,206 @@ export class BaseRestService<T extends RestItem<string | number> | RestFile<stri
                         mapping.itemIds = convresult.map(r => r.id);
                         await this.restMappingDb.addOrUpdateItem(mapping);
                         this.UpdateIdsLastLoad(...convresult.map(e => e.id));
+                        this.UpdateCacheData(keyCached);
                     }
                     else if (mapping) {
+                        this.resetIdsLastLoad();
+                        this.resetCacheData(keyCached);
                         await this.restMappingDb.deleteItem(mapping);
                     }
-                    this.UpdateCacheData(keyCached);
                 }
             }
-            else {
-                const mapping = await this.restMappingDb.getItemById(keyCached);
-                if (mapping && mapping.itemIds && mapping.itemIds.length > 0) {
-                    const tmp = await this.cacheService.getItemsById(mapping.itemIds);
-                    if (this.isMapItemsAsync(linkedFields)) {
-                        result = await this.mapItemsAsync(tmp, linkedFields);
-                    }
-                    else {
-                        result = this.mapItemsSync(tmp);
-                    }
-                }
-            }
+            
             return result;
         }, keyCached);
     }
 
+    /********************** Overrides for user field **************************************************/
+    protected convertItemToDbFormat(item: T): T {
+        const result: T = cloneDeep(item);
+        result.cleanBeforeStorage();
+        result.__clearInternalLinks();
+        for (const propertyName in result) {
+            if (result.hasOwnProperty(propertyName)) {
+                if (this.ItemFields.hasOwnProperty(propertyName)) {
+                    const fieldDescriptor = this.ItemFields[propertyName];
+                    switch (fieldDescriptor.fieldType) {
+                        case FieldType.User:
+                            if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                                //link defered
+                                if (item[propertyName]) {
+                                    result.__setInternalLinks(propertyName, (item[propertyName] as unknown as User).userPrincipalName);
+                                }
+                                delete result[propertyName];
+                            }
+                            break;
+                        case FieldType.Taxonomy:
+                        case FieldType.Lookup:
+                            if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                                //link defered
+                                if (item[propertyName]) {
+                                    result.__setInternalLinks(propertyName, (item[propertyName] as unknown as BaseItem<string | number>).id);
+                                }
+                                delete result[propertyName];
+                            }
+                            break;
+                        case FieldType.UserMulti:
+                            if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                                const upns = [];
+                                if (item[propertyName]) {
+                                    (item[propertyName] as unknown as User[]).forEach(element => {
+                                        if (!stringIsNullOrEmpty(element?.userPrincipalName)) {
+                                            upns.push(element.userPrincipalName);
+                                        }
+                                    });
+                                }
+                                if (upns.length > 0) {
+                                    result.__setInternalLinks(propertyName, upns.length > 0 ? upns : []);
+                                }
+                                delete result[propertyName];
+                            }
+                            break;
+                        case FieldType.TaxonomyMulti:
+                        case FieldType.LookupMulti:
+                            if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
+                                const ids = [];
+                                if (item[propertyName]) {
+                                    (item[propertyName] as unknown as BaseItem<string | number>[]).forEach(element => {
+                                        if (element?.id) {
+                                            ids.push(element.id);
+                                        }
+                                    });
+                                }
+                                if (ids.length > 0) {
+                                    result.__setInternalLinks(propertyName, ids.length > 0 ? ids : []);
+                                }
+                                delete result[propertyName];
+                            }
+                            break;
+                        default:
+                            break;
+                    }
+                } else if (typeof (result[propertyName]) === "function") {
+                    delete result[propertyName];
+                }
+            }
+        }
+        return result;
+    }
+
+    protected async populateLinkedFields(items: T[], loadLinked?: string[], innerItems?: { [modelName: string]: BaseItem<string | number>[]; }): Promise<void> {
+        await super.populateLinkedFields(items, loadLinked, innerItems);        
+        // get linked fields
+        const linkedFields = this.linkedFields(loadLinked).filter(lf => lf.fieldType === FieldType.User || lf.fieldType === FieldType.UserMulti);
+        // init values and retrieve all ids by model
+        const allUpns = {};
+        const innerResult = {};
+        for (const key in linkedFields) {
+            if (linkedFields.hasOwnProperty(key)) {
+                const fieldDesc = linkedFields[key];
+                allUpns[fieldDesc.modelName] = allUpns[fieldDesc.modelName] || [];
+                const upns = allUpns[fieldDesc.modelName];
+                items.forEach((item: T) => {
+                    const links = item.__getInternalLinks(key);
+                    //init value 
+                    item[key] = fieldDesc.defaultValue;
+                    
+                    if (fieldDesc.fieldType === FieldType.User &&
+                        // lookup has value
+                        !stringIsNullOrEmpty(links)) {
+                        // check in preloaded
+                        let inner = undefined;
+                        if (innerItems && innerItems[fieldDesc.modelName]) {
+                            inner = find(innerItems[fieldDesc.modelName], ii => (ii as User).userPrincipalName === links);
+                        }
+                        // inner found
+                        if (inner) {
+                            innerResult[fieldDesc.modelName] = innerResult[fieldDesc.modelName] || [];
+                            innerResult[fieldDesc.modelName].push(inner);
+                        }
+                        else {
+                            upns.push(links);
+                        }
+                    }
+                    else if (fieldDesc.fieldType === FieldType.UserMulti &&
+                        links &&
+                        links.length > 0) {
+                        links.forEach((upn) => {
+                            let inner = undefined;
+                            if (innerItems && innerItems[fieldDesc.modelName]) {
+                                inner = find(innerItems[fieldDesc.modelName], ii => (ii as User).userPrincipalName === upn);
+                            }
+                            // inner found
+                            if (inner) {
+                                innerResult[fieldDesc.modelName] = innerResult[fieldDesc.modelName] || [];
+                                innerResult[fieldDesc.modelName].push(inner);
+                            }
+                            else {
+                                upns.push(upn);
+                            }
+                        });
+                    }
+                });
+
+            }
+        }
+        const resultItems: { [modelName: string]: User[] } = innerResult;
+        
+        // Init queries       
+        const promises: Array<() => Promise<User[]>> = [];
+        for (const modelName in allUpns) {
+            if (allUpns.hasOwnProperty(modelName)) {
+                const upns = allUpns[modelName];
+                if (upns && upns.length > 0) {
+                    const options: IBaseSPServiceOptions = {};
+                    // for sp services
+                    if(this.serviceOptions.hasOwnProperty('baseUrl')) {
+                        options.baseUrl = (this.serviceOptions as IBaseSPServiceOptions).baseUrl;
+                    }
+                    const service = ServiceFactory.getServiceByModelName(modelName, options);
+                    promises.push(() => (service as UserService).getByEmails(upns));
+                }
+            }
+        }
+        // execute and store
+        const results = await UtilsService.executePromisesInStacks(promises, 3);
+        results.forEach(itemsTab => {
+            if (itemsTab.length > 0) {
+                resultItems[itemsTab[0].constructor["name"]] = resultItems[itemsTab[0].constructor["name"]] || [];
+                resultItems[itemsTab[0].constructor["name"]].push(...itemsTab);
+            }
+        });
+
+        // Associate to items
+        for (const propertyName in linkedFields) {
+            if (linkedFields.hasOwnProperty(propertyName)) {
+                const fieldDesc = linkedFields[propertyName];
+                const refCol = resultItems[fieldDesc.modelName];
+                items.forEach((item: T) => {
+                    const links = item.__getInternalLinks(propertyName);
+                    if (fieldDesc.fieldType === FieldType.User &&
+                        !stringIsNullOrEmpty(links)) {
+                        const litem = find(refCol, { userPrincipalName: links });
+                        if (litem) {
+                            item[propertyName] = litem;
+                        }
+
+                    }
+                    else if (fieldDesc.fieldType === FieldType.UserMulti &&
+                        links &&
+                        links.length > 0) {
+                        item[propertyName] = [];
+                        links.forEach((upn) => {
+                            const litem = find(refCol, { userPrincipalName: upn });
+                            if (litem) {
+                                item[propertyName].push(litem);
+                            }
+                        });
+                    }
+                });
+            }
+        }
+    }
 
     /************************** Query filters ***************************/
 
@@ -718,17 +870,11 @@ export class BaseRestService<T extends RestItem<string | number> | RestFile<stri
                 case FieldType.User:
                     const upn: string = restItem[fieldName];
                     if (!stringIsNullOrEmpty(upn)) {
-                        let user: User = null;
-                        if (this.isInitialized) {
-                            const users = this.getServiceInitValues(User);
-                            user = find(users, (u) => { return u.userPrincipalName?.toLowerCase() === upn?.toLowerCase(); });
-                        }
-                        else {
-                            const userService: UserService = ServiceFactory.getService(User).cast<UserService>();
-                            user = new User();
-                            user.userPrincipalName = upn;
-                            user = await userService.linkToSpUser(user);
-                        }
+                        let user: User = null;                        
+                        const userService: UserService = ServiceFactory.getService(User).cast<UserService>();
+                        user = new User();
+                        user.userPrincipalName = upn;
+                        user = await userService.linkToSpUser(user);
                         item[prop] = user;
                     }
                     else {

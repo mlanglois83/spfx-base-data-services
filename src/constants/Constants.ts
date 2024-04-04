@@ -36,37 +36,58 @@ export const Constants = {
      * Default cache keys
      */
     cacheKeys: {
+        
         /**
-         * Termsset sort order, {0} --> site relative url, {1} --> Termset name or id
+         * Termsset sort order, 
+         * {0} --> app key
+         * {1} --> site relative url, 
+         * {2} --> Termset name or id
          */
-        termsetCustomOrder: "spfxdataservice-ts-custom-order-{0}-{1}",
+        termsetCustomOrder: "spfxdataservice-ts-custom-order-{0}-{1}-{2}",
         /**
-         * Termsset site collection group id, {0} --> site relative url, {1} --> Termset name or id
+         * Termsset site collection group id, 
+         * {0} --> app key
+         * {1} --> site relative url, 
+         * {2} --> Termset name or id
          */
-        termsetSiteCollectionGroupId: "spfxdataservice-ts-sitecollection-group-id-{0}-{1}",
+        termsetSiteCollectionGroupId: "spfxdataservice-ts-sitecollection-group-id-{0}-{1}-{2}",
         /**
-         * Termsstore language, {0} --> site relative url
+         * Termsstore language, 
+         * {0} --> app key
+         * {1} --> site relative url
          */
-        termStoreDefaultLanguageTag: "spfxdataservice-termstore-default-language-{0}",
+        termStoreDefaultLanguageTag: "spfxdataservice-termstore-default-language-{0}-{1}",
         /**
-         * Termsset id, {0} --> site relative url, {1} --> Termset name or id
+         * Termsset id, 
+         * {0} --> app key
+         * {1} --> site relative url, 
+         * {2} --> Termset name or id
          */
-        termsetId: "spfxdataservice-ts-id-{0}-{1}",
-        /**
-         * Cache key for data service
-         * {0} --> web server relative url
-         * {1} --> service name
-         * {2} --> operation key
-         */
-        latestDataLoadFormat: "spfxdataservice-latestDataLoad-{0}-{1}-{2}-{3}",
+        termsetId: "spfxdataservice-ts-id-{0}-{1}-{2}",
         /**
          * Cache key for data service
          * {0} --> app key
          * {1} --> web server relative url
          * {2} --> service name
+         * {3} --> operation key
          */
-        localStorageTableFormat: "spfxdataservice-table-{0}-{1}-{2}"
-
+        latestDataLoadFormat: "spfxdataservice-latestDataLoad-{0}-{1}-{2}-{3}-{4}",
+        /**
+         * Cache key for data service
+         * {0} --> app key
+         * {1} --> web server relative url
+         * {2} --> service name
+         * {3} --> service args hashcode
+         * {4} --> key
+         */
+        localStorageTableFormat: "spfxdataservice-table-{0}-{1}-{2}",
+        /**
+         * DbName
+         * {0} --> app key
+         * {1} --> web server relative url
+         * {2} --> dbName
+         */
+        dbNameFormat: "{0}-{1}-{2}"
     },
     /**
      * Constants for SP Taxaonomy hidden list

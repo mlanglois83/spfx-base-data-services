@@ -73,6 +73,7 @@ export class ServicesConfiguration {
         onlineCheckPage: "",
         context: null,
         currentUserId: -1,
+        serviceKey: "global",
         translations: {
             AddLabel: "Add",
             DeleteLabel: "Delete",
@@ -97,6 +98,7 @@ export class ServicesConfiguration {
         configuration.lastConnectionCheckResult = false;
         configuration.checkOnline = configuration.checkOnline === true;
         configuration.useLocalStorage = configuration.useLocalStorage === true;
+        configuration.serviceKey = configuration.serviceKey || "global";
         configuration.translations = configuration.translations || {
             AddLabel: "Add",
             DeleteLabel: "Delete",

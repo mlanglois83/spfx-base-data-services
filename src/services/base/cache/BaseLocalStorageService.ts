@@ -16,7 +16,7 @@ export class BaseLocalStorageService<T extends IBaseItem<string | number>> exten
     
 
     private get cacheKey() {
-        return UtilsService.formatText(Constants.cacheKeys.localStorageTableFormat, ServicesConfiguration.configuration.serviceKey, ServicesConfiguration.baseUrl, this.tableName);
+        return UtilsService.formatText(Constants.cacheKeys.localStorageTableFormat, ServicesConfiguration.configuration.serviceKey, this.cacheUrl, this.tableName);
     }
 
     protected async getAllKeysInternal<TKey extends number | string>(): Promise<Array<TKey>> {

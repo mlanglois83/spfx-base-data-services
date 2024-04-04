@@ -56,7 +56,34 @@ export abstract class BaseUserService<T extends User> extends BaseSPService<T> {
     }
 
     protected async get_Query(query: IQuery<User>): Promise<Array<any>> {
-        let queryStr = (query.test as IPredicate<User, keyof User>).value;
+        const property = (query.test as IPredicate<User, keyof User>).propertyName;
+        const operator = (query.test as IPredicate<User, keyof User>).operator;
+        if(property === 'displayName' && operator === TestOperator.BeginsWith) {
+            return this.searchByDisplayName_Query((query.test as IPredicate<User, keyof User>).value);
+        }
+        if(operator === TestOperator.In) {
+            let userProp: string;
+            switch(property) {
+                case "displayName":
+                    userProp = 'Title';
+                    break;
+                case "userPrincipalName":
+                    userProp = 'UserPrincipalName';
+                    break;
+                case "id":
+                    userProp = 'Id';
+                    break;
+                default:
+                    break
+            }
+            return this.getByPropertyMulti_query(userProp, (query.test as IPredicate<User, keyof User>).value);
+        }
+        return [];
+        
+    }
+
+    protected async searchByDisplayName_Query(displayName): Promise<any[]> {
+        let queryStr = displayName;
         queryStr = queryStr.trim();
         let reverseFilter = queryStr;
         const parts = queryStr.split(" ");
@@ -115,6 +142,50 @@ export abstract class BaseUserService<T extends User> extends BaseSPService<T> {
         }
     }
 
+    protected getFilterValueString<TVal extends string | number>(value: TVal) {
+        if(typeof(value) === "string") {
+            return `'${value}'`
+        }
+        else return value.toString();
+    }
+
+    protected async getByPropertyMulti_query<TVal extends string | number>(propertyName: string, values: TVal[]) {
+        const results: Array<any> = [];
+        const copy = cloneDeep(values);
+        const batchesIndex = [];
+        while (copy.length > 0) {
+            const sub = copy.splice(0, 5);
+            batchesIndex.push(sub);
+        }
+        if(ServicesConfiguration.configuration.spVersion !== "SP2013") {
+            const batches = [];            
+            const copyIndex = cloneDeep(batchesIndex);
+            while (copyIndex.length > 0) {
+                const sub = copyIndex.splice(0, 100);
+                const [batchedSP, execute] = this.sp.batched();
+                sub.forEach((dns: string[]) => {
+                    batchedSP.web.siteUsers.filter(dns.map(dn => `${propertyName} eq ${this.getFilterValueString(dn)}`).join(' or ')).select("Id", "UserPrincipalName", "Email", "Title", "IsSiteAdmin")().then((spusers) => {
+                        if (spusers) {
+                            results.push(...spusers);
+                        }
+                    });
+                });
+                batches.push(execute);
+            }
+            await UtilsService.runBatchesInStacks(batches, 3);
+        }
+        else {
+            const promises = batchesIndex.map(dns => ((): Promise<ISiteUserInfo[]> => this.sp.web.siteUsers.filter(dns.map(dn => `${propertyName} eq ${this.getFilterValueString(dn)}`).join(' or ')).select("Id", "UserPrincipalName", "Email", "Title", "IsSiteAdmin")()));
+            const responses = await UtilsService.executePromisesInStacks(promises, 3);
+            responses.forEach((spus) => {
+                if (spus) {
+                    results.push(...spus);
+                }
+            });
+        }
+        return results;
+    }
+
 
     protected async addOrUpdateItem_Internal(item: T): Promise<T> {
         console.log("[" + this.serviceName + ".addOrUpdateItem_Internal] - " + JSON.stringify(item));
@@ -162,43 +233,16 @@ export abstract class BaseUserService<T extends User> extends BaseSPService<T> {
     }
 
     public async getItemsById_Query(ids: Array<number>): Promise<Array<any>> {
-        // TODO ON PREM
-        const results: Array<any> = [];
-        if(ServicesConfiguration.configuration.spVersion !== "SP2013") {
-            const batches = [];
-            const copy = cloneDeep(ids);
-            while (copy.length > 0) {
-                const sub = copy.splice(0, 100);
-                const [batchedSP, execute] = this.sp.batched();
-                sub.forEach((id) => {
-                    batchedSP.web.siteUsers.getById(id).select("Id", "UserPrincipalName", "Email", "Title", "IsSiteAdmin")().then((spu) => {
-                        if (spu) {
-                            results.push(spu);
-                        }
-                        else {
-                            console.log(`[${this.serviceName}] - user with id ${id} not found`);
-                        }
-                    });
-                });
-                batches.push(execute);
+        return this.get_Query({ 
+            test: { 
+                type: "predicate", 
+                propertyName: "id", 
+                operator: TestOperator.In, 
+                value: ids 
             }
-            await UtilsService.runBatchesInStacks(batches, 3);
-        }
-        else {
-            const promises = ids.map(id => ((): Promise<ISiteUserInfo> => this.sp.web.siteUsers.getById(id).select("Id", "UserPrincipalName", "Email", "Title", "IsSiteAdmin")()));
-            const responses = await UtilsService.executePromisesInStacks(promises, 3);
-            responses.forEach((spu, idx) => {
-                if (spu) {
-                    results.push(spu);
-                }
-                else {
-                    console.log(`[${this.serviceName}] - user with id ${ids[idx]} not found`);
-                }
-            });
-        }
-        return results;
-        
+        });        
     }
+
 
     public async linkToSpUser(user: T): Promise<T> {
         // user is not registered (or created offline)    
@@ -253,6 +297,27 @@ export abstract class BaseUserService<T extends User> extends BaseSPService<T> {
             });
         }
         return users;
+    }
+
+    public async getByEmails(emails: Array<string>): Promise<Array<T>> {
+        return this.get({ 
+            test: { 
+                type: "predicate", 
+                propertyName: "userPrincipalName", 
+                operator: TestOperator.In, 
+                value: emails 
+            }
+        });        
+    }
+    public async getByDisplayNames(displayNames: Array<string>): Promise<Array<T>> {
+        return this.get({ 
+            test: { 
+                type: "predicate", 
+                propertyName: "displayName", 
+                operator: TestOperator.In, 
+                value: displayNames 
+            }
+        });        
     }
 
     public static getPictureUrl(user: User, size: PictureSize = PictureSize.Large): string {

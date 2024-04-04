@@ -443,7 +443,7 @@ export class UtilsService extends BaseService {
    * Stored promises to avoid multiple calls
    */
   protected static get promiseVarName(): string {
-    return Constants.windowVars.promiseVarName + (ServicesConfiguration.configuration.serviceKey ? "-" + ServicesConfiguration.configuration.serviceKey : "");
+    return Constants.windowVars.promiseVarName + "-" + ServicesConfiguration.configuration.serviceKey;
   }
   protected static getExistingPromise<T>(key: string): Promise<T> {
     if (window[UtilsService.promiseVarName] && window[UtilsService.promiseVarName][key]) {
