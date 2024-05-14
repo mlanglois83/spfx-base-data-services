@@ -172,7 +172,7 @@ export abstract class BaseUserService<T extends User> extends BaseDataService<T>
                 const sub = copy.splice(0, 100);
                 const batch = sp.createBatch();
                 sub.forEach((id) => {
-                    sp.web.siteUsers.getById(id).select("Id", "UserPrincipalName", "Email", "Title", "IsSiteAdmin").inBatch(batch).get().then((spu) => {
+                    sp.web.siteUsers.getById(id).select("Id", "UserPrincipalName", "Email", "LoginName", "Title", "IsSiteAdmin").inBatch(batch).get().then((spu) => {
                         if (spu) {
                             results.push(spu);
                         }
@@ -186,7 +186,7 @@ export abstract class BaseUserService<T extends User> extends BaseDataService<T>
             await UtilsService.runBatchesInStacks(batches, 3);
         }
         else {
-            const promises = ids.map(id => ((): Promise<ISiteUserInfo> => sp.web.siteUsers.getById(id).select("Id", "UserPrincipalName", "Email", "Title", "IsSiteAdmin").get()));
+            const promises = ids.map(id => ((): Promise<ISiteUserInfo> => sp.web.siteUsers.getById(id).select("Id", "UserPrincipalName", "Email", "LoginName", "Title", "IsSiteAdmin").get()));
             const responses = await UtilsService.executePromisesInStacks(promises, 3);
             responses.forEach((spu, idx) => {
                 if (spu) {
@@ -218,7 +218,7 @@ export abstract class BaseUserService<T extends User> extends BaseDataService<T>
                 }
                 // register user
                 const result = await sp.web.ensureUser(user[BaseUserService.userField]);
-                const userItem = await result.user.select("Id", "UserPrincipalName", "Email", "Title", "IsSiteAdmin").get();
+                const userItem = await result.user.select("Id", "UserPrincipalName", "Email", "LoginName", "Title", "IsSiteAdmin").get();
                 user = new this.itemType(userItem);
                 // cache 
                 const dbresult = await this.dbService.addOrUpdateItem(user);
