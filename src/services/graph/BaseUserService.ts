@@ -164,7 +164,7 @@ export abstract class BaseUserService<T extends User> extends BaseSPService<T> {
                 const sub = copyIndex.splice(0, 100);
                 const [batchedSP, execute] = this.sp.batched();
                 sub.forEach((dns: string[]) => {
-                    batchedSP.web.siteUsers.filter(dns.map(dn => `${propertyName} eq ${this.getFilterValueString(dn)}`).join(' or ')).select("Id", "UserPrincipalName", "Email", "Title", "IsSiteAdmin")().then((spusers) => {
+                    batchedSP.web.siteUsers.filter(dns.map(dn => `${propertyName} eq ${this.getFilterValueString(dn)}`).join(' or ')).select("Id", "UserPrincipalName", "Email", "Title", "LoginName" , "IsSiteAdmin")().then((spusers) => {
                         if (spusers) {
                             results.push(...spusers);
                         }
@@ -175,7 +175,7 @@ export abstract class BaseUserService<T extends User> extends BaseSPService<T> {
             await UtilsService.runBatchesInStacks(batches, 3);
         }
         else {
-            const promises = batchesIndex.map(dns => ((): Promise<ISiteUserInfo[]> => this.sp.web.siteUsers.filter(dns.map(dn => `${propertyName} eq ${this.getFilterValueString(dn)}`).join(' or ')).select("Id", "UserPrincipalName", "Email", "Title", "IsSiteAdmin")()));
+            const promises = batchesIndex.map(dns => ((): Promise<ISiteUserInfo[]> => this.sp.web.siteUsers.filter(dns.map(dn => `${propertyName} eq ${this.getFilterValueString(dn)}`).join(' or ')).select("Id", "UserPrincipalName", "Email", "LoginName", "Title", "IsSiteAdmin")()));
             const responses = await UtilsService.executePromisesInStacks(promises, 3);
             responses.forEach((spus) => {
                 if (spus) {
@@ -261,7 +261,7 @@ export abstract class BaseUserService<T extends User> extends BaseSPService<T> {
                 }
                 // register user
                 const result = await this.sp.web.ensureUser(user[BaseUserService.userField]);
-                const userItem = await result.user.select("Id", "UserPrincipalName", "Email", "Title", "IsSiteAdmin")();
+                const userItem = await result.user.select("Id", "UserPrincipalName", "Email", "LoginName", "Title", "IsSiteAdmin")();
                 user = new this.itemType(userItem);
                 // cache 
                 if(this.hasCache) {
