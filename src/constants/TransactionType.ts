@@ -3,5 +3,6 @@
  */
 export enum TransactionType {
     AddOrUpdate = "AddOrUpdate",
-    Delete = "Delete"
+    Delete = "Delete",
+    Recycle = "Recycle"
 }

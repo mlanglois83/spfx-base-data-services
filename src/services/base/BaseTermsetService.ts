@@ -1,8 +1,9 @@
 import { dateAdd, PnPClientStorage, stringIsNullOrEmpty } from "@pnp/core";
+import { spfi, SPFx, SPFxToken } from "@pnp/sp";
 import "@pnp/sp/sites";
-import { IOrderedTermInfo, ITermSet } from "@pnp/sp/taxonomy";
+import { IOrderedTermInfo, ITermInfo, ITermSet } from "@pnp/sp/taxonomy";
 import "@pnp/sp/webs";
-import { find, findIndex } from "lodash";
+import { assign, cloneDeep, find, findIndex } from "lodash";
 import { ServicesConfiguration } from "../../configuration";
 import { Constants, TraceLevel } from "../../constants/index";
 import { Decorators } from "../../decorators";
@@ -26,7 +27,7 @@ export class BaseTermsetService<
     protected serviceOptions: IBaseTermsetServiceOptions;
 
     protected termsetnameorid: string;
-    
+
     protected set customSortOrder(value: string) {
         localStorage.setItem(UtilsService.formatText(Constants.cacheKeys.termsetCustomOrder, ServicesConfiguration.configuration.serviceKey, this.cacheKeyUrl, this.serviceName), value ? value : "");
     }
@@ -115,8 +116,9 @@ export class BaseTermsetService<
      * Associated termset (pnpjs)
      */
     @trace(TraceLevel.ServiceUtilities)
-    protected async GetTermset(): Promise<ITermSet> {
+    protected async GetTermset(withtoken = false): Promise<ITermSet> {
         return this.callAsyncWithPromiseManagement(async () => {
+            const sp = withtoken && stringIsNullOrEmpty(this.baseUrl) ? spfi().using(SPFx(ServicesConfiguration.context), SPFxToken(ServicesConfiguration.context)) : this.sp;
             if (
                 stringIsNullOrEmpty(this.tsId) &&
                 this.termsetnameorid.match(/[A-z0-9]{8}-([A-z0-9]{4}-){3}[A-z0-9]{12}/)
@@ -126,7 +128,7 @@ export class BaseTermsetService<
             if (stringIsNullOrEmpty(this.tsId)) {
                 if (this.serviceOptions.isGlobal) {
                     const [termsets, tsLngTag] = await Promise.all([
-                        this.sp.termStore.sets(),
+                        sp.termStore.sets(),
                         BaseTermsetService.initTermStoreDefaultLanguageTag(this.cacheKeyUrl),
                     ]);
                     const ts = find(termsets, (t) =>
@@ -139,7 +141,7 @@ export class BaseTermsetService<
                     if (ts) {
                         this.tsId = ts.id;
                         this.customSortOrder = ts.customSortOrder?.join(":");
-                        return this.sp.termStore.sets.getById(this.tsId);
+                        return sp.termStore.sets.getById(this.tsId);
                     } else {
                         throw new Error("Termset not found: " + this.termsetnameorid);
                     }
@@ -147,7 +149,7 @@ export class BaseTermsetService<
                     const groupId =
                         await this.getSiteCollectionGroupId();
                     const [termsets, tsLngTag] = await Promise.all([
-                        this.sp.termStore.groups.getById(groupId).sets(),
+                        sp.termStore.groups.getById(groupId).sets(),
                         BaseTermsetService.initTermStoreDefaultLanguageTag(this.cacheKeyUrl),
                     ]);
                     const ts = find(termsets, (t) =>
@@ -160,7 +162,7 @@ export class BaseTermsetService<
                     if (ts) {
                         this.tsId = ts.id;
                         this.customSortOrder = ts.customSortOrder?.join(":");
-                        return this.sp.termStore.sets.getById(this.tsId);
+                        return sp.termStore.sets.getById(this.tsId);
                     } else {
                         throw new Error(
                             "Termset not found in site collection group: " +
@@ -169,7 +171,7 @@ export class BaseTermsetService<
                     }
                 }
             } else {
-                return this.sp.termStore.sets.getById(this.tsId);
+                return sp.termStore.sets.getById(this.tsId);
             }
         }, "getTermSet");            
     }
@@ -220,7 +222,7 @@ export class BaseTermsetService<
         return result;
     }
 
-    protected populateTerm(term: IOrderedTermInfo, basePath: string): T {
+    protected populateTerm(term: IOrderedTermInfo | ITermInfo, basePath: string): T {
         const result: T = new this.itemType();
         // common properties
         result.id = term.id;
@@ -237,8 +239,8 @@ export class BaseTermsetService<
         result.description = this.getTermDescription(term);
         // path
         result.path = stringIsNullOrEmpty(basePath)
-            ? term.defaultLabel
-            : basePath + ";" + term.defaultLabel;
+            ? result.title
+            : basePath + ";" + result.title;
         // properties
         result.customProperties = this.getTermProperties(term);
         // wssids
@@ -252,7 +254,32 @@ export class BaseTermsetService<
         return result;
     }
 
-    protected getTermTitle(term: IOrderedTermInfo): string {
+    protected async convertItem(item: T): Promise<Partial<Pick<ITermInfo, "labels" | "descriptions" | "properties">>> {
+        const lng = await BaseTermsetService.getTermStoreDefaultLanguageTag(this.cacheKeyUrl);
+        return  this.convertItemSync(item, lng);
+    }
+
+    protected convertItemSync(item: T, language: string): Partial<Pick<ITermInfo, "labels" | "descriptions" | "properties">> {
+        return  {
+            descriptions: [
+                {
+                    description: item.description,
+                    languageTag: language
+                }
+            ],
+            labels: [
+                {
+                    isDefault: true,
+                    languageTag: language,
+                    name: item.title
+                }
+            ],
+            properties: item.customProperties ? Object.keys(item.customProperties).map(k => ({key: k, value: item.customProperties[k]})) : [],
+            isDeprecated: item.isDeprecated
+        } as unknown as Partial<Pick<ITermInfo, "labels" | "descriptions" | "properties">>;
+    }
+
+    protected getTermTitle(term: IOrderedTermInfo | ITermInfo): string {
         return this.getTranslatedLabel(
             term.labels
                 .filter((l) => l.isDefault)
@@ -262,7 +289,7 @@ export class BaseTermsetService<
         );
     }
 
-    protected getTermDescription(term: IOrderedTermInfo): string {
+    protected getTermDescription(term: IOrderedTermInfo | ITermInfo): string {
         return this.getTranslatedLabel(
             term.descriptions.map((l) => {
                 return { label: l.description, languageTag: l.languageTag };
@@ -281,7 +308,7 @@ export class BaseTermsetService<
         }
         return parts.reverse().join(";");
     }
-    protected getTermProperties(term: IOrderedTermInfo): {
+    protected getTermProperties(term: IOrderedTermInfo | ITermInfo): {
         [key: string]: string;
     } {
         const result: { [key: string]: string } = {};
@@ -469,53 +496,186 @@ export class BaseTermsetService<
     }
 
     public async getItemById_Query(id: string): Promise<any> {
-        console.error("[" + this.serviceName + ".getItemById_Query] - " + id);
+        console.error(
+            "[" + this.serviceName + ".getItemById_Query] - " + id
+        );
         throw new Error("Not implemented");
     }
+
     public async getItemsById_Query(ids: Array<string>): Promise<Array<any>> {
         console.error(
             "[" + this.serviceName + ".getItemsById_Query] - " + ids.join(", ")
         );
         throw new Error("Not implemented");
     }
-
+    
     protected async addOrUpdateItem_Internal(item: T): Promise<T> {
-        console.error(
-            "[" +
-            this.serviceName +
-            ".addOrUpdateItem_Internal] - " +
-            JSON.stringify(item)
-        );
-        throw new Error("Not implemented");
+        const result = cloneDeep(item);
+        if(stringIsNullOrEmpty(result.path)) {
+            result.path = result.title;
+        }
+        await this.Init();
+        const [termset, allterms] = await Promise.all([
+            this.GetTermset(true), 
+            this.getAll()
+        ]);
+        const containerTerm = allterms.find(t => t.isParentOf(item));
+        const converted = await this.convertItem(item);
+        let spResult: ITermInfo;
+        try {        
+            if (item.isLocal) {                
+                if(containerTerm === undefined) {
+                    spResult = await termset.children.add(converted as unknown as Pick<ITermInfo, "labels">);
+                }
+                else {
+                    spResult = await termset.getTermById(containerTerm.id).children.add(converted as unknown as Pick<ITermInfo, "labels">);
+                }            
+            }
+            else {
+                spResult = (await termset.getTermById(result.id).update(converted) as unknown as ITermInfo);       
+            }       
+            assign(result, this.populateTerm(spResult as unknown as ITermInfo, containerTerm?.path));
+            result.customProperties = cloneDeep(item.customProperties);  
+            if (item.isCreatedOffline) {
+                await this.updateLinksInDb(item.id, result.id);
+            } 
+            result.updatePath(item.path, item.path.split(';').pop(), result.title);     
+        }
+        catch(error) {
+            result.error = error;
+        }
+        return result;
     }
 
+    
+
     protected async addOrUpdateItems_Internal(
-        items: Array<T> /*, onItemUpdated?: (oldItem: T, newItem: T) => void*/
+        items: Array<T> , onItemUpdated?: (oldItem: T, newItem: T) => void
     ): Promise<Array<T>> {
-        console.error(
-            "[" +
-            this.serviceName +
-            ".addOrUpdateItems_Internal] - " +
-            JSON.stringify(items)
-        );
-        throw new Error("Not implemented");
+        await this.Init();
+        const copy: Array<T> = cloneDeep(items);
+        copy.forEach(i => {
+            if(stringIsNullOrEmpty(i.path)) {
+                i.path = i.title;
+            }
+        })
+        let childrenWithLocalParent = copy.filter(t => copy.some(c => c.isParentOf(t) && c.isLocal));
+        const otherterms = copy.filter(t => !childrenWithLocalParent.some(c => c.path === t.path));        
+        const [allterms, termset, lng] = await Promise.all([
+            this.getAll(), 
+            this.GetTermset(true), 
+            BaseTermsetService.getTermStoreDefaultLanguageTag(this.cacheKeyUrl)
+        ]);
+
+        const getUpdatePromise = (item) => {
+            return () => {
+                const itemPath = item.path;
+                const isLocal = item.isLocal;
+                const isCreatedOffline = item.isCreatedOffline;
+                const itemId = item.id;
+                const customProperties = item.customProperties;
+                const currentIdx = copy.findIndex(i => i.path === itemPath);
+                const containerTerm = allterms.find(t => t.isParentOf(item));
+                const converted = this.convertItemSync(item, lng);
+                let promise: Promise<ITermInfo>;
+
+                if (isLocal) {                
+                    if(containerTerm === undefined) {
+                        promise = termset.children.add(converted as unknown as Pick<ITermInfo, "labels">);
+                    }
+                    else {
+                        promise = termset.getTermById(containerTerm.id).children.add(converted as unknown as Pick<ITermInfo, "labels">);
+                    }                                
+                }
+                else {
+                    promise = termset.getTermById(itemId).update(converted) as unknown as Promise<ITermInfo>;       
+                }      
+                promise.then(async (res) => {
+                    assign(copy[currentIdx], this.populateTerm(res as unknown as ITermInfo, containerTerm?.path));
+                    copy[currentIdx].customProperties = cloneDeep(customProperties);
+                    if(isLocal) {
+                        allterms.push(copy[currentIdx]);
+                    }
+                    if (isCreatedOffline) {
+                        await this.updateLinksInDb(itemId, copy[currentIdx].id);
+                    } 
+                    /* Path change */    
+                    const oldTitle = itemPath.split(';').pop();
+                    if(oldTitle !== copy[currentIdx].title) {
+                        /* Update path in results */
+                        copy.forEach(t => {
+                            t.updatePath(itemPath, oldTitle, copy[currentIdx].title);
+                        })
+                        /* Update path in local terms */
+                        allterms.forEach(t => {
+                            t.updatePath(itemPath, oldTitle, copy[currentIdx].title);
+                        })
+                        await this.updatePathesInDb(itemPath, oldTitle, copy[currentIdx].title);
+                    }
+                    
+                    onItemUpdated?.call(null, items[currentIdx], copy[currentIdx]);
+                }).catch(error => copy[currentIdx].error = error); 
+                return promise;
+            }
+        }
+
+        /* First add or update other */
+        if(otherterms.length > 0) {
+            const promiseGens = otherterms.map((item) => getUpdatePromise(item));
+            await UtilsService.executePromisesInStacks<ITermInfo>(promiseGens, 3);
+        }
+        /* with local parents */
+        let currentCount : number;
+        do {
+            const withParents = childrenWithLocalParent.filter(c => allterms.some(t=> t.isParentOf(c)));
+            childrenWithLocalParent = childrenWithLocalParent.filter(c => !withParents.some(t => t.id === c.id));
+            currentCount = withParents.length;
+            if(withParents.length > 0) {
+                const promiseGens = withParents.map((item) => getUpdatePromise(item));
+                await UtilsService.executePromisesInStacks<ITermInfo>(promiseGens, 3);
+            }
+        }
+        while(currentCount > 0);
+        return copy;           
     }
 
     protected async deleteItem_Internal(item: T): Promise<T> {
-        console.error(
-            "[" + this.serviceName + ".deleteItem_Internal] - " + JSON.stringify(item)
-        );
-        throw new Error("Not implemented");
+        
+        const result = cloneDeep(item);
+        await this.Init();
+        const termset = await this.GetTermset(true);
+        try {        
+            await termset.getTermById(item.id).delete();
+            result.deleted = true;         
+        }
+        catch(error) {
+            result.deleted = false;
+            result.error = error;
+        }
+        return result;
+        /* TODO : delete sub terms */
     }
 
     protected async deleteItems_Internal(items: Array<T>): Promise<Array<T>> {
-        console.error(
-            "[" +
-            this.serviceName +
-            ".deleteItems_Internal] - " +
-            JSON.stringify(items)
-        );
-        throw new Error("Not implemented");
+        await this.Init();        
+        const termset = await this.GetTermset(true);
+        const result: Array<T> = cloneDeep(items).sort((a,b) => b.path.localeCompare(a.path)); // first delete child
+        if(result.length > 0) {
+            const promiseGens = result.map(item => (() => {
+                const promise = termset.getTermById(item.id).delete().then(() => {
+                    item.deleted = true;
+                }).catch(error => {
+                    item.deleted = false
+                    item.error = error
+                });
+                return promise;
+            }))
+            await UtilsService.executePromisesInStacks(promiseGens, 3);
+        }
+        
+        return result; 
+        
+        /* TODO : delete sub terms */
     }
 
     protected async recycleItem_Internal(item: T): Promise<T> {
@@ -533,5 +693,13 @@ export class BaseTermsetService<
             JSON.stringify(items)
         );
         throw new Error("Not implemented");
+    }
+
+    protected async updatePathesInDb(oldPath:string, oldTitle: string, newTitle: string) {
+        if(this.hasCache) {
+            const allitems = await this.__getAllFromCache();
+            allitems.forEach(i => i.updatePath(oldPath, oldTitle, newTitle));
+            await this.cacheService.addOrUpdateItems(allitems);
+        }
     }
 }

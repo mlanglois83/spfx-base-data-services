@@ -44,7 +44,7 @@ export class TaxonomyTerm extends BaseStringItem {
             !stringIsNullOrEmpty(this.path) && 
             !stringIsNullOrEmpty(term.path) &&
             this.path.split(";").length + 1 === term.path.split(";").length &&
-            term.path.indexOf(this.path + ";") === 0
+            term.path.startsWith(this.path + ";")
         );
     }
     public contains(term: TaxonomyTerm): boolean {
@@ -54,6 +54,23 @@ export class TaxonomyTerm extends BaseStringItem {
             !stringIsNullOrEmpty(term.path) &&
             term.path.indexOf(this.path + ";") === 0
         );
+    }
+
+    public updatePath(oldPath:string, oldTitle: string, newTitle: string): void {
+        this.path = this.path || this.title;
+        const oldParts = oldPath.split(';');
+        const newPath = oldParts.map((p, i)  => 
+            (i === oldParts.length - 1 && p === oldTitle) ?
+            newTitle
+            :
+            p
+        ).join(';');
+        if(this.path.startsWith(newPath + ';')) {
+            this.path = this.path.replace(oldPath + ';', newPath + ';');
+        }
+        else if(this.path === oldPath) {
+            this.path = newPath;
+        }
     }
 
 }

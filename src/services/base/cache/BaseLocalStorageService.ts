@@ -108,6 +108,25 @@ export class BaseLocalStorageService<T extends IBaseItem<string | number>> exten
         }
         return items;
     }
+    
+    public recycleItem(item: T): Promise<T> {
+        console.error(
+            "[" +
+            this.serviceName +
+            ".recycleItem] - " +
+            JSON.stringify(item)
+        );
+        throw new Error("Not implemented");
+    }
+    public recycleItems(items: T[]): Promise<T[]> {
+        console.error(
+            "[" +
+            this.serviceName +
+            ".recycleItems] - " +
+            JSON.stringify(items)
+        );
+        throw new Error("Not implemented");
+    }
 
 
     @trace(TraceLevel.DataBase)

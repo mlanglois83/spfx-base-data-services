@@ -571,7 +571,7 @@ export class BaseRestService<T extends RestItem<string | number> | RestFile<stri
     }
 
     @trace(TraceLevel.Internal)
-    protected recycleItem_Internal(items: T[]): Promise<T[]> {
+    protected recycleItem_Internal(items: T): Promise<T> {
         throw new Error("Method not implemented." + JSON.stringify(items));
     }
 

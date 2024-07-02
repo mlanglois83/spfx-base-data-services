@@ -46,6 +46,8 @@ export abstract class BaseCacheService<T extends IBaseItem<string | number>> ext
     public abstract addOrUpdateItems(items: T[], onItemUpdated?: (oldItem: T, newItem: T) => void, onRefreshItems?: (index: number, length: number) => void): Promise<T[]>;
     public abstract deleteItem(item: T): Promise<T>;
     public abstract deleteItems(items: T[]): Promise<T[]>;
+    public abstract recycleItem(item: T): Promise<T>;
+    public abstract recycleItems(items: T[]): Promise<T[]>;
     public abstract getItemById(id: string | number): Promise<T>;
     public abstract getItemsById(ids: (string | number)[]): Promise<T[]>;
     public abstract replaceAll(newItems: Array<T>);

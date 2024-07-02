@@ -877,6 +877,47 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
         return item;
     }
 
+    protected abstract recycleItem_Internal(item: T): Promise<T>;
+
+    @trace(TraceLevel.Service)
+    public async recycleItem(item: T): Promise<T> {
+        item.error = undefined;
+        if (item.id === item.defaultKey) {
+            item.deleted = true;
+        }
+        else {
+            let isconnected = true;
+            if (ServicesConfiguration.configuration.checkOnline) {
+                isconnected = navigator.onLine;
+            }
+            if (isconnected) {
+                if (!item.isLocal) {
+                    item = await this.recycleItem_Internal(item);
+                }
+                if ((item.deleted || item.isCreatedOffline) && this.hasCache) {
+                    try {
+                        item = await this.cacheService.deleteItem(item);
+                    }
+                    catch(error) {
+                        console.error(error);
+                    }
+                }
+            }
+            else {
+                item = await this.cacheService.deleteItem(item);
+
+                // create a new transaction
+                const ot: OfflineTransaction = new OfflineTransaction();
+                const converted = this.convertItemToDbFormat(item);
+                ot.itemData = assign({}, converted);
+                ot.itemType = item.constructor["name"];
+                ot.title = TransactionType.Recycle;
+                await this.transactionService.addOrUpdateItem(ot);
+            }
+        }
+        return item;
+    }
+
     protected abstract recycleItems_Internal(items: Array<T>): Promise<Array<T>>;
 
     @trace(TraceLevel.Service)
@@ -890,7 +931,7 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
             isconnected = navigator.onLine;
         }
         if (isconnected) {
-            await this.deleteItems_Internal(items.filter(i => !i.isLocal));
+            await this.recycleItems(items.filter(i => !i.isLocal));
             if(this.hasCache) {
                 try {
                     await this.cacheService.deleteItems(items.filter(i => i.deleted || i.isCreatedOffline));
@@ -1509,7 +1550,7 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
     }
 
     @trace(TraceLevel.ServiceUtilities)
-    protected async updateLinksInDb(oldId: number, newId: number): Promise<void> {
+    protected async updateLinksInDb(oldId: number | string, newId: number | string): Promise<void> {
         const allFields = assign({}, this.itemType["Fields"]);
         let parentType = this.itemType;
         do {
@@ -1537,7 +1578,8 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
                             let needUpdate = false;
                             lookupProperties.forEach(propertyName => {
                                 const fieldDescription = modelFields[propertyName];
-                                if (fieldDescription.fieldType === FieldType.Lookup) {
+                                
+                                if (fieldDescription.fieldType === FieldType.Lookup || fieldDescription.fieldType === FieldType.Taxonomy) {
                                     if (fieldDescription.modelName) {
                                         // search in internalLinks
                                         const link = element.__getInternalLinks(propertyName);
@@ -1552,7 +1594,7 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
                                         needUpdate = true;
                                     }
                                 }
-                                else if (fieldDescription.fieldType === FieldType.LookupMulti) {
+                                else if (fieldDescription.fieldType === FieldType.LookupMulti || fieldDescription.fieldType === FieldType.TaxonomyMulti) {
                                     if (fieldDescription.modelName) {
                                         // search in internalLinks
                                         const links = element.__getInternalLinks(propertyName);

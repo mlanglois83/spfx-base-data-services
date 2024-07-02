@@ -230,6 +230,25 @@ export class BaseDbService<T extends IBaseItem<string | number>> extends BaseCac
         }
     }
 
+    public recycleItem(item: T): Promise<T> {
+        console.error(
+            "[" +
+            this.serviceName +
+            ".recycleItem] - " +
+            JSON.stringify(item)
+        );
+        throw new Error("Not implemented");
+    }
+    public recycleItems(items: T[]): Promise<T[]> {
+        console.error(
+            "[" +
+            this.serviceName +
+            ".recycleItems] - " +
+            JSON.stringify(items)
+        );
+        throw new Error("Not implemented");
+    }
+
     @trace(TraceLevel.DataBase)
     public async deleteItem(item: T): Promise<T> {
         if(!this.dbInitialized) {

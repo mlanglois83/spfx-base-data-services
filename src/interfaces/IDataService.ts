@@ -25,7 +25,7 @@ export interface IDataService<T extends IBaseItem<string | number>> {
      */
     addOrUpdateItems(items: Array<T>, onItemUpdated?: (oldItem: T, newItem: T) => void, onRefreshItems?: (index: number, length: number) => void): Promise<Array<T>>;
     /**
-     * Removes an item
+     * Removes items
      * @param item - instance of a Model that has to deleted
      */
     deleteItem(item: T): Promise<T>;
@@ -34,6 +34,16 @@ export interface IDataService<T extends IBaseItem<string | number>> {
      * @param item - instances of a Model that has to deleted
      */
     deleteItems(items: Array<T>): Promise<Array<T>>;
+    /**
+     * Removes an item (--> trash)
+     * @param item - instance of a Model that has to deleted
+     */
+    recycleItem(item: T): Promise<T>;
+    /**
+     * Removes items (--> trash)
+     * @param items - instances of a Model that has to deleted
+     */
+    recycleItems(items: Array<T>): Promise<Array<T>>;
     /**
      * Retrieve item by id
      * @param id - item id

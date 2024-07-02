@@ -60,7 +60,7 @@ export abstract class BaseItem<T extends string | number> implements IBaseItem<T
             this.id !== this.defaultKey
             &&
             (
-                (typeof(this.id) === "string" && this.id.indexOf(Constants.models.offlineCreatedPrefix) === 0)
+                (typeof(this.id) === "string" && this.id.startsWith(Constants.models.offlineCreatedPrefix))
                 ||
                 (typeof(this.id) === "number" && this.id < 0)
             )

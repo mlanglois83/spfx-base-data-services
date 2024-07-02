@@ -169,6 +169,15 @@ export class SynchronizationService extends BaseService {
                         errors.push(this.formatError(transaction, error.message));
                     }
                     break;
+                case TransactionType.Recycle:
+                    try {
+                        await dataService.recycleItem(item);
+                        await this.transactionService.deleteItem(transaction);
+                        SynchronizationService.emitItemSynchronized({ item: item, operation: TransactionType.Recycle });
+                    } catch (error) {
+                        errors.push(this.formatError(transaction, error.message));
+                    }
+                    break;
             }
         }
 
