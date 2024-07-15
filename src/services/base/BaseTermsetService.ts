@@ -1,5 +1,5 @@
 import { dateAdd, PnPClientStorage, stringIsNullOrEmpty } from "@pnp/core";
-import { spfi, SPFx, SPFxToken } from "@pnp/sp";
+import { spfi, SPFx, SPFxToken,  } from "@pnp/sp";
 import "@pnp/sp/sites";
 import { IOrderedTermInfo, ITermInfo, ITermSet } from "@pnp/sp/taxonomy";
 import "@pnp/sp/webs";
@@ -377,7 +377,7 @@ export class BaseTermsetService<
         const termset = await this.GetTermset();
         const store = new PnPClientStorage();
         return store.session.getOrPut(
-            this.serviceName + "-alltermsordered",
+            this.getCacheKey() + "-alltermsordered",
             () => {
                 return termset.getAllChildrenAsOrderedTreeFull();
             },
