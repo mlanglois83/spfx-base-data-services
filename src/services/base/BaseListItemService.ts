@@ -1063,30 +1063,29 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
                 if (fieldDescription.fieldType === FieldType.Attachment) {
                     const attachmentsItem = item[propertyName];
 
-                    let attachments = await spItem.item.attachmentFiles.get();
+                    let attachments = await spItem.item.attachmentFiles();
 
                     //delete attachments
                     const attachmentsToDelete = attachments.filter(attachment => {
                         return attachmentsItem.length === 0 || findIndex(attachmentsItem, (att: any) => att.id == attachment.ServerRelativeUrl) === -1;
                     });
                     if (attachmentsToDelete?.length > 0){
-                        await spItem.item.attachmentFiles.deleteMultiple(...attachmentsToDelete.map(attachment => attachment.FileName));
+                        for (let index = 0; index < attachmentsToDelete.length; index++) {
+                            const attachment = attachmentsToDelete[index];
+                            await spItem.item.attachmentFiles.getByName(attachment.FileName).delete();                         
+                        }
                     }
 
                     //add attachments
-                    const attachmentsToAdd = attachmentsItem.filter(attachment => attachment.id == null);
-                    console.log(attachmentsToAdd);
-                    if (attachmentsToAdd?.length > 0){
-                        const afis = attachmentsToAdd.map(attachment => {
-                            return {name: attachment.name ?? attachment.title, content: attachment.content ?? attachment._content};
-                        });
-                            
-                        if (afis.length > 0) {
-                            await spItem.item.attachmentFiles.addMultiple(afis);
+                    const attachmentsToAdd = attachmentsItem.filter(attachment => attachment.id == null);                    
+                    if (attachmentsToAdd?.length > 0){ 
+                        for (let index = 0; index < attachmentsToAdd.length; index++) {
+                            const attachment = attachmentsToAdd[index];
+                            await spItem.item.attachmentFiles.add(attachment.name ?? attachment.title, attachment.content ?? attachment._content);                            
                         }
-                    }                    
+                    }             
 
-                    attachments = await spItem.item.attachmentFiles.get();
+                    attachments = await spItem.item.attachmentFiles();
 
                     item[propertyName] = attachments?.map((attachment) => new SPFile(attachment));
                 }
