@@ -566,7 +566,7 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
                         const currentIdx = idx;
                         const itemId = item.id;
                         const converted = await this.convertItem(item);
-                        this.batchedList(batchedSp).items.select(...selectFields).add(converted).then(async (addResult: IItemAddResult) => {
+                        this.batchedList(batchedSp).items.add(converted).then(async (addResult: IItemAddResult) => {
                             await this.populateCommonFields(item, addResult.data);
                             await this.updateWssIds(item, addResult.data);
                             await this.updateAttachments(item, addResult);
