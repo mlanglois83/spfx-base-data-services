@@ -264,35 +264,44 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
     protected populateFieldValue(data: any, destItem: T, propertyName: string, fieldDescriptor: IFieldDescriptor): void {
         const defaultValue = cloneDeep(fieldDescriptor.defaultValue);
         fieldDescriptor.fieldType = fieldDescriptor.fieldType || FieldType.Simple;
+        let value = data[fieldDescriptor.fieldName];
+        if(fieldDescriptor.fieldName.indexOf("/") !== -1) {
+            const splitted = fieldDescriptor.fieldName.split("/");
+            let current = data;
+            splitted.forEach(s => {
+                current = current[s];
+            });
+            value = current;
+        }
         switch (fieldDescriptor.fieldType) {
             case FieldType.Simple:
             case FieldType.Boolean:
             case FieldType.Number:
-                destItem[propertyName] = data[fieldDescriptor.fieldName] !== null && data[fieldDescriptor.fieldName] !== undefined ? data[fieldDescriptor.fieldName] : defaultValue;
+                destItem[propertyName] = value !== null && value !== undefined ? value : defaultValue;
                 break;
             case FieldType.Url:
-                destItem[propertyName] = data[fieldDescriptor.fieldName] !== null && data[fieldDescriptor.fieldName] !== undefined ? {
-                    url: data[fieldDescriptor.fieldName].Url,
-                    description: data[fieldDescriptor.fieldName].Description
+                destItem[propertyName] = value !== null && value !== undefined ? {
+                    url: value.Url,
+                    description: value.Description
                  } : defaultValue;
                 break;
             case FieldType.Date:
-                destItem[propertyName] = data[fieldDescriptor.fieldName] ? new Date(data[fieldDescriptor.fieldName]) : defaultValue;
+                destItem[propertyName] = value ? new Date(value) : defaultValue;
                 break;
             case FieldType.Json:
-                if (data[fieldDescriptor.fieldName]) {
+                if (value) {
                     try {
                         if (fieldDescriptor.containsFullObject) {
                             if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                                 const itemType = ServiceFactory.getObjectTypeByName(fieldDescriptor.modelName);
-                                destItem[propertyName] = assign(new itemType(), data[fieldDescriptor.fieldName]);
+                                destItem[propertyName] = assign(new itemType(), value);
                             }
                             else {
-                                destItem[propertyName] = data[fieldDescriptor.fieldName];
+                                destItem[propertyName] = value;
                             }
                         }
                         else {
-                            const jsonObj = JSON.parse(data[fieldDescriptor.fieldName]);
+                            const jsonObj = JSON.parse(value);
                             if (!stringIsNullOrEmpty(fieldDescriptor.modelName)) {
                                 const itemType = ServiceFactory.getObjectTypeByName(fieldDescriptor.modelName);
                                 destItem[propertyName] = assign(new itemType(), jsonObj);

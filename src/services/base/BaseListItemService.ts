@@ -129,20 +129,6 @@ export class BaseListItemService<T extends SPItem> extends BaseSPService<T>{
                 if (fieldDescriptor.fieldName === Constants.commonFields.version) {
                     destItem[propertyName] = spitem[fieldDescriptor.fieldName] ? parseFloat(spitem[fieldDescriptor.fieldName]) : defaultValue;
                 }
-                // TODO: generalize
-                else if(fieldDescriptor.fieldName.indexOf("/") !== -1) {
-                    const splitteed = fieldDescriptor.fieldName.split("/");
-                    let current = spitem;
-                    splitteed.forEach(s => {
-                        current = current[s];
-                    });
-                    if(current) {
-                        destItem[propertyName] = current;
-                    }
-                    else {
-                        destItem[propertyName] = defaultValue;
-                    }
-                }
                 break;
             case FieldType.Lookup:  
             case FieldType.User:              
