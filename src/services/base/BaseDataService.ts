@@ -269,7 +269,9 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
             const splitted = fieldDescriptor.fieldName.split("/");
             let current = data;
             splitted.forEach(s => {
-                current = current[s];
+                if(current) {
+                    current = current[s];
+                }
             });
             value = current;
         }
