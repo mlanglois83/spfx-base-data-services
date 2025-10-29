@@ -785,12 +785,12 @@ export class BaseRestService<T extends RestItem<string | number> | RestFile<stri
             if (allUpns.hasOwnProperty(modelName)) {
                 const upns = allUpns[modelName];
                 if (upns && upns.length > 0) {
-                    const options: IBaseSPServiceOptions = {};
+                    /*const options: IBaseSPServiceOptions = {};
                     // for sp services
                     if(this.serviceOptions.hasOwnProperty('baseUrl')) {
                         options.baseUrl = (this.serviceOptions as IBaseSPServiceOptions).baseUrl;
-                    }
-                    const service = ServiceFactory.getServiceByModelName(modelName, options);
+                    }*/
+                    const service = ServiceFactory.getServiceByModelName(modelName);
                     promises.push(() => (service as UserService).getByEmails(upns));
                 }
             }

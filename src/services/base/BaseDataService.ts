@@ -1293,12 +1293,12 @@ export abstract class BaseDataService<T extends BaseItem<string | number>> exten
             if (allIds.hasOwnProperty(modelName)) {
                 const ids = allIds[modelName];
                 if (ids && ids.length > 0) {
-                    const options: IBaseSPServiceOptions = {};
+                    /*const options: IBaseSPServiceOptions = {};
                     // for sp services
                     if(this.serviceOptions.hasOwnProperty('baseUrl')) {
                         options.baseUrl = (this.serviceOptions as IBaseSPServiceOptions).baseUrl;
-                    }
-                    const service = ServiceFactory.getServiceByModelName(modelName, options);
+                    }*/
+                    const service = ServiceFactory.getServiceByModelName(modelName);
                     promises.push(() => service.getItemsById(ids));
                 }
             }

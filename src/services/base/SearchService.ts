@@ -405,12 +405,12 @@ protected async populateLinkedFields(items: T[], loadLinked?: string[], innerIte
       if (allDisplayNames.hasOwnProperty(modelName)) {
           const displayNames = allDisplayNames[modelName];
           if (displayNames && displayNames.length > 0) {
-              const options: IBaseSPServiceOptions = {};
+              /*const options: IBaseSPServiceOptions = {};
               // for sp services
               if(this.serviceOptions.hasOwnProperty('baseUrl')) {
                   options.baseUrl = (this.serviceOptions as IBaseSPServiceOptions).baseUrl;
-              }
-              const service = ServiceFactory.getServiceByModelName(modelName, options);
+              }*/
+              const service = ServiceFactory.getServiceByModelName(modelName);
               promises.push(() => (service as UserService).getByDisplayNames(displayNames));
           }
       }
