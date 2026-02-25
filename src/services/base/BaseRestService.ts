@@ -5,7 +5,7 @@ import { ServicesConfiguration } from "../../configuration";
 import { Constants, FieldType, TestOperator, TraceLevel } from "../../constants/index";
 import { Decorators } from "../../decorators";
 import { IEndPointBinding } from "../../interfaces/IEndPointBindings";
-import { IBaseRestServiceOptions, IBaseSPServiceOptions, IEndPointBindings, IFieldDescriptor, ILogicalSequence, IOrderBy, IPredicate, IQuery, IRestLogicalSequence, IRestPredicate, IRestQuery } from "../../interfaces/index";
+import { IBaseRestServiceOptions, IEndPointBindings, IFieldDescriptor, ILogicalSequence, IOrderBy, IPredicate, IQuery, IRestLogicalSequence, IRestPredicate, IRestQuery } from "../../interfaces/index";
 import { BaseItem, RestItem, RestResultMapping, User } from "../../models";
 import { RestFile } from "../../models/base/RestFile";
 import { ServiceFactory } from "../ServiceFactory";

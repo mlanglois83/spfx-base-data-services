@@ -5,6 +5,8 @@ import { IBaseSPServiceOptions } from "../../interfaces";
 import { BaseItem } from "../../models";
 import { UtilsService } from "../UtilsService";
 import { BaseDataService } from "./BaseDataService";
+import { BaseLocalStorageService } from "./cache/BaseLocalStorageService";
+import { BaseDbService } from "./cache/BaseDbService";
 
 export abstract class BaseSPService<T extends BaseItem<string | number>> extends BaseDataService<T> {
     protected serviceOptions: IBaseSPServiceOptions;
@@ -48,5 +50,11 @@ export abstract class BaseSPService<T extends BaseItem<string | number>> extends
      */
     constructor(itemType: (new (item?: any) => T), options?: IBaseSPServiceOptions, ...args: any[]) {
         super(itemType, options, ...args);  
+        if(ServicesConfiguration.configuration.useLocalStorage) {
+            this.cacheService = new BaseLocalStorageService<T>(itemType, itemType["name"], options.baseUrl);
+        }
+        else {
+            this.cacheService = new BaseDbService<T>(itemType, itemType["name"], options.baseUrl);
+        }
     }
 }

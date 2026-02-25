@@ -1,5 +1,5 @@
 import { assign, cloneDeep, find, findIndex } from "lodash";
-import { IDataService, IQuery, ILogicalSequence, IPredicate, IFieldDescriptor, IBaseDataServiceOptions, IBaseSPServiceOptions } from "../../interfaces";
+import { IDataService, IQuery, ILogicalSequence, IPredicate, IFieldDescriptor, IBaseDataServiceOptions } from "../../interfaces";
 import { BaseItem, OfflineTransaction, TaxonomyTerm } from "../../models";
 import { UtilsService } from "../UtilsService";
 import { TransactionService } from "../synchronization/TransactionService";

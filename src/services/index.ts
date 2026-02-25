@@ -9,6 +9,8 @@ export { BaseRestService } from "./base/BaseRestService";
 export { BaseTermsetService } from "./base/BaseTermsetService";
 export { BaseService } from "./base/BaseService";
 export { SearchService } from "./base/SearchService";
+export { BaseLocalStorageService } from "./base/cache/BaseLocalStorageService";
+export { BaseCacheService } from "./base/cache/BaseCacheService";
 
 export { UtilsService } from "./UtilsService";
 export { LoggingService } from "./LoggingService";
